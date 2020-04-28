@@ -10,6 +10,8 @@ TODO: Work with publish/subscribe to redis for hemt.enabled changes, and write t
  made. How do we want to confirm that commands have been successful and the change was made?
 """
 
+# TEST COMMIT COMMENT
+
 import serial
 import time, logging
 from datetime import datetime
