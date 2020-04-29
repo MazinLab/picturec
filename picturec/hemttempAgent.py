@@ -67,6 +67,7 @@ class Hemtduino(serial.Serial):
         self._arduino_send("ping")
 
         msg = self._arduino_receive()
+        print(msg)
         log.info(msg)
 
     def _arduino_send(self, command):
