@@ -10,8 +10,6 @@ TODO: Work with publish/subscribe to redis for hemt.enabled changes, and write t
  made. How do we want to confirm that commands have been successful and the change was made?
 """
 
-# TEST COMMIT COMMENT
-
 import serial
 import time, logging
 from datetime import datetime
@@ -21,14 +19,22 @@ START_MARKER = '<'
 END_MARKER = '>'
 REDIS_DB = 0
 
+logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
 
 class Hemtduino(serial.Serial):
     def __init__(self, port, baudrate, timeout=None, queryTime=1):
-        super(Hemtduino, self).__init__(port=port, baudrate=baudrate, timeout=timeout)
+        super(Hemtduino, self).__init__(baudrate=baudrate, timeout=timeout)
+        self.port = port
         self.queryTime = queryTime
+        try:
+            self.open()
+            log.debug(f"port{self.port} connection established")
+        except (serial.SerialException, IOError):
+            log.error(f"port {self.port} unavailable")
+
         self.redis = walrus.Walrus(host='localhost', port=6379, db=REDIS_DB)
         self.redis_ts = self.redis.time_series('hemttemp.stream', ['hemt_biases', 'one.wire.temps'])
 
@@ -37,7 +43,7 @@ class Hemtduino(serial.Serial):
         time.sleep(0.5)
         self.setDTR(True)
 
-    def _arduino_receive(self):
+    def _arduino_receive(self, dodisconnect=True):
         dataStarted = False
         messageComplete = False
         dataBuffer = ""
@@ -58,26 +64,33 @@ class Hemtduino(serial.Serial):
 
             elif messageComplete:
                 messageComplete = False
-                return dataBuffer
             else:
-                return "XXX"
+                dataBuffer = "XXX"
+
+            if dodisconnect:
+                self.close()
+            return dataBuffer
 
     def arduino_ping(self):
         log.debug("Waiting for Arduino")
         self._arduino_send("ping")
 
         msg = self._arduino_receive()
-        print(msg)
-        log.info(msg)
+        log.debug(msg)
 
-    def _arduino_send(self, command):
-        cmdWMarkers = START_MARKER
-        cmdWMarkers += command
-        cmdWMarkers += END_MARKER
+    def _arduino_send(self, command, doconnect=True):
+        if doconnect:
+            try:
+                self.open()
+                cmdWMarkers = START_MARKER
+                cmdWMarkers += command
+                cmdWMarkers += END_MARKER
 
-        log.debug("Writing...")
-        self.write(cmdWMarkers.encode("utf-8"))
-        time.sleep(0.5)
+                log.debug("Writing...")
+                self.write(cmdWMarkers.encode("utf-8"))
+                time.sleep(0.5)
+            except (serial.SerialException, IOError):
+                log.error("Port is inaccessible!")
 
     def format_value(self, message):
         message = message.split(' ')
