@@ -32,6 +32,7 @@ class Hemtduino(serial.Serial):
         try:
             self.open()
             log.debug(f"port{self.port} connection established")
+            self.close()
         except (serial.SerialException, IOError):
             log.error(f"port {self.port} unavailable")
 
@@ -51,6 +52,7 @@ class Hemtduino(serial.Serial):
         while True:
             if self.in_waiting > 0 and not messageComplete:
                 x = self.read().decode("utf-8")
+                log.debug(x)
 
                 if dataStarted:
                     if x is not END_MARKER:
@@ -64,12 +66,14 @@ class Hemtduino(serial.Serial):
 
             elif messageComplete:
                 messageComplete = False
+                break
             else:
                 dataBuffer = "XXX"
+                break
 
-            if dodisconnect:
-                self.close()
-            return dataBuffer
+        if dodisconnect:
+            self.close()
+        return dataBuffer
 
     def arduino_ping(self):
         log.debug("Waiting for Arduino")
@@ -82,6 +86,7 @@ class Hemtduino(serial.Serial):
         if doconnect:
             try:
                 self.open()
+                time.sleep(1)
                 cmdWMarkers = START_MARKER
                 cmdWMarkers += command
                 cmdWMarkers += END_MARKER
