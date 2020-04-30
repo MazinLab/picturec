@@ -25,22 +25,28 @@ log.setLevel(logging.DEBUG)
 
 
 class Hemtduino(object):
-    def __init__(self, port, baudrate, timeout=None, queryTime=1):
+    def __init__(self, port, baudrate=9600, timeout=None, queryTime=1):
+        self.ser = None
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
+        self.queryTime = queryTime
+        self.redis = walrus.Walrus(host='localhost', port=6379, db=REDIS_DB)
+        self.redis_ts = self.redis.time_series('hemttemp.stream', ['hemt_biases', 'one.wire.temps'])
+        self.setupSerial(port=port, baudrate=baudrate, timeout=timeout)
+
+    def setupSerial(self, port, baudrate=9600, timeout=1):
         self.ser = serial.Serial(baudrate=baudrate, timeout=timeout)
         self.ser.port = port
-        self.queryTime = queryTime
         try:
             self.ser.open()
             log.debug(f"port {self.ser.port} connection established")
         except (serial.SerialException, IOError):
             log.error(f"port {self.ser.port} unavailable")
 
-        self.redis = walrus.Walrus(host='localhost', port=6379, db=REDIS_DB)
-        self.redis_ts = self.redis.time_series('hemttemp.stream', ['hemt_biases', 'one.wire.temps'])
-
-    # def setupSerial(self, port, baudrate, timeout):
-
     def connect(self):
+        if self.ser is None:
+            self.setupSerial(self.port, self.baudrate, self.timeout)
         try:
             assert self.ser.isOpen()
             return "o"
@@ -53,12 +59,19 @@ class Hemtduino(object):
             except IOError:
                 self.ser.close()
                 self.ser = None
-                log.warning("Error occured in trying to open port. Check for disconnects")
+                log.warning("Error occurred in trying to open port. Check for disconnects")
                 return "c"
+
+    def disconnect(self):
+        try:
+            self.ser.close()
+            self.ser = None
+        except Exception as e:
+            print(e)
 
     def send(self, msg):
         connected = self.connect()
-        if connected:
+        if connected is "o":
             cmdWMarkers = START_MARKER
             cmdWMarkers += msg
             cmdWMarkers += END_MARKER
@@ -67,7 +80,7 @@ class Hemtduino(object):
                 self.ser.write(cmdWMarkers.encode("utf-8"))
                 time.sleep(.3)
             except IOError as e:
-                self.ser.close()
+                self.disconnect()
                 raise e
         else:
             log.warning("Trying to write to an unopened port!")
