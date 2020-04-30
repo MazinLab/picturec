@@ -86,7 +86,6 @@ class Hemtduino(serial.Serial):
         if doconnect:
             try:
                 self.open()
-                time.sleep(1)
                 cmdWMarkers = START_MARKER
                 cmdWMarkers += command
                 cmdWMarkers += END_MARKER
@@ -96,6 +95,14 @@ class Hemtduino(serial.Serial):
                 time.sleep(0.5)
             except (serial.SerialException, IOError):
                 log.error("Port is inaccessible!")
+        else:
+            cmdWMarkers = START_MARKER
+            cmdWMarkers += command
+            cmdWMarkers += END_MARKER
+
+            log.debug("Writing...")
+            self.write(cmdWMarkers.encode("utf-8"))
+            time.sleep(0.5)
 
     def format_value(self, message):
         message = message.split(' ')
