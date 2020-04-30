@@ -24,35 +24,62 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
 
-class Hemtduino(serial.Serial):
+class Hemtduino(object):
     def __init__(self, port, baudrate, timeout=None, queryTime=1):
-        super(Hemtduino, self).__init__(baudrate=baudrate, timeout=timeout)
-        self.port = port
+        self.ser = serial.Serial(baudrate=baudrate, timeout=timeout)
+        self.ser.port = port
         self.queryTime = queryTime
         try:
-            self.open()
-            log.debug(f"port{self.port} connection established")
-            self.close()
+            self.ser.open()
+            log.debug(f"port {self.ser.port} connection established")
         except (serial.SerialException, IOError):
-            log.error(f"port {self.port} unavailable")
+            log.error(f"port {self.ser.port} unavailable")
 
         self.redis = walrus.Walrus(host='localhost', port=6379, db=REDIS_DB)
         self.redis_ts = self.redis.time_series('hemttemp.stream', ['hemt_biases', 'one.wire.temps'])
 
-    def _reset(self):
-        self.setDTR(False)
-        time.sleep(0.5)
-        self.setDTR(True)
+    # def setupSerial(self, port, baudrate, timeout):
 
-    def _arduino_receive(self, dodisconnect=True):
+    def connect(self):
+        try:
+            assert self.ser.isOpen()
+            return "o"
+        except AssertionError:
+            log.warning("Error occurred during connection. Port is not open")
+            try:
+                log.debug("Opening port")
+                self.ser.open()
+                return "o"
+            except IOError:
+                self.ser.close()
+                self.ser = None
+                log.warning("Error occured in trying to open port. Check for disconnects")
+                return "c"
+
+    def send(self, msg):
+        connected = self.connect()
+        if connected:
+            cmdWMarkers = START_MARKER
+            cmdWMarkers += msg
+            cmdWMarkers += END_MARKER
+            try:
+                log.debug(f"Writing message: {cmdWMarkers}")
+                self.ser.write(cmdWMarkers.encode("utf-8"))
+                time.sleep(.3)
+            except IOError as e:
+                self.ser.close()
+                raise e
+        else:
+            log.warning("Trying to write to an unopened port!")
+
+    def receive(self):
         dataStarted = False
         messageComplete = False
         dataBuffer = ""
 
         while True:
-            if self.in_waiting > 0 and not messageComplete:
-                x = self.read().decode("utf-8")
-                log.debug(x)
+            if self.ser.in_waiting > 0 and not messageComplete:
+                x = self.ser.read().decode("utf-8")
 
                 if dataStarted:
                     if x is not END_MARKER:
@@ -66,49 +93,22 @@ class Hemtduino(serial.Serial):
 
             elif messageComplete:
                 messageComplete = False
-                break
+                return dataBuffer
             else:
-                dataBuffer = "XXX"
-                break
-
-        if dodisconnect:
-            self.close()
-        return dataBuffer
+                return "XXX"
 
     def arduino_ping(self):
         log.debug("Waiting for Arduino")
-        self._arduino_send("ping")
+        self.send("ping")
 
-        msg = self._arduino_receive()
+        msg = self.receive()
         log.debug(msg)
-
-    def _arduino_send(self, command, doconnect=True):
-        if doconnect:
-            try:
-                self.open()
-                cmdWMarkers = START_MARKER
-                cmdWMarkers += command
-                cmdWMarkers += END_MARKER
-
-                log.debug("Writing...")
-                self.write(cmdWMarkers.encode("utf-8"))
-                time.sleep(0.5)
-            except (serial.SerialException, IOError):
-                log.error("Port is inaccessible!")
-        else:
-            cmdWMarkers = START_MARKER
-            cmdWMarkers += command
-            cmdWMarkers += END_MARKER
-
-            log.debug("Writing...")
-            self.write(cmdWMarkers.encode("utf-8"))
-            time.sleep(0.5)
 
     def format_value(self, message):
         message = message.split(' ')
         if len(message) == 31:
             log.debug("Formatting HEMT bias values")
-            pins = message[0::2][-1]
+            pins = message[0::2]
             biasValues = message[1::2]
             msgtype = 'hemt.biases'
             msg = {k: v for k,v in zip(pins, biasValues)}
@@ -120,6 +120,8 @@ class Hemtduino(serial.Serial):
             msgtype = 'one.wire.temps'
             msg = {k: v for k, v in zip(positions, temps)}
 
+        log.debug(f"Formatted message: {msg}")
+
         return msgtype, msg
 
     def run(self):
@@ -129,8 +131,8 @@ class Hemtduino(serial.Serial):
         while True:
             if time.time() - prevTime >= self.queryTime:
                 log.debug("Sending Query")
-                self._arduino_send("all")
-                arduinoReply = self._arduino_receive()
+                self.send("all")
+                arduinoReply = self.receive()
                 log.info(arduinoReply)
                 prevTime = time.time()
                 t, m = self.format_value(arduinoReply)
