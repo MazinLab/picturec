@@ -25,7 +25,7 @@ log.setLevel(logging.DEBUG)
 
 
 class Hemtduino(object):
-    def __init__(self, port, baudrate=9600, timeout=None, queryTime=1):
+    def __init__(self, port, baudrate=115200, timeout=None, queryTime=1):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
@@ -35,18 +35,32 @@ class Hemtduino(object):
         self.redis_ts = self.redis.time_series('hemttemp.stream', ['hemt_biases', 'one.wire.temps'])
         self.setupSerial(port=port, baudrate=baudrate, timeout=timeout)
 
+    def _preConnect(self):
+        """ Attempt at workaround for https://bugs.launchpad.net/digitemp/+bug/920959 """
+        try:
+            from subprocess import call
+            s = 'stty crtscts < {device};stty -crtscts < {device}'.format(device=self.port)
+            ret = call(s, shell=True)
+        except Exception as e:
+            raise Exception('rtscts hack failed. {}:{}:{}'.format(s, ret, str(e)))
+
     def setupSerial(self, port, baudrate=9600, timeout=1):
         self.ser = serial.Serial(baudrate=baudrate, timeout=timeout)
         self.ser.port = port
         try:
             self.ser.open()
             log.debug(f"port {self.ser.port} connection established")
+            self.ser.setDTR(False)
+            time.sleep(.022)
+            self.ser.flushInput()
+            self.ser.setDTR(True)
         except (serial.SerialException, IOError):
             log.error(f"port {self.ser.port} unavailable")
 
     def connect(self):
         if self.ser is None:
             self.setupSerial(self.port, self.baudrate, self.timeout)
+        self._preConnect()
         try:
             assert self.ser.isOpen()
             return "o"
@@ -158,5 +172,5 @@ class Hemtduino(object):
 
 if __name__ == "__main__":
 
-    hemtduino = Hemtduino(port="/dev/ttyS9", baudrate=9600, timeout=1)
+    hemtduino = Hemtduino(port="/dev/ttyS9", baudrate=115200, timeout=1)
     hemtduino.run()
