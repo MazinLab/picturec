@@ -1,9 +1,6 @@
-const byte numChars = 64;
-char receivedChars[numChars];
-
-boolean newData = false;
-
 byte ledPin = 13;   // the onboard LED
+int N_ANALOG = 16;
+boolean started = false;
 
 //===============
 
@@ -43,51 +40,29 @@ void setup() {
   digitalWrite(ledPin, LOW);
   delay(100);
   digitalWrite(ledPin, HIGH);
-  Serial.println("started");
-}
-
-void receive() {
-  static boolean recvInProgress = false;
-  static byte ndx = 0;
-  char rc;
-  char startmarker = '<';
-  char endmarker = '>' ;
-  while (Serial.available() > 0 && newData == false) {
-    rc = Serial.read();
-    Serial.print(rc);
-
-    if (recvInProgress == true){
-      if (rc != endmarker) {
-        receivedChars[ndx] = rc;
-        ndx++;
-        if (ndx >= numChars){
-          ndx = numChars -1;
-        }
-      }
-      else {
-        receivedChars[ndx] = '\0';
-        recvInProgress = false;
-        ndx = 0;
-        newData = true;
-      }
-    }
-    else if (rc == startmarker) {
-      recvInProgress = true;
-      digitalWrite(ledPin, ! digitalRead(ledPin));
-    }
-  }
-}
-
-void reply() {
-  if (newData == true) {
-    Serial.print("<");
-    Serial.print(receivedChars);
-    Serial.println(">");
-  }
-  newData = false;
+  Serial.println(F("#Started"));
 }
 
 void loop() {
   receive();
-  reply();
 }
+
+void receive() {
+  if (Serial.available()>0) {
+    delay(100);
+    Serial.print(F("#Got: "));
+    while (Serial.available()) {
+      char x = Serial.read();
+      Serial.print(x);
+    }
+    Serial.println();
+  }
+}
+
+//void reply() {
+//  for (int i=0;i<N_ANALOG;i++) {
+//    Serial.print(analogRead(i));
+//    Serial.print(" ");
+//  }
+//  Serial.println();
+//}
