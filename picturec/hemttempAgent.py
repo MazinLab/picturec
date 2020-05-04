@@ -13,6 +13,7 @@ TODO: Work with publish/subscribe to redis for hemt.enabled changes, and write t
 import serial
 import time, logging
 from datetime import datetime
+from serial import SerialException
 import walrus
 
 START_MARKER = '<'
@@ -82,16 +83,24 @@ class Hemtduino(object):
                 self.ser.write(cmdWMarkers.encode("utf-8"))
                 time.sleep(.3)
                 self.message_sent = True
-            except IOError as e:
+            except (IOError, SerialException) as e:
                 self.disconnect()
-                raise e
+                # raise e
         else:
             log.warning("Trying to write to an unopened port!")
 
 
     def receive(self):
-        confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
-        return confirm
+        connect = self.connect()
+        if connect == "o":
+            try:
+                confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
+                return confirm
+            except (IOError, SerialException):
+                self.disconnect()
+                log.error("No port to read from!")
+        else:
+            return None
 
 
     # def receive(self):
