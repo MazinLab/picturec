@@ -40,7 +40,6 @@ void setup() {
   digitalWrite(ledPin, LOW);
   delay(100);
   digitalWrite(ledPin, HIGH);
-  Serial.println(F("#Started"));
 }
 
 void loop() {

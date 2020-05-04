@@ -31,36 +31,23 @@ class Hemtduino(object):
         self.baudrate = baudrate
         self.timeout = timeout
         self.queryTime = queryTime
+        self.message_sent = False
         self.redis = walrus.Walrus(host='localhost', port=6379, db=REDIS_DB)
         self.redis_ts = self.redis.time_series('hemttemp.stream', ['hemt_biases', 'one.wire.temps'])
         self.setupSerial(port=port, baudrate=baudrate, timeout=timeout)
 
-    def _preConnect(self):
-        """ Attempt at workaround for https://bugs.launchpad.net/digitemp/+bug/920959 """
-        try:
-            from subprocess import call
-            s = 'stty crtscts < {device};stty -crtscts < {device}'.format(device=self.port)
-            ret = call(s, shell=True)
-        except Exception as e:
-            raise Exception('rtscts hack failed. {}:{}:{}'.format(s, ret, str(e)))
-
-    def setupSerial(self, port, baudrate=9600, timeout=1):
+    def setupSerial(self, port, baudrate=115200, timeout=1):
         self.ser = serial.Serial(baudrate=baudrate, timeout=timeout)
         self.ser.port = port
         try:
             self.ser.open()
             log.debug(f"port {self.ser.port} connection established")
-            self.ser.setDTR(False)
-            time.sleep(.022)
-            self.ser.flushInput()
-            self.ser.setDTR(True)
         except (serial.SerialException, IOError):
             log.error(f"port {self.ser.port} unavailable")
 
     def connect(self):
         if self.ser is None:
             self.setupSerial(self.port, self.baudrate, self.timeout)
-        self._preConnect()
         try:
             assert self.ser.isOpen()
             return "o"
@@ -84,6 +71,7 @@ class Hemtduino(object):
             print(e)
 
     def send(self, msg):
+        self.message_sent = False
         connected = self.connect()
         if connected is "o":
             cmdWMarkers = START_MARKER
@@ -93,36 +81,43 @@ class Hemtduino(object):
                 log.debug(f"Writing message: {cmdWMarkers}")
                 self.ser.write(cmdWMarkers.encode("utf-8"))
                 time.sleep(.3)
+                self.message_sent = True
             except IOError as e:
                 self.disconnect()
                 raise e
         else:
             log.warning("Trying to write to an unopened port!")
 
+
     def receive(self):
-        dataStarted = False
-        messageComplete = False
-        dataBuffer = ""
+        confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
+        return confirm
 
-        while True:
-            if self.ser.in_waiting > 0 and not messageComplete:
-                x = self.ser.read().decode("utf-8")
 
-                if dataStarted:
-                    if x is not END_MARKER:
-                        dataBuffer += x
-                    else:
-                        dataStarted = False
-                        messageComplete = True
-                elif x == START_MARKER:
-                    dataStarted = True
-                    dataBuffer = ""
-
-            elif messageComplete:
-                messageComplete = False
-                return dataBuffer
-            else:
-                return "XXX"
+    # def receive(self):
+    #     dataStarted = False
+    #     messageComplete = False
+    #     dataBuffer = ""
+    #
+    #     while True:
+    #         if self.ser.in_waiting > 0 and not messageComplete:
+    #             x = self.ser.read().decode("utf-8")
+    #
+    #             if dataStarted:
+    #                 if x is not END_MARKER:
+    #                     dataBuffer += x
+    #                 else:
+    #                     dataStarted = False
+    #                     messageComplete = True
+    #             elif x == START_MARKER:
+    #                 dataStarted = True
+    #                 dataBuffer = ""
+    #
+    #         elif messageComplete:
+    #             messageComplete = False
+    #             return dataBuffer
+    #         else:
+    #             return "XXX"
 
     def arduino_ping(self):
         log.debug("Waiting for Arduino")
