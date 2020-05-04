@@ -85,7 +85,6 @@ class Hemtduino(object):
                 self.message_sent = True
             except (IOError, SerialException) as e:
                 self.disconnect()
-                # raise e
         else:
             log.warning("Trying to write to an unopened port!")
 
@@ -101,32 +100,6 @@ class Hemtduino(object):
                 log.error("No port to read from!")
         else:
             return None
-
-
-    # def receive(self):
-    #     dataStarted = False
-    #     messageComplete = False
-    #     dataBuffer = ""
-    #
-    #     while True:
-    #         if self.ser.in_waiting > 0 and not messageComplete:
-    #             x = self.ser.read().decode("utf-8")
-    #
-    #             if dataStarted:
-    #                 if x is not END_MARKER:
-    #                     dataBuffer += x
-    #                 else:
-    #                     dataStarted = False
-    #                     messageComplete = True
-    #             elif x == START_MARKER:
-    #                 dataStarted = True
-    #                 dataBuffer = ""
-    #
-    #         elif messageComplete:
-    #             messageComplete = False
-    #             return dataBuffer
-    #         else:
-    #             return "XXX"
 
     def arduino_ping(self):
         log.debug("Waiting for Arduino")
@@ -166,15 +139,15 @@ class Hemtduino(object):
                 arduinoReply = self.receive()
                 log.info(arduinoReply)
                 prevTime = time.time()
-                t, m = self.format_value(arduinoReply)
-                log.debug(f"Sending {t} messages to redis")
-                if t == "hemt.biases":
-                    self.redis_ts.hemt_biases.add(m, id=datetime.utcnow())
-                if t == "one.wire.temps":
-                    self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow())
+                # t, m = self.format_value(arduinoReply)
+                # log.debug(f"Sending {t} messages to redis")
+                # if t == "hemt.biases":
+                #     self.redis_ts.hemt_biases.add(m, id=datetime.utcnow())
+                # if t == "one.wire.temps":
+                #     self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow())
 
 
 if __name__ == "__main__":
 
-    hemtduino = Hemtduino(port="/dev/ttyS9", baudrate=115200, timeout=1)
+    hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200, timeout=.3)
     hemtduino.run()
