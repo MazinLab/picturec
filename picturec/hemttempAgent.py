@@ -91,9 +91,12 @@ class Hemtduino(object):
 
     def receive(self):
         connect = self.connect()
+        self.message_received = False
         if connect == "o":
             try:
                 confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
+                self.message_received = True if confirm is not ('' or None) else False
+                print(self.message_received)
                 return confirm
             except (IOError, SerialException):
                 self.disconnect()
