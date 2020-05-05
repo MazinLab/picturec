@@ -125,12 +125,8 @@ class Hemtduino(object):
                 print(f'{time.time()} querying...')
                 log.debug("Sending Query")
                 val = self.send("all")
-                if val is None:
-                    log.error("message was not sent!")
-                    timeOfReconnect = time.time()
-                else:
-                    arduinoReply = self.receive()
-                    log.info(arduinoReply)
+                arduinoReply = self.receive()
+                log.info(arduinoReply)
                 prevTime = time.time()
                 # t, m = self.format_value(arduinoReply)
                 # log.debug(f"Sending {t} messages to redis")
