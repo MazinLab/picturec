@@ -1,13 +1,12 @@
 """
-TODO: Un-hardcode commands from testing
 TODO: Make it possible to pass commands from the fridgeController to turn the HEMTs on or off
-TODO: Decide whether we want polling to be mindless and just done on an interval (preferable) or if we want it to also
- support a 'refresh' functionality.
-TODO: Program in IOError and SerialError handling to account for unplugging/bad data/etc.
-TODO: Allow the program to take command line input (or access things from a config file)
-TODO: Start this program with systemd and get it up and running and restartable
-TODO: Work with publish/subscribe to redis for hemt.enabled changes, and write the changes that are made as they are
+ - Allow the program to take command line input (or access things from a config file)
+ - Start this program with systemd and get it up and running and restartable
+ - Work with publish/subscribe to redis for hemt.enabled changes, and write the changes that are made as they are
  made. How do we want to confirm that commands have been successful and the change was made?
+ - Redesign functions so that polling for the arduino being connected is always occuring and its only ever possible to
+ send a message or receive one if the arduino is connected. Also add a deadtime after arduino is reconnected to allow
+ for it to get setup and not immediately start getting pinged.
 """
 
 import serial
@@ -32,12 +31,12 @@ class Hemtduino(object):
         self.baudrate = baudrate
         self.timeout = timeout
         self.queryTime = queryTime
-        self.message_sent = False
         self.redis = walrus.Walrus(host='localhost', port=6379, db=REDIS_DB)
         self.redis_ts = self.redis.time_series('hemttemp.stream', ['hemt_biases', 'one.wire.temps'])
         self.setupSerial(port=port, baudrate=baudrate, timeout=timeout)
 
     def setupSerial(self, port, baudrate=115200, timeout=1):
+        log.debug(f"Setting up serial port {port}")
         self.ser = serial.Serial(baudrate=baudrate, timeout=timeout)
         self.ser.port = port
         try:
@@ -72,7 +71,6 @@ class Hemtduino(object):
             print(e)
 
     def send(self, msg):
-        self.message_sent = False
         connected = self.connect()
         if connected is "o":
             cmdWMarkers = START_MARKER
@@ -82,7 +80,6 @@ class Hemtduino(object):
                 log.debug(f"Writing message: {cmdWMarkers}")
                 self.ser.write(cmdWMarkers.encode("utf-8"))
                 time.sleep(.3)
-                self.message_sent = True
             except (IOError, SerialException) as e:
                 self.disconnect()
         else:
@@ -91,25 +88,16 @@ class Hemtduino(object):
 
     def receive(self):
         connect = self.connect()
-        self.message_received = False
         if connect == "o":
             try:
                 confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
-                self.message_received = True if confirm is not ('' or None) else False
-                print(self.message_received)
+                log.debug(f"read '{confirm}' from arduino")
                 return confirm
             except (IOError, SerialException):
                 self.disconnect()
                 log.error("No port to read from!")
         else:
             return None
-
-    def arduino_ping(self):
-        log.debug("Waiting for Arduino")
-        self.send("ping")
-
-        msg = self.receive()
-        log.debug(msg)
 
     def format_value(self, message):
         message = message.split(' ')
@@ -132,7 +120,6 @@ class Hemtduino(object):
         return msgtype, msg
 
     def run(self):
-        self.arduino_ping()
         prevTime = time.time()
 
         while True:
