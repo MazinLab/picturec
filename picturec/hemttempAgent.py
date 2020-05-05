@@ -49,20 +49,17 @@ class Hemtduino(object):
     def connect(self):
         if self.ser is None:
             self.setupSerial(self.port, self.baudrate, self.timeout)
-        # try:
-        #     assert self.ser.isOpen()
-        #     return "o"
-        # except AssertionError:
-        #     log.warning("Error occurred during connection. Port is not open")
-        #     try:
-        #         log.debug("Opening port")
-        #         self.ser.open()
-        #         return "o"
-        #     except IOError:
-        #         self.ser.close()
-        #         self.ser = None
-        #         log.warning("Error occurred in trying to open port. Check for disconnects")
-        #         return "c"
+        try:
+            assert self.ser.isOpen()
+        except AssertionError:
+            log.warning("Error occurred during connection. Port is not open")
+            try:
+                log.debug("Opening port")
+                self.ser.open()
+            except IOError:
+                self.ser.close()
+                self.ser = None
+                log.warning("Error occurred in trying to open port. Check for disconnects")
 
     def disconnect(self):
         try:
@@ -72,33 +69,30 @@ class Hemtduino(object):
             print(e)
 
     def send(self, msg):
-        connected = self.connect()
-        if connected is "o":
-            cmdWMarkers = START_MARKER
-            cmdWMarkers += msg
-            cmdWMarkers += END_MARKER
-            try:
-                log.debug(f"Writing message: {cmdWMarkers}")
-                self.ser.write(cmdWMarkers.encode("utf-8"))
-                time.sleep(.3)
-            except (IOError, SerialException) as e:
-                self.disconnect()
-        else:
+        self.connect()
+        cmdWMarkers = START_MARKER
+        cmdWMarkers += msg
+        cmdWMarkers += END_MARKER
+        try:
+            log.debug(f"Writing message: {cmdWMarkers}")
+            confirm = self.ser.write(cmdWMarkers.encode("utf-8"))
+            time.sleep(.3)
+            return confirm
+        except (IOError, SerialException) as e:
+            print(e)
+            self.disconnect()
             log.warning("Trying to write to an unopened port!")
-
+            return None
 
     def receive(self):
-        connect = self.connect()
-        if connect == "o":
-            try:
-                confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
-                log.debug(f"read '{confirm}' from arduino")
-                return confirm
-            except (IOError, SerialException):
-                self.disconnect()
-                log.error("No port to read from!")
-        else:
-            log.error("No connection!")
+        self.connect()
+        try:
+            confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
+            log.debug(f"read '{confirm}' from arduino")
+            return confirm
+        except (IOError, SerialException):
+            self.disconnect()
+            log.error("No port to read from!")
             return None
 
     def format_value(self, message):
@@ -123,31 +117,27 @@ class Hemtduino(object):
 
     def run(self):
         prevTime = time.time()
-        timeSinceReconnect = 0
+        timeOfReconnect = 0
         count=0
         while True:
-            connect = self.connect()
-            count+=1
-            if connect == "o":
-                if count % 100000 == 0:
-                    print(f"{time.time()} - connect = {connect}. {time.time()-prevTime}, {time.time() - timeSinceReconnect}")
-                if (time.time() - prevTime >= self.queryTime) and (time.time() - timeSinceReconnect >= self.reconnectTime):
-                    print(f'{time.time()} querying...')
-                    log.debug("Sending Query")
-                    self.send("all")
+            self.connect()
+            if (time.time() - prevTime >= self.queryTime) and (time.time() - timeOfReconnect >= self.reconnectTime):
+                print(f'{time.time()} querying...')
+                log.debug("Sending Query")
+                val = self.send("all")
+                if val is None:
+                    log.error("message was not sent!")
+                    timeOfReconnect = time.time()
+                else:
                     arduinoReply = self.receive()
                     log.info(arduinoReply)
-                    prevTime = time.time()
-                    # t, m = self.format_value(arduinoReply)
-                    # log.debug(f"Sending {t} messages to redis")
-                    # if t == "hemt.biases":
-                    #     self.redis_ts.hemt_biases.add(m, id=datetime.utcnow())
-                    # if t == "one.wire.temps":
-                    #     self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow())
-            else:
-                timeSinceReconnect = time.time()
-                log.error(f"{datetime.utcnow()} - No connection")
-
+                prevTime = time.time()
+                # t, m = self.format_value(arduinoReply)
+                # log.debug(f"Sending {t} messages to redis")
+                # if t == "hemt.biases":
+                #     self.redis_ts.hemt_biases.add(m, id=datetime.utcnow())
+                # if t == "one.wire.temps":
+                #     self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow())
 
 if __name__ == "__main__":
 
