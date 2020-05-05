@@ -49,20 +49,20 @@ class Hemtduino(object):
     def connect(self):
         if self.ser is None:
             self.setupSerial(self.port, self.baudrate, self.timeout)
-        try:
-            assert self.ser.isOpen()
-            return "o"
-        except AssertionError:
-            log.warning("Error occurred during connection. Port is not open")
-            try:
-                log.debug("Opening port")
-                self.ser.open()
-                return "o"
-            except IOError:
-                self.ser.close()
-                self.ser = None
-                log.warning("Error occurred in trying to open port. Check for disconnects")
-                return "c"
+        # try:
+        #     assert self.ser.isOpen()
+        #     return "o"
+        # except AssertionError:
+        #     log.warning("Error occurred during connection. Port is not open")
+        #     try:
+        #         log.debug("Opening port")
+        #         self.ser.open()
+        #         return "o"
+        #     except IOError:
+        #         self.ser.close()
+        #         self.ser = None
+        #         log.warning("Error occurred in trying to open port. Check for disconnects")
+        #         return "c"
 
     def disconnect(self):
         try:
@@ -123,24 +123,27 @@ class Hemtduino(object):
 
     def run(self):
         prevTime = time.time()
-        timeSinceReconnect = None
-
+        timeSinceReconnect = 0
+        count=0
         while True:
             connect = self.connect()
+            count+=1
             if connect == "o":
-                if time.time() - prevTime >= self.queryTime:
-                    if (timeSinceReconnect is not None) and (time.time() - timeSinceReconnect >= self.reconnectTime):
-                        log.debug("Sending Query")
-                        self.send("all")
-                        arduinoReply = self.receive()
-                        log.info(arduinoReply)
-                        prevTime = time.time()
-                        # t, m = self.format_value(arduinoReply)
-                        # log.debug(f"Sending {t} messages to redis")
-                        # if t == "hemt.biases":
-                        #     self.redis_ts.hemt_biases.add(m, id=datetime.utcnow())
-                        # if t == "one.wire.temps":
-                        #     self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow())
+                if count % 100000 == 0:
+                    print(f"{time.time()} - connect = {connect}. {time.time()-prevTime}, {time.time() - timeSinceReconnect}")
+                if (time.time() - prevTime >= self.queryTime) and (time.time() - timeSinceReconnect >= self.reconnectTime):
+                    print(f'{time.time()} querying...')
+                    log.debug("Sending Query")
+                    self.send("all")
+                    arduinoReply = self.receive()
+                    log.info(arduinoReply)
+                    prevTime = time.time()
+                    # t, m = self.format_value(arduinoReply)
+                    # log.debug(f"Sending {t} messages to redis")
+                    # if t == "hemt.biases":
+                    #     self.redis_ts.hemt_biases.add(m, id=datetime.utcnow())
+                    # if t == "one.wire.temps":
+                    #     self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow())
             else:
                 timeSinceReconnect = time.time()
                 log.error(f"{datetime.utcnow()} - No connection")
