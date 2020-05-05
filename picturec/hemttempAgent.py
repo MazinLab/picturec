@@ -50,16 +50,25 @@ class Hemtduino(object):
         if self.ser is None:
             self.setupSerial(self.port, self.baudrate, self.timeout)
         try:
-            self.ser.read()
+            x = self.ser.read().decode("utf-8")
+            if (x == '') or (x == "#"):
+                return "o"
+            else:
+                self.ser.close()
+                self.ser = None
+                log.warning("Arduino in unstable state!")
+                return "c"
         except SerialException:
             log.warning("Error occurred during connection. Port is not open")
             try:
                 log.debug("Opening port")
                 self.ser.open()
+                return "o"
             except IOError:
                 self.ser.close()
                 self.ser = None
                 log.warning("Error occurred in trying to open port. Check for disconnects")
+                return "c"
 
     def disconnect(self):
         try:
@@ -69,30 +78,38 @@ class Hemtduino(object):
             print(e)
 
     def send(self, msg):
-        self.connect()
-        cmdWMarkers = START_MARKER
-        cmdWMarkers += msg
-        cmdWMarkers += END_MARKER
-        try:
-            log.debug(f"Writing message: {cmdWMarkers}")
-            confirm = self.ser.write(cmdWMarkers.encode("utf-8"))
-            time.sleep(.3)
-            return confirm
-        except (IOError, SerialException) as e:
-            print(e)
-            self.disconnect()
-            log.warning("Trying to write to an unopened port!")
+        con = self.connect()
+        if con == 'o':
+            cmdWMarkers = START_MARKER
+            cmdWMarkers += msg
+            cmdWMarkers += END_MARKER
+            try:
+                log.debug(f"Writing message: {cmdWMarkers}")
+                confirm = self.ser.write(cmdWMarkers.encode("utf-8"))
+                time.sleep(.3)
+                return confirm
+            except (IOError, SerialException) as e:
+                print(e)
+                self.disconnect()
+                log.warning("Trying to write to an unopened port!")
+                return None
+        else:
+            log.debug("No writing to an unavailable port")
             return None
 
     def receive(self):
-        self.connect()
-        try:
-            confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
-            log.debug(f"read '{confirm}' from arduino")
-            return confirm
-        except (IOError, SerialException):
-            self.disconnect()
-            log.error("No port to read from!")
+        con = self.connect()
+        if con == 'o':
+            try:
+                confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
+                log.debug(f"read '{confirm}' from arduino")
+                return confirm
+            except (IOError, SerialException):
+                self.disconnect()
+                log.error("No port to read from!")
+                return None
+        else:
+            log.debug("No reading from an unabailable port")
             return None
 
     def format_value(self, message):
@@ -117,13 +134,18 @@ class Hemtduino(object):
 
     def run(self):
         prevTime = time.time()
+        timeofDisconnect = 0
         timeOfReconnect = 0
         while True:
-            self.connect()
-            if (time.time() - prevTime >= self.queryTime) and (time.time() - timeOfReconnect >= self.reconnectTime):
+            connected = True if self.connect() == "o" else False
+            if (time.time() - prevTime >= self.queryTime) and connected:
+                if timeofDisconnect is not 0:
+                    timeOfReconnect = time.time()
+                    time.sleep(10)
+                    timeofDisconnect = 0
                 print(f'{time.time()} querying...')
                 log.debug("Sending Query")
-                val = self.send("all")
+                self.send("all")
                 arduinoReply = self.receive()
                 log.info(arduinoReply)
                 prevTime = time.time()
@@ -132,9 +154,11 @@ class Hemtduino(object):
                 # if t == "hemt.biases":
                 #     self.redis_ts.hemt_biases.add(m, id=datetime.utcnow())
                 # if t == "one.wire.temps":
-                #     self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow())
+                #     self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow()
+            if not connected:
+                timeofDisconnect = time.time()
 
 if __name__ == "__main__":
 
-    hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200, timeout=.3)
+    hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200, timeout=.03, reconnectTime=10)
     hemtduino.run()
