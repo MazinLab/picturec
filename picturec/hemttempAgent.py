@@ -50,8 +50,8 @@ class Hemtduino(object):
         if self.ser is None:
             self.setupSerial(self.port, self.baudrate, self.timeout)
         try:
-            assert self.ser.isOpen()
-        except AssertionError:
+            self.ser.read()
+        except SerialException:
             log.warning("Error occurred during connection. Port is not open")
             try:
                 log.debug("Opening port")
@@ -118,7 +118,6 @@ class Hemtduino(object):
     def run(self):
         prevTime = time.time()
         timeOfReconnect = 0
-        count=0
         while True:
             self.connect()
             if (time.time() - prevTime >= self.queryTime) and (time.time() - timeOfReconnect >= self.reconnectTime):
