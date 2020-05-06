@@ -10,6 +10,7 @@ TODO: Make it possible to pass commands from the fridgeController to turn the HE
 import serial
 import time, logging
 from datetime import datetime
+import numpy as np
 from serial import SerialException
 import walrus
 
@@ -20,7 +21,6 @@ REDIS_DB = 0
 logging.basicConfig()
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
-
 
 class Hemtduino(object):
     def __init__(self, port, baudrate=115200, timeout=None, queryTime=1, reconnectTime=5):
@@ -111,8 +111,17 @@ class Hemtduino(object):
             return None
 
     def format_message(self, message):
-        message = message.split('')[:-1]
+        msg = np.array(message.split(' ')[:-1])
+        msg = np.split(message, 5)
+        full_msg = [{f'feedline{i+1}:hemt:drain-voltage-bias': f'{2* ((msg[i][0] * (5.0/1023.0)) - 2.5)}',
+                     f'feedline{i+1}:hemt:drain-current-bias': f'{msg[i][1] * (5.0/1023.0)}',
+                     f'feedline{i+1}:hemt:gate-voltage-bias': f'{msg[i][2] * (5.0/1023.0)}'} for i in msg]
+        return full_msg
 
+    def write_to_redis(self, message):
+        id = datetime.utcnow()
+        for i, stream in enumerate(self.redis_ts):
+            stream.add(message[i], id=id)
 
     def run(self):
         prevTime = time.time()
@@ -134,13 +143,8 @@ class Hemtduino(object):
                 arduinoInfo = self.receive()
                 log.info(arduinoInfo)
                 prevTime = time.time()
-
-                # t, m = self.format_value(arduinoReply)
-                # log.debug(f"Sending {t} messages to redis")
-                # if t == "hemt.biases":
-                #     self.redis_ts.hemt_biases.add(m, id=datetime.utcnow())
-                # if t == "one.wire.temps":
-                #     self.redis_ts.one_wire_temps.add(m, id=datetime.utcnow()
+                formattedInfo = self.format_message(arduinoInfo)
+                self.write_to_redis(formattedInfo)
             if not connected:
                 timeofDisconnect = time.time()
 
