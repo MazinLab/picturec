@@ -75,7 +75,8 @@ class Hemtduino(object):
         except Exception as e:
             print(e)
 
-    def send(self, msg):
+    def send(self, msg=None):
+        msg = '' if msg is None else msg
         con = self.connect()
         if con == 'o':
             cmdWMarkers = START_MARKER
@@ -111,17 +112,20 @@ class Hemtduino(object):
             return None
 
     def format_message(self, message):
-        msg = np.array(message.split(' ')[:-1])
-        msg = np.split(message, 5)
-        full_msg = [{f'feedline{i+1}:hemt:drain-voltage-bias': f'{2* ((msg[i][0] * (5.0/1023.0)) - 2.5)}',
-                     f'feedline{i+1}:hemt:drain-current-bias': f'{msg[i][1] * (5.0/1023.0)}',
-                     f'feedline{i+1}:hemt:gate-voltage-bias': f'{msg[i][2] * (5.0/1023.0)}'} for i in msg]
+        msg = np.array(message.split(' ')[:-1], dtype=float)
+        msg = np.split(msg, 5)
+        full_msg = [{f'feedline{5-i}:hemt:drain-voltage-bias': f'{2* ((j[0] * (5.0/1023.0)) - 2.5)}',
+                     f'feedline{5-i}:hemt:drain-current-bias': f'{j[1] * (5.0/1023.0)}',
+                     f'feedline{5-i}:hemt:gate-voltage-bias': f'{j[2] * (5.0/1023.0)}'} for i,j in enumerate(msg)]
         return full_msg
 
     def write_to_redis(self, message):
         id = datetime.utcnow()
-        for i, stream in enumerate(self.redis_ts):
-            stream.add(message[i], id=id)
+        self.redis_ts.feedline1.add(message[4], id=id)
+        self.redis_ts.feedline2.add(message[3], id=id)
+        self.redis_ts.feedline3.add(message[2], id=id)
+        self.redis_ts.feedline4.add(message[1], id=id)
+        self.redis_ts.feedline5.add(message[0], id=id)
 
     def run(self):
         prevTime = time.time()
