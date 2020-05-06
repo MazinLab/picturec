@@ -4,9 +4,7 @@ TODO: Make it possible to pass commands from the fridgeController to turn the HE
  - Start this program with systemd and get it up and running and restartable
  - Work with publish/subscribe to redis for hemt.enabled changes, and write the changes that are made as they are
  made. How do we want to confirm that commands have been successful and the change was made?
- - Redesign functions so that polling for the arduino being connected is always occuring and its only ever possible to
- send a message or receive one if the arduino is connected. Also add a deadtime after arduino is reconnected to allow
- for it to get setup and not immediately start getting pinged.
+ - Make sleep/reconnect more robust
 """
 
 import serial
@@ -140,14 +138,17 @@ class Hemtduino(object):
             connected = True if self.connect() == "o" else False
             if (time.time() - prevTime >= self.queryTime) and connected:
                 if timeofDisconnect is not 0:
+                    log.info("Sleeping and waiting to reconnect")
                     timeOfReconnect = time.time()
                     time.sleep(10)
                     timeofDisconnect = 0
                 print(f'{time.time()} querying...')
                 log.debug("Sending Query")
                 self.send("all")
-                arduinoReply = self.receive()
-                log.info(arduinoReply)
+                arduinoConfirmReply = self.receive()
+                log.info(arduinoConfirmReply)
+                arduinoInfo = self.receive()
+                log.info(arduinoInfo)
                 prevTime = time.time()
                 # t, m = self.format_value(arduinoReply)
                 # log.debug(f"Sending {t} messages to redis")

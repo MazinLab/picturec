@@ -55,13 +55,15 @@ void receive() {
       Serial.print(x);
     }
     Serial.println();
+    reply();
   }
 }
 
-//void reply() {
-//  for (int i=0;i<N_ANALOG;i++) {
-//    Serial.print(analogRead(i));
-//    Serial.print(" ");
-//  }
-//  Serial.println();
-//}
+void reply() {
+  Serial.print("#");
+  for (int i=0;i<N_ANALOG;i++) {
+    Serial.print(analogRead(i));
+    Serial.print(" ");
+  }
+  Serial.println();
+}
