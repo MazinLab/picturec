@@ -61,7 +61,7 @@ void receive() {
 
 void reply() {
   Serial.print("#");
-  for (int i=0;i<N_ANALOG;i++) {
+  for (int i=1;i<N_ANALOG;i++) {
     Serial.print(analogRead(i));
     Serial.print(" ");
   }

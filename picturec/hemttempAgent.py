@@ -31,7 +31,7 @@ class Hemtduino(object):
         self.queryTime = queryTime
         self.reconnectTime = reconnectTime
         self.redis = walrus.Walrus(host='localhost', port=6379, db=REDIS_DB)
-        self.redis_ts = self.redis.time_series('hemttemp.stream', ['hemt_biases', 'one.wire.temps'])
+        self.redis_ts = self.redis.time_series('status', [f'feedline{i+1}' for i in range(5)])
         self.setupSerial(port=port, baudrate=baudrate, timeout=timeout)
 
     def setupSerial(self, port, baudrate=115200, timeout=1):
@@ -110,25 +110,9 @@ class Hemtduino(object):
             log.debug("No reading from an unabailable port")
             return None
 
-    def format_value(self, message):
-        message = message.split(' ')
-        if len(message) == 31:
-            log.debug("Formatting HEMT bias values")
-            pins = message[0::2]
-            biasValues = message[1::2]
-            msgtype = 'hemt.biases'
-            msg = {k: v for k,v in zip(pins, biasValues)}
+    def format_message(self, message):
+        message = message.split('')[:-1]
 
-        elif len(message) == 25:
-            log.debug("Formatting One-wire thermometer values")
-            positions = message[0::2][-1]
-            temps = message[1::2]
-            msgtype = 'one.wire.temps'
-            msg = {k: v for k, v in zip(positions, temps)}
-
-        log.debug(f"Formatted message: {msg}")
-
-        return msgtype, msg
 
     def run(self):
         prevTime = time.time()
@@ -150,6 +134,7 @@ class Hemtduino(object):
                 arduinoInfo = self.receive()
                 log.info(arduinoInfo)
                 prevTime = time.time()
+
                 # t, m = self.format_value(arduinoReply)
                 # log.debug(f"Sending {t} messages to redis")
                 # if t == "hemt.biases":
