@@ -5,6 +5,7 @@ TODO: Make it possible to pass commands from the fridgeController to turn the HE
  - Work with publish/subscribe to redis for hemt.enabled changes, and write the changes that are made as they are
  made. How do we want to confirm that commands have been successful and the change was made?
  - Make sleep/reconnect more robust
+ - Use redistimeseries instead of walrus
 """
 
 import serial
@@ -152,7 +153,7 @@ class Hemtduino(object):
             if not connected:
                 timeofDisconnect = time.time()
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200, timeout=.03, reconnectTime=10)
     hemtduino.run()
