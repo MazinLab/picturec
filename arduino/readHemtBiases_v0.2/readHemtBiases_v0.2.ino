@@ -43,27 +43,15 @@ void setup() {
 }
 
 void loop() {
-  receive();
-}
-
-void receive() {
   if (Serial.available()>0) {
-    delay(100);
-    Serial.print(F("#Got: "));
     while (Serial.available()) {
       char x = Serial.read();
       Serial.print(x);
     }
+    for(in i=1l i<N_ANALOG; i++){
+      Serial.print(analogRead(i));
+      Serial.print(" ");
+    }
     Serial.println();
-    reply();
   }
-}
-
-void reply() {
-  Serial.print("#");
-  for (int i=1;i<N_ANALOG;i++) {
-    Serial.print(analogRead(i));
-    Serial.print(" ");
-  }
-  Serial.println();
 }
