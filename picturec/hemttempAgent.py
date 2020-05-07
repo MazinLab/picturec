@@ -114,7 +114,7 @@ class Hemtduino(object):
     def format_message(self, message):
         msg = np.array(message.split(' ')[:-1], dtype=float)
         msg = np.split(msg, 5)
-        full_msg = [{f'feedline{5-i}:hemt:drain-voltage-bias': f'{2* ((j[0] * (5.0/1023.0)) - 2.5)}',
+        full_msg = [{f'feedline{5-i}:hemt:drain-voltage-bias': f'{2 * ((j[0] * (5.0/1023.0)) - 2.5)}',
                      f'feedline{5-i}:hemt:drain-current-bias': f'{j[1] * (5.0/1023.0)}',
                      f'feedline{5-i}:hemt:gate-voltage-bias': f'{j[2] * (5.0/1023.0)}'} for i,j in enumerate(msg)]
         return full_msg
