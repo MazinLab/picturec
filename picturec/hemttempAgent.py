@@ -14,10 +14,14 @@ from datetime import datetime
 import numpy as np
 from serial import SerialException
 import walrus
+import redis
+from redistimeseries.client import Client
 
 START_MARKER = '<'
 END_MARKER = '>'
 REDIS_DB = 0
+HEMT_VALUES = ['gate-voltage-bias', 'drain-current-bias', 'drain-voltage-bias']
+KEYS = [f"status:feeline{i+1}:hemt:{j}" for i in range(5) for j in HEMT_VALUES]
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -31,9 +35,14 @@ class Hemtduino(object):
         self.timeout = timeout
         self.queryTime = queryTime
         self.reconnectTime = reconnectTime
-        self.redis = walrus.Walrus(host='localhost', port=6379, db=REDIS_DB)
-        self.redis_ts = self.redis.time_series('status', [f'feedline{i+1}' for i in range(5)])
+        self.setupRedis()
         self.setupSerial(port=port, baudrate=baudrate, timeout=timeout)
+
+    def setupRedis(self):
+        self.redis = Client(host='localhost', port=6379, db=REDIS_DB)
+        redis_keys = self.redis.keys('status:*:hemt:*')
+        redis_keys = [k.decode('utf-8') for k in redis_keys]
+        [self.redis.create(key) for key in KEYS if key not in redis_keys]
 
     def setupSerial(self, port, baudrate=115200, timeout=1):
         log.debug(f"Setting up serial port {port}")
