@@ -33,6 +33,8 @@ class Hemtduino(object):
         self.query_interval = query_interval
         self.setup_redis(host='localhost', port=6379, db=redis_db)
         self.connect(port=port, baudrate=baudrate, timeout=timeout)
+        self.expect_response = False
+        self.last_sent_char = None
 
     def setup_redis(self, host='localhost', port=6379, db=0):
         self.redis = Client(host=host, port=port, db=db)
@@ -50,13 +52,24 @@ class Hemtduino(object):
                 log.error(f"port {self.port} unavailable")
         else:
             try:
-                x = self.ser.read().decode("utf-8")
-                if (x == '') or (x == self.last_sent_char):
-                    return "o"
+                if self.expect_response:
+                    x = self.ser.read().decode("utf-8")
+                    self.expect_response = False
+                    self.last_sent_char = None
+                    if x == self.last_sent_char:
+                        return "o"
+                    else:
+                        self.disconnect()
+                        log.warning("Arduino in unstable response state")
+                        return "c"
                 else:
-                    self.disconnect()
-                    log.warning("Arduino in unstable state!")
-                    return "c"
+                    x = self.ser.read().decode("utf-8")
+                    if x == '':
+                        return "o"
+                    else:
+                        self.disconnect()
+                        log.warning("Arduino may be unopened")
+                        return "c"
             except SerialException:
                 log.warning("Error occurred during connection. Port is not open")
                 try:
@@ -83,6 +96,7 @@ class Hemtduino(object):
                 log.debug(f"Writing message: {msg}")
                 confirm = self.ser.write(msg.encode("utf-8"))
                 self.last_sent_char = msg
+                self.expect_response = True
                 log.debug(f"Sent {msg}")
                 time.sleep(.2)
                 return confirm
@@ -120,6 +134,7 @@ class Hemtduino(object):
                     self.send('H')  # H for HEMTs
                     arduino_reply = self.receive()
                     log.info(f"Received {arduino_reply}")
+                    self.last_sent_char = None
                 else:
                     log.debug('not connected, wait to poll again')
                 prevTime = time.time()
