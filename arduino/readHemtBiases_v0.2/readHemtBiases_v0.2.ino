@@ -48,7 +48,7 @@ void loop() {
       char x = Serial.read();
       Serial.print(x);
     }
-    for(in i=1l i<N_ANALOG; i++){
+    for(int i=1; i<N_ANALOG; i++){
       Serial.print(analogRead(i));
       Serial.print(" ");
     }
