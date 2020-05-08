@@ -45,13 +45,13 @@ class Hemtduino(object):
             log.debug(f"Setting up serial port {port}")
             try:
                 self.ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-                log.debug(f"port {self.ser.port} connection established")
+                log.debug(f"port {self.port} connection established")
             except (serial.SerialException, IOError):
-                log.error(f"port {self.ser.port} unavailable")
+                log.error(f"port {self.port} unavailable")
         else:
             try:
                 x = self.ser.read().decode("utf-8")
-                if (x == '') or (x == "#"):
+                if (x == '') or (x == self.last_sent_char):
                     return "o"
                 else:
                     self.disconnect()
@@ -82,6 +82,8 @@ class Hemtduino(object):
             try:
                 log.debug(f"Writing message: {msg}")
                 confirm = self.ser.write(msg.encode("utf-8"))
+                self.last_sent_char = msg
+                log.debug(f"Sent {msg}")
                 time.sleep(.2)
                 return confirm
             except (IOError, SerialException) as e:
