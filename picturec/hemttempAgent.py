@@ -33,7 +33,6 @@ class Hemtduino(object):
         self.query_interval = query_interval
         self.setup_redis(host='localhost', port=6379, db=redis_db)
         self.connect(port=port, baudrate=baudrate, timeout=timeout)
-        self.expect_response = False
         self.last_sent_char = None
 
     def setup_redis(self, host='localhost', port=6379, db=0):
@@ -50,36 +49,26 @@ class Hemtduino(object):
                 log.debug(f"port {self.port} connection established")
             except (serial.SerialException, IOError):
                 log.error(f"port {self.port} unavailable")
-        else:
+        try:
+            x = self.ser.read().decode("utf-8")
+            if x == '':
+                return "o"
+            elif x == self.last_sent_char:
+                return "o"
+            else:
+                self.disconnect()
+                log.warning("Arduino in unstable response state")
+                return "c"
+        except SerialException:
+            log.warning("Error occurred during connection. Port is not open")
             try:
-                if self.expect_response:
-                    x = self.ser.read().decode("utf-8")
-                    self.expect_response = False
-                    self.last_sent_char = None
-                    if x == self.last_sent_char:
-                        return "o"
-                    else:
-                        self.disconnect()
-                        log.warning("Arduino in unstable response state")
-                        return "c"
-                else:
-                    x = self.ser.read().decode("utf-8")
-                    if x == '':
-                        return "o"
-                    else:
-                        self.disconnect()
-                        log.warning("Arduino may be unopened")
-                        return "c"
-            except SerialException:
-                log.warning("Error occurred during connection. Port is not open")
-                try:
-                    log.debug("Opening port")
-                    self.ser.open()
-                    return "o"
-                except IOError:
-                    self.disconnect()
-                    log.warning("Error occurred in trying to open port. Check for disconnects")
-                    return "c"
+                log.debug("Opening port")
+                self.ser.open()
+                return "o"
+            except IOError:
+                self.disconnect()
+                log.warning("Error occurred in trying to open port. Check for disconnects")
+                return "c"
 
     def disconnect(self):
         try:
