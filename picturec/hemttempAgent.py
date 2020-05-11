@@ -114,7 +114,7 @@ class Hemtduino(object):
                 log.error("No port to read from!")
                 return None
         else:
-            log.debug("No reading from an unabailable port")
+            log.debug("No reading from an unavailable port")
             return None
 
     def query(self, msg):
@@ -123,9 +123,9 @@ class Hemtduino(object):
         return self.receive(connected)
 
     def run(self):
-        prevTime = time.time()
+        prev_time = time.time()
         while True:
-            if (time.time() - prevTime >= self.query_interval):
+            if (time.time() - prev_time >= self.query_interval):
                 connected = True if self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout) == "o" else False
                 if connected:
                     log.debug('connected and querying...')
@@ -134,30 +134,7 @@ class Hemtduino(object):
                     self.last_sent_char = None
                 else:
                     log.debug('not connected, wait to poll again')
-                prevTime = time.time()
-
-    # def jog(self):
-    #     prevTime = time.time()
-    #     timeofDisconnect = 0
-    #     timeOfReconnect = 0
-    #     while True:
-    #         connected = True if self.connect() == "o" else False
-    #         if (time.time() - prevTime >= self.query_interval) and connected:
-    #             if timeofDisconnect is not 0:
-    #                 log.info("Sleeping and waiting to reconnect")
-    #                 timeOfReconnect = time.time()
-    #                 time.sleep(10)
-    #                 timeofDisconnect = 0
-    #             print(f'{time.time()} querying...')
-    #             log.debug("Sending Query")
-    #             self.send("all")
-    #             arduinoConfirmReply = self.receive()
-    #             log.info(arduinoConfirmReply)
-    #             arduinoInfo = self.receive()
-    #             log.info(arduinoInfo)
-    #             prevTime = time.time()
-    #         if not connected:
-    #             timeofDisconnect = time.time()
+                prev_time = time.time()
 
 
 if __name__ == "__main__":
