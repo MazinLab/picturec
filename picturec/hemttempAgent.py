@@ -104,8 +104,8 @@ class Hemtduino(object):
                 confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
                 log.debug(f"read '{confirm}' from arduino")
                 if (len(confirm) == 0) or confirm[-1] != self.last_sent_char:
-                    # self.disconnect()
-                    # self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+                    self.disconnect()
+                    self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
                     return None
                 else:
                     return confirm
