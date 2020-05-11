@@ -122,10 +122,20 @@ class Hemtduino(object):
         self.send(msg, connected)
         return self.receive(connected)
 
+    def format_message(self, reply_message):
+        message = reply_message.split(' ')[:-1]
+        message = np.array(message[1:], dtype=float) if message[0] == '' else np.array(message, dtype=float)
+        for i, val in enumerate(message):
+            if i % 3 == 0:
+                message[i] = 2 * ((val * (5/1023)) - 2.5)
+            else:
+                message[i] = val * (5/1023)
+        return message
+
     def run(self):
         prev_time = time.time()
         while True:
-            if (time.time() - prev_time >= self.query_interval):
+            if time.time() - prev_time >= self.query_interval:
                 connected = True if self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout) == "o" else False
                 if connected:
                     log.debug('connected and querying...')
