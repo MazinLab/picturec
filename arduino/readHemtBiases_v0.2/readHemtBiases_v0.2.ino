@@ -43,15 +43,18 @@ void setup() {
 }
 
 void loop() {
+  char confirm[10];
   if (Serial.available()>0) {
     while (Serial.available()) {
       char x = Serial.read();
-      Serial.print(x);
+      confirm[1] = x;
     }
     for(int i=1; i<N_ANALOG; i++){
-      Serial.print(analogRead(i));
       Serial.print(" ");
+      Serial.print(analogRead(i));
     }
+    Serial.print(" ");
+    Serial.print(confirm[1]);
     Serial.println();
   }
 }

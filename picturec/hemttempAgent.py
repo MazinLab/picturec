@@ -47,28 +47,29 @@ class Hemtduino(object):
             try:
                 self.ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
                 log.debug(f"port {self.port} connection established")
+                return "o"
             except (serial.SerialException, IOError):
                 log.error(f"port {self.port} unavailable")
-        try:
-            x = self.ser.read().decode("utf-8")
-            if x == '':
-                return "o"
-            elif x == self.last_sent_char:
-                return "o"
-            else:
-                self.disconnect()
-                log.warning("Arduino in unstable response state")
                 return "c"
-        except SerialException:
-            log.warning("Error occurred during connection. Port is not open")
+        else:
             try:
-                log.debug("Opening port")
-                self.ser.open()
-                return "o"
-            except IOError:
-                self.disconnect()
-                log.warning("Error occurred in trying to open port. Check for disconnects")
-                return "c"
+                x = self.ser.read().decode("utf-8")
+                if x == '' or x == ' ':
+                    return "o"
+                else:
+                    self.disconnect()
+                    log.warning("Arduino in unstable response state")
+                    return "c"
+            except SerialException:
+                log.warning("Error occurred during connection. Port is not open")
+                try:
+                    log.debug("Opening port")
+                    self.ser.open()
+                    return "o"
+                except IOError:
+                    self.disconnect()
+                    log.warning("Error occurred in trying to open port. Check for disconnects")
+                    return "c"
 
     def disconnect(self):
         try:
@@ -77,9 +78,8 @@ class Hemtduino(object):
         except Exception as e:
             print(e)
 
-    def send(self, msg=None):
+    def send(self, msg=None, con='c'):
         msg = '' if msg is None else msg
-        con = self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
         if con == 'o':
             try:
                 log.debug(f"Writing message: {msg}")
@@ -98,13 +98,17 @@ class Hemtduino(object):
             log.debug("No writing to an unavailable port")
             return None
 
-    def receive(self):
-        con = self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+    def receive(self, con='c'):
         if con == 'o':
             try:
                 confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
                 log.debug(f"read '{confirm}' from arduino")
-                return confirm
+                if (len(confirm) == 0) or confirm[-1] != self.last_sent_char:
+                    # self.disconnect()
+                    # self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+                    return None
+                else:
+                    return confirm
             except (IOError, SerialException):
                 self.disconnect()
                 log.error("No port to read from!")
@@ -113,6 +117,11 @@ class Hemtduino(object):
             log.debug("No reading from an unabailable port")
             return None
 
+    def query(self, msg):
+        connected = self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+        self.send(msg, connected)
+        return self.receive(connected)
+
     def run(self):
         prevTime = time.time()
         while True:
@@ -120,8 +129,7 @@ class Hemtduino(object):
                 connected = True if self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout) == "o" else False
                 if connected:
                     log.debug('connected and querying...')
-                    self.send('H')  # H for HEMTs
-                    arduino_reply = self.receive()
+                    arduino_reply = self.query('h')
                     log.info(f"Received {arduino_reply}")
                     self.last_sent_char = None
                 else:
