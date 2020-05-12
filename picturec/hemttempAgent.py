@@ -18,7 +18,8 @@ from redistimeseries.client import Client
 
 REDIS_DB = 0
 HEMT_VALUES = ['gate-voltage-bias', 'drain-current-bias', 'drain-voltage-bias']
-KEYS = [f"status:feeline{5-i}:hemt:{j}" for i in range(5) for j in HEMT_VALUES]
+KEYS = [f"status:feedline{5-i}:hemt:{j}" for i in range(5) for j in HEMT_VALUES]
+KEY_DICT = {msg_idx:key for (msg_idx,key) in zip(np.arange(0,15,1),KEYS)}
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -123,14 +124,37 @@ class Hemtduino(object):
         return self.receive(connected)
 
     def format_message(self, reply_message):
-        message = reply_message.split(' ')[:-1]
-        message = np.array(message[1:], dtype=float) if message[0] == '' else np.array(message, dtype=float)
-        for i, val in enumerate(message):
-            if i % 3 == 0:
-                message[i] = 2 * ((val * (5/1023)) - 2.5)
+        if reply_message == '':
+            log.warning('Empty message from arduino')
+            return None
+        else:
+            message = reply_message.split(' ')
+            if message[-1] == self.last_sent_char:
+                message = message[:-1]
+                message = np.array(message[1:], dtype=float) if message[0] == '' else np.array(message, dtype=float)
+                if len(message) != len(KEYS):
+                    log.warning('only a partial message was received from the arduino')
+                    return None
+                else:
+                    for i, val in enumerate(message):
+                        if i % 3 == 0:
+                            message[i] = 2 * ((val * (5/1023)) - 2.5)
+                        else:
+                            message[i] = val * (5/1023)
+
+                    final_message = {key: value for (key, value) in zip(KEYS, message)}
+                    return final_message
             else:
-                message[i] = val * (5/1023)
-        return message
+                log.warning('Message was received but it was nonsense')
+                return None
+
+    def send_to_redis(self, msg):
+        timestamp = int(datetime.timestamp(datetime.utcnow()))
+        if msg is not None:
+            for k in KEYS:
+                self.redis.add(key=k, value=msg[k], timestamp=timestamp)
+        else:
+            log.info("no valid message received from arduino, logging problem")
 
     def run(self):
         prev_time = time.time()
