@@ -124,7 +124,7 @@ class Hemtduino(object):
         return self.receive(connected)
 
     def format_message(self, reply_message):
-        if reply_message == '':
+        if reply_message == '' or reply_message is None:
             log.warning('Empty message from arduino')
             return None
         else:
@@ -136,12 +136,12 @@ class Hemtduino(object):
                     log.warning('only a partial message was received from the arduino')
                     return None
                 else:
+                    log.info(f'Message to format: {message}')
                     for i, val in enumerate(message):
                         if i % 3 == 0:
                             message[i] = 2 * ((val * (5/1023)) - 2.5)
                         else:
                             message[i] = val * (5/1023)
-
                     final_message = {key: value for (key, value) in zip(KEYS, message)}
                     return final_message
             else:
@@ -152,6 +152,7 @@ class Hemtduino(object):
         timestamp = int(datetime.timestamp(datetime.utcnow()))
         if msg is not None:
             for k in KEYS:
+                log.debug(f"Writing {msg[k]} to key {k} at {timestamp}")
                 self.redis.add(key=k, value=msg[k], timestamp=timestamp)
         else:
             log.info("no valid message received from arduino, logging problem")
@@ -165,9 +166,12 @@ class Hemtduino(object):
                     log.debug('connected and querying...')
                     arduino_reply = self.query('h')
                     log.info(f"Received {arduino_reply}")
+                    to_redis = self.format_message(arduino_reply)
+                    self.send_to_redis(to_redis)
                     self.last_sent_char = None
                 else:
                     log.debug('not connected, wait to poll again')
+                    self.send_to_redis(None)
                 prev_time = time.time()
 
 
