@@ -11,3 +11,7 @@ sudo udevadm trigger
 # Start redis server
 sudo systemctl enable /etc/systemd/system/redis.service
 sudo systemctl start redis.service
+
+# Start hemtduino
+sudo systemctl enable /etc/systemd/system/hemtduino.service
+sudo systemctl start hemtduino.service
