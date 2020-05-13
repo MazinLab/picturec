@@ -1,1 +1,3 @@
+# Place in /etc/udev/rules.d/
+
 SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0042", ATTRS{serial}=="9573632363235170F002", SYMLINK+="hemtduino"

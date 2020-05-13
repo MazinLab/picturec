@@ -1,0 +1,10 @@
+[Unit]
+Description=Hemtduino Agent
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/anaconda3/bin/python /picturec/hemttempAgent.py
+WorkingDirectory=/home/kids/Documents/repositories/picturec/
