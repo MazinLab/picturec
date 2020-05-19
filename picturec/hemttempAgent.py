@@ -1,19 +1,13 @@
 """
-TODO: Make it possible to pass commands from the fridgeController to turn the HEMTs on or off
- - Allow the program to take command line input (or access things from a config file)
- - Start this program with systemd and get it up and running and restartable
- - Work with publish/subscribe to redis for hemt.enabled changes, and write the changes that are made as they are
- made. How do we want to confirm that commands have been successful and the change was made?
- - Use redistimeseries instead of walrus
- - Add formatting/writing to redis to run function
+TODO: Write more complete docstring
 """
 
 import serial
-import time, logging
+import time
+import logging
 from datetime import datetime
 import numpy as np
 from serial import SerialException
-import redis
 from redistimeseries.client import Client
 
 REDIS_DB = 0
