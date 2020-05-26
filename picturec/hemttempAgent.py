@@ -1,5 +1,4 @@
 """
-TODO: Write more complete docstring
 """
 
 import serial
