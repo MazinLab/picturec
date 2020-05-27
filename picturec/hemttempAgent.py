@@ -2,16 +2,19 @@
 """
 
 import serial
+import sys
 import time
 import logging
 from logging import getLogger
 from datetime import datetime
 import numpy as np
 from serial import SerialException
+from redis import RedisError
 from redistimeseries.client import Client
 
 HEMTDUINO_VERSION = "0.1"
 REDIS_DB = 0
+QUERY_INTERVAL = 1
 
 HEMT_VALUES = ['gate-voltage-bias', 'drain-current-bias', 'drain-voltage-bias']
 KEYS = [f"status:feedline{5-i}:hemt:{j}" for i in range(5) for j in HEMT_VALUES]
@@ -69,79 +72,36 @@ class Hemtduino(object):
             getLogger(__name__).error(f"Send failed {e}")
             # raise e
 
-    # def receive(self, con='c'):
-    #     if con == 'o':
-    #         try:
-    #             confirm = self.ser.readline().decode("utf-8").rstrip("\r\n")
-    #             log.debug(f"read '{confirm}' from arduino")
-    #             if (len(confirm) == 0) or confirm[-1] != self.last_sent_char:
-    #                 self.disconnect()
-    #                 self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
-    #                 return None
-    #             else:
-    #                 return confirm
-    #         except (IOError, SerialException):
-    #             self.disconnect()
-    #             log.error("No port to read from!")
-    #             return None
-    #     else:
-    #         log.debug("No reading from an unavailable port")
-    #         return None
-    #
-    # def query(self, msg):
-    #     connected = self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
-    #     self.send(msg, connected)
-    #     return self.receive(connected)
-    #
-    # def format_message(self, reply_message):
-    #     if reply_message == '' or reply_message is None:
-    #         log.warning('Empty message from arduino')
-    #         return None
-    #     else:
-    #         message = reply_message.split(' ')
-    #         if message[-1] == self.last_sent_char:
-    #             message = message[:-1]
-    #             message = np.array(message[1:], dtype=float) if message[0] == '' else np.array(message, dtype=float)
-    #             if len(message) != len(KEYS):
-    #                 log.warning('only a partial message was received from the arduino')
-    #                 return None
-    #             else:
-    #                 log.info(f'Message to format: {message}')
-    #                 for i, val in enumerate(message):
-    #                     if i % 3 == 0:
-    #                         message[i] = 2 * ((val * (5/1023)) - 2.5)
-    #                     else:
-    #                         message[i] = val * (5/1023)
-    #                 final_message = {key: value for (key, value) in zip(KEYS, message)}
-    #                 return final_message
-    #         else:
-    #             log.warning('Message was received but it was nonsense')
-    #             return None
-    #
-    # def send_to_redis(self, msg):
-    #     timestamp = int(datetime.timestamp(datetime.utcnow()))
-    #     if msg is not None:
-    #         for k in KEYS:
-    #             log.debug(f"Writing {msg[k]} to key {k} at {timestamp}")
-    #             self.redis.add(key=k, value=msg[k], timestamp=timestamp)
-    #     else:
-    #         log.info("no valid message received from arduino, logging problem")
-    #
-    # def run(self):
-    #     prev_time = time.time()
-    #     while True:
-    #         if time.time() - prev_time >= self.query_interval:
-    #             connected = True if self.connect(port=self.port, baudrate=self.baudrate, timeout=self.timeout) == "o" else False
-    #             if connected:
-    #                 log.debug('connected and querying...')
-    #                 arduino_reply = self.query('h')
-    #                 log.info(f"Received {arduino_reply}")
-    #                 to_redis = self.format_message(arduino_reply)
-    #                 self.send_to_redis(to_redis)
-    #             else:
-    #                 log.debug('not connected, wait to poll again')
-    #                 self.send_to_redis(None)
-    #             prev_time = time.time()
+    def receive(self):
+        try:
+            data = self.ser.readline().decode("utf-8").strip()
+            getLogger(__name__).debug(f"read {data} from arduino")
+            if data[-1] != ':':
+                raise IOError('Protocol violation')
+            return data
+        except (IOError, SerialException) as e:
+            self.disconnect()
+            getLogger(__name__).debug(f"Send failed {e}")
+            # raise e
+
+    def get_hemt_data(self):
+        try:
+            self.send('?', connect=True)
+            response = self.receive()
+            data = self.parse(response)
+        except Exception as e:
+            raise IOError(e)
+
+        return data
+
+    def parse(self, response):
+        try:
+            values = list(map(float, response.strip().split(' ')))
+            pvals = [ val * (5/1023) if i % 3 else 2 * ((val * (5/1023)) - 2.5) for i, val in enumerate(values)]
+            ret = {key: v for key, v in zip(KEYS, pvals)}
+        except Exception as e:
+            raise ValueError(f"Error parsing response data: {response}")
+        return ret
 
 
 def setup_redis(host='localhost', port=6379, db=0):
@@ -152,12 +112,12 @@ def setup_redis(host='localhost', port=6379, db=0):
     return redis
 
 
-def store_status(redis, status):
-    redis.write(STATUS_KEY, status)
+def store_status(redis, status, timestamp):
+    redis.add(key=STATUS_KEY, value=status, timestamp=timestamp)
 
 
-def store_firmware(redis):
-    redis.write(FIRMWARE_KEY, HEMTDUINO_VERSION)
+def store_firmware(redis, timestamp):
+    redis.write(key=FIRMWARE_KEY, status=HEMTDUINO_VERSION, timestamp=timestamp)
 
 
 def store_hemt_data(redis, data, timestamp):
@@ -174,4 +134,19 @@ if __name__ == "__main__":
     hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200)
     redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
 
-    store_firmware(redis)
+    store_firmware(redis, int(datetime.timestamp(datetime.utcnow())))
+
+    while True:
+        timestamp = int(datetime.timestamp(datetime.utcnow()))
+        try:
+            data = hemtduino.get_hemt_data()
+            store_hemt_data(redis, data, timestamp)
+            store_status(redis, 'OK', timestamp)
+        except RedisError as e:
+            log.error(f"Redis error {e}")
+            sys.exit(1)
+        except IOError as e:
+            log.error(f"Error {e}")
+            store_status(redis, f"Error {e}")
+
+        time.sleep(QUERY_INTERVAL)
