@@ -43,6 +43,7 @@ class Hemtduino(object):
         getLogger(__name__).debug(f"Connecting to {self.port} at {self.baudrate}")
         try:
             self.ser = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+            time.sleep(.2)
             getLogger(__name__).debug(f"port {self.port} connection established")
             return True
         except (SerialException, IOError) as e:
@@ -76,13 +77,24 @@ class Hemtduino(object):
         try:
             data = self.ser.readline().decode("utf-8").strip()
             getLogger(__name__).debug(f"read {data} from arduino")
-            if data[-1] != ':':
+            if data[-1] != '?':
                 raise IOError('Protocol violation')
             return data
         except (IOError, SerialException) as e:
             self.disconnect()
             getLogger(__name__).debug(f"Send failed {e}")
             # raise e
+
+    def parse(self, response):
+        if response[-1] == '?':
+            response = response[:-2]
+        try:
+            values = list(map(float, response.strip().split(' ')))
+            pvals = [val * (5/1023) if i % 3 else 2 * ((val * (5/1023)) - 2.5) for i, val in enumerate(values)]
+            ret = {key: v for key, v in zip(KEYS, pvals)}
+        except Exception as e:
+            raise ValueError(f"Error parsing response data: {response}")
+        return ret
 
     def get_hemt_data(self):
         try:
@@ -94,15 +106,6 @@ class Hemtduino(object):
 
         return data
 
-    def parse(self, response):
-        try:
-            values = list(map(float, response.strip().split(' ')))
-            pvals = [ val * (5/1023) if i % 3 else 2 * ((val * (5/1023)) - 2.5) for i, val in enumerate(values)]
-            ret = {key: v for key, v in zip(KEYS, pvals)}
-        except Exception as e:
-            raise ValueError(f"Error parsing response data: {response}")
-        return ret
-
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Client(host=host, port=port, db=db)
@@ -112,17 +115,17 @@ def setup_redis(host='localhost', port=6379, db=0):
     return redis
 
 
-def store_status(redis, status, timestamp):
-    redis.add(key=STATUS_KEY, value=status, timestamp=timestamp)
+def store_status(redis, status):
+    redis.add(key=STATUS_KEY, value=status, timestamp='*')
 
 
-def store_firmware(redis, timestamp):
-    redis.write(key=FIRMWARE_KEY, status=HEMTDUINO_VERSION, timestamp=timestamp)
+def store_firmware(redis):
+    redis.add(key=FIRMWARE_KEY, value=HEMTDUINO_VERSION, timestamp='*')
 
 
-def store_hemt_data(redis, data, timestamp):
+def store_hemt_data(redis, data):
     for k, v in data.items():
-        redis.add(key=k, value=v, timestamp=timestamp)
+        redis.add(key=k, value=v, timestamp='*')
 
 
 if __name__ == "__main__":
@@ -132,16 +135,17 @@ if __name__ == "__main__":
     log.setLevel(logging.DEBUG)
 
     hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200)
+    hemtduino.connect()
     redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
 
-    store_firmware(redis, int(datetime.timestamp(datetime.utcnow())))
+    store_firmware(redis)
+    time.sleep(1)
 
     while True:
-        timestamp = int(datetime.timestamp(datetime.utcnow()))
         try:
             data = hemtduino.get_hemt_data()
-            store_hemt_data(redis, data, timestamp)
-            store_status(redis, 'OK', timestamp)
+            store_hemt_data(redis, data)
+            store_status(redis, 'OK')
         except RedisError as e:
             log.error(f"Redis error {e}")
             sys.exit(1)
