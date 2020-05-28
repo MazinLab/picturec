@@ -10,11 +10,12 @@ from datetime import datetime
 import numpy as np
 from serial import SerialException
 from redis import RedisError
+from redis import Redis
 from redistimeseries.client import Client
 
 HEMTDUINO_VERSION = "0.1"
 REDIS_DB = 0
-QUERY_INTERVAL = 1
+QUERY_INTERVAL = 3
 
 HEMT_VALUES = ['gate-voltage-bias', 'drain-current-bias', 'drain-voltage-bias']
 KEYS = [f"status:feedline{5-i}:hemt:{j}" for i in range(5) for j in HEMT_VALUES]
@@ -108,28 +109,26 @@ class Hemtduino(object):
 
 
 def setup_redis(host='localhost', port=6379, db=0):
-    redis = Client(host=host, port=port, db=db)
-    redis_keys = redis.keys('status:*:hemt:*')
-    hemtduino_keys = redis.keys('*:hemtduino:*')
+    redis_ts = Client(host=host, port=port, db=db)
+    redis = Redis(host=host, port=port, db=db)
+    redis_keys = redis_ts.keys('status:*:hemt:*')
 
     redis_keys = [k.decode('utf-8') for k in redis_keys]
-    [redis.create(key) for key in KEYS if key not in redis_keys]
-    [redis.create(STATUS_KEY) if STATUS_KEY not in hemtduino_keys]
-    [redis.create(FIRMWARE_KEY) if FIRMWARE_KEY not in hemtduino_keys]
-    return redis
+    [redis_ts.create(key) for key in KEYS if key not in redis_keys]
+    return redis, redis_ts
 
 
 def store_status(redis, status):
-    redis.add(key=STATUS_KEY, value=status, timestamp='*')
+    redis.set(STATUS_KEY, status)
 
 
 def store_firmware(redis):
-    redis.add(key=FIRMWARE_KEY, value=HEMTDUINO_VERSION, timestamp='*')
+    redis.set(FIRMWARE_KEY, HEMTDUINO_VERSION)
 
 
-def store_hemt_data(redis, data):
+def store_hemt_data(redis_ts, data):
     for k, v in data.items():
-        redis.add(key=k, value=v, timestamp='*')
+        redis_ts.add(key=k, value=v, timestamp='*')
 
 
 if __name__ == "__main__":
@@ -140,15 +139,15 @@ if __name__ == "__main__":
 
     hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200)
     hemtduino.connect()
-    redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
+    redis, redis_ts = setup_redis(host='localhost', port=6379, db=REDIS_DB)
 
-    store_firmware(redis)
+    store_firmware(redis_ts)
     time.sleep(1)
 
     while True:
         try:
             data = hemtduino.get_hemt_data()
-            store_hemt_data(redis, data)
+            store_hemt_data(redis_ts, data)
             store_status(redis, 'OK')
         except RedisError as e:
             log.error(f"Redis error {e}")
