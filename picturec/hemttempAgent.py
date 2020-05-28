@@ -110,8 +110,12 @@ class Hemtduino(object):
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Client(host=host, port=port, db=db)
     redis_keys = redis.keys('status:*:hemt:*')
+    hemtduino_keys = redis.keys('*:hemtduino:*')
+
     redis_keys = [k.decode('utf-8') for k in redis_keys]
     [redis.create(key) for key in KEYS if key not in redis_keys]
+    [redis.create(STATUS_KEY) if STATUS_KEY not in hemtduino_keys]
+    [redis.create(FIRMWARE_KEY) if FIRMWARE_KEY not in hemtduino_keys]
     return redis
 
 
