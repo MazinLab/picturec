@@ -108,15 +108,18 @@ class Hemtduino(object):
         return data
 
 
-def setup_redis(host='localhost', port=6379, db=0):
+def setup_redis_ts(host='localhost', port=6379, db=0):
     redis_ts = Client(host=host, port=port, db=db)
-    redis = Redis(host=host, port=port, db=db)
     redis_keys = redis_ts.keys('status:*:hemt:*')
 
     redis_keys = [k.decode('utf-8') for k in redis_keys]
     [redis_ts.create(key) for key in KEYS if key not in redis_keys]
-    return redis, redis_ts
+    return redis_ts
 
+
+def setup_redis(host='localhost', port=6379, db=0):
+    redis = Redis(host=host, port=port, db=db)
+    return redis
 
 def store_status(redis, status):
     redis.set(STATUS_KEY, status)
@@ -139,7 +142,8 @@ if __name__ == "__main__":
 
     hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200)
     hemtduino.connect()
-    redis, redis_ts = setup_redis(host='localhost', port=6379, db=REDIS_DB)
+    redis_ts = setup_redis_ts(host='localhost', port=6379, db=REDIS_DB)
+    redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
 
     store_firmware(redis_ts)
     time.sleep(1)
