@@ -43,7 +43,7 @@ void setup() {
 }
 
 void loop() {
-  char confirm[10];
+  char confirm[1];
   if (Serial.available()>0) {
     while (Serial.available()) {
       char x = Serial.read();
