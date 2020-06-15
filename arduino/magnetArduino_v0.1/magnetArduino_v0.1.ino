@@ -16,7 +16,7 @@ byte closePin = 11
  //===================
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   pinMode(openPin, OUTPUT);
   pinMode(closePin, OUTPUT);
   pinMode(ledPin, OUTPUT);
