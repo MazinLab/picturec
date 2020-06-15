@@ -30,14 +30,18 @@ void setup() {
 //====================================
 
 void openHeatSwitch() {
+/  Serial.print("writing open pin high");
   digitalWrite(openPin, HIGH);
   delay(50);
+/  Serial.print("writing open pin low");
   digitalWrite(openPin, LOW);
 }
 
 void closeHeatSwitch() {
+/  Serial.print("writing close pin high");
   digitalWrite(closePin, HIGH);
   delay(50);
+/  Serial.print("writing close pin low");
   digitalWrite(closePin, LOW);
 }
 

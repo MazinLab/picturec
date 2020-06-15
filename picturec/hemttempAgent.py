@@ -1,4 +1,16 @@
 """
+Author: Noah Swimmer, 1 April 2020
+
+Program for controlling ArduinoMEGA that monitors the bias voltages and currents of the transistors
+of the cryogenic HEMT amplifiers in the PITCURE-C cryostat. Will log the values directly to redis database
+for the fridge monitor to store/determine that the amplifiers are working properly.
+
+TODO: - Add error checking to determine if the HEMT bias values are out of acceptable ranges
+ - Add HEMT rack temperature reporting. It might make the most sense to do it on this Arduino
+ since it is another mindless reading operation
+ - Add 'device-settings:hemtduino:hemts-enabled' key to be used in error checking to determine
+ if HEMTS should be ON or OFF (this will go along with the 'status:feedline:hemt:powered' key)
+ - Is this where we want to add the HEMT S/N values to 'register' them?
 """
 
 import serial
@@ -24,7 +36,7 @@ STATUS_KEY = "status:device:hemtduino:status"
 FIRMWARE_KEY = "status:device:hemtduino:firmware"
 
 class Hemtduino(object):
-    def __init__(self, port, baudrate=115200, timeout=.1):
+    def __init__(self, port, baudrate=115200, timeout=0.1):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
@@ -119,6 +131,7 @@ def setup_redis_ts(host='localhost', port=6379, db=0):
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
     return redis
+
 
 def store_status(redis, status):
     redis.set(STATUS_KEY, status)
