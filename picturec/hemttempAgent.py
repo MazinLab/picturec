@@ -159,7 +159,7 @@ if __name__ == "__main__":
     redis_ts = setup_redis_ts(host='localhost', port=6379, db=REDIS_DB)
     redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
 
-    store_firmware(redis_ts)
+    store_firmware(redis)
     time.sleep(1)
 
     while True:
