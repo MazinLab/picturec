@@ -34,7 +34,6 @@ FIRMWARE_KEY = "status:device:currentduino:firmware"
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
-
 class Currentduino(object):
     def __init__(self, port, baudrate=115200, timeout=0.1):
         self.ser = None
@@ -114,6 +113,18 @@ class Currentduino(object):
             raise IOError(e)
         return data
 
+    def open_heat_switch(self):
+        self.send('o', connect=True)
+        response = self.receive()
+        if response == 'o':
+            return {KEYS[3]: 'OPEN'}
+
+    def close_heat_switch(self):
+        self.send('c', connect=True)
+        response = self.receive()
+        if response == 'c':
+            return {KEYS[3]: 'CLOSE'}
+
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
@@ -128,6 +139,10 @@ def setup_redis_ts(host='localhost', port=6379, db=0):
     return redis_ts
 
 
+def get_redis_value(redis, key):
+    return redis.get(key)
+
+
 def store_status(redis, status):
     redis.set(STATUS_KEY, status)
 
@@ -136,8 +151,9 @@ def store_firmware(redis):
     redis.set(FIRMWARE_KEY, CURRENTDUINO_VERSION)
 
 
-def store_heat_switch_status(redis, status:str):
-    redis.set(KEYS[3], status)
+def store_heat_switch_status(redis, data):
+    for k, v in data.items():
+        redis.set(k, v)
 
 
 def store_high_current_board_status(redis, status:str):
