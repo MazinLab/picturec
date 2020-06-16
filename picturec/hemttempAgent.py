@@ -11,6 +11,8 @@ TODO: - Add error checking to determine if the HEMT bias values are out of accep
  - Add 'device-settings:hemtduino:hemts-enabled' key to be used in error checking to determine
  if HEMTS should be ON or OFF (this will go along with the 'status:feedline:hemt:powered' key)
  - Is this where we want to add the HEMT S/N values to 'register' them?
+ - Make key creation more intuitive (instead of searching if it already exists, just handle the
+ exception for a pre-existing key)
 """
 
 import serial
@@ -83,7 +85,7 @@ class Hemtduino(object):
             getLogger(__name__).debug(f"Sent {msg} successfully")
         except (SerialException, IOError) as e:
             self.disconnect()
-            getLogger(__name__).error(f"Send failed {e}")
+            getLogger(__name__).error(f"Send failed: {e}")
             # raise e
 
     def receive(self):

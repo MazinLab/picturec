@@ -6,7 +6,8 @@ current-sensing resistor on the PIPER-designed HichCurrent Boost board (see pict
 for circuit drawing). Will log values to redis, will also act as a safeguard to tell the magnet current
 control that the current is operating out of normal bounds.
 
-TODO:
+TODO: - Make key creation more intuitive (instead of searching if it already exists, just handle the
+ exception for a pre-existing key)
 """
 
 import serial
@@ -69,6 +70,28 @@ class Currentduino(object):
         except Exception as e:
             getLogger(__name__).info(f"Exception durring disconnect: {e}")
 
+    def send(self, msg: str, connect=True):
+        if connect:
+            self.connect()
+        try:
+            getLogger(__name__).debug(f"writing message: {msg}")
+            self.ser.write(msg.encode("utf-8"))
+            getLogger(__name__).debug(f"Sent {msg} successfully")
+        except (SerialException, IOError) as e:
+            self.disconnect()
+            getLogger(__name__).error(f"Send failed: {e}")
+            # raise e
+
+    def receive(self):
+        try:
+            data = self.ser.readline().decode("utf-8").strip()
+            getLogger(__name__).debug(f"read {data} from arduino")
+            return data
+        except (SerialException, IOError) as e:
+            self.disconnect()
+            getLogger(__name__).debug(f"Send failed: {e}")
+            # raise e
+
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
@@ -78,7 +101,8 @@ def setup_redis(host='localhost', port=6379, db=0):
 def setup_redis_ts(host='localhost', port=6379, db=0):
     redis_ts = Client(host=host, port=port, db=db)
 
-    # Add the necessary timestream keys here!
+    if 'status:highcurrentboard:current' not in redis_ts.keys('status:highcurrentboard:current'):
+        redis_ts.create('status:highcurrentboard:current')
     return redis_ts
 
 
@@ -88,6 +112,18 @@ def store_status(redis, status):
 
 def store_firmware(redis):
     redis.set(FIRMWARE_KEY, CURRENTDUINO_VERSION)
+
+
+def store_heat_switch_status(redis, status:str):
+    redis.set(KEYS[3], status)
+
+
+def store_high_current_board_status(redis, status:str):
+    redis.set(KEYS[4], status)
+
+
+def store_high_current_board_current(redis_ts, data):
+    redis_ts.add(key=KEYS[5], value=data, timestamp='*')
 
 
 if __name__ == "__main__":
