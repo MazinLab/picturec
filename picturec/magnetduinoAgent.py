@@ -8,6 +8,9 @@ control that the current is operating out of normal bounds.
 
 TODO: - Make key creation more intuitive (instead of searching if it already exists, just handle the
  exception for a pre-existing key)
+ - Add interaction between redis and currentduino (to enable heat switch control)
+ - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
+ of the magnet ('status:magnet:current') from the SIM960
 """
 
 import serial
@@ -35,12 +38,14 @@ R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
 class Currentduino(object):
-    def __init__(self, port, baudrate=115200, timeout=0.1):
+    def __init__(self, port, redis, baudrate=115200, timeout=0.1):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.connect(raise_errors=False)
+        hs_position = self.initialize_heat_switch(get_redis_value('device-settings:currentduino:heatswitch'))
+        self.heat_switch_position = hs_position['device-settings:currentduino:heatswitch']
 
     def connect(self, reconnect=False, raise_errors=True):
         if reconnect:
@@ -113,17 +118,56 @@ class Currentduino(object):
             raise IOError(e)
         return data
 
-    def open_heat_switch(self):
-        self.send('o', connect=True)
-        response = self.receive()
-        if response == 'o':
-            return {KEYS[3]: 'OPEN'}
+    def open_heat_switch(self, redis):
+        pos = get_redis_value(redis, 'status:heatswitch')
+        if pos == 'open':
+            return {KEYS[3]: 'open'}
+        else:
+            self.send('o', connect=True)
+            response = self.receive()
+            if response == 'o':
+                return {KEYS[3]: 'open'}
 
-    def close_heat_switch(self):
-        self.send('c', connect=True)
-        response = self.receive()
-        if response == 'c':
-            return {KEYS[3]: 'CLOSE'}
+    def close_heat_switch(self, redis):
+        pos = get_redis_value(redis, 'status:heatswitch')
+        if pos == 'close':
+            return {KEYS[3]: 'close'}
+        else:
+            self.send('c', connect=True)
+            response = self.receive()
+            if response == 'c':
+                return {KEYS[3]: 'close'}
+
+    def initialize_heat_switch(self, position, redis):
+        if (position == 'o') or (position == 'open'):
+            status = self.open_heat_switch(redis)
+        elif (position == 'c') or (position == 'close'):
+            status = self.close_heat_switch(redis)
+        else:
+            status = self.close_heat_switch(redis)
+        return status
+
+    def run(self):
+        """
+        While running properly, this will loop over and over
+        """
+
+
+
+        # while True:
+        #     try:
+        #         data = self.get_current_data()
+        #         store_high_current_board_current(redis_ts, data)
+        #         store_status(redis, 'OK')
+        #         store_high_current_board_status(redis, 'OK')
+        #     except RedisError as e:
+        #         log.error(f"Redis error {e}")
+        #         sys.exit(1)
+        #     except IOError as e:
+        #         log.error(f"Error {e}")
+        #         store_status(redis, f"Error {e}")
+        #
+        #     time.sleep(QUERY_INTERVAL)
 
 
 def setup_redis(host='localhost', port=6379, db=0):
@@ -140,7 +184,7 @@ def setup_redis_ts(host='localhost', port=6379, db=0):
 
 
 def get_redis_value(redis, key):
-    return redis.get(key)
+    return redis.get(key).decode("utf-8")
 
 
 def store_status(redis, status):
@@ -171,5 +215,10 @@ if __name__ == "__main__":
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
 
-    currentduino = Currentduino(port='/dev/curremtduino', baudrate=115200)
+    redis_ts = setup_redis_ts(host='localhost', port=6379, db=REDIS_DB)
+    redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
+    currentduino = Currentduino(port='/dev/curremtduino', redis=redis, baudrate=115200, timeout=0.1)
     currentduino.connect()
+
+    store_firmware(redis)
+    time.sleep(1)
