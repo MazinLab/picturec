@@ -31,6 +31,10 @@ KEYS = ['device-settings:currentduino:highcurrentboard', 'device-settings:curren
 STATUS_KEY = "status:device:currentduino:status"
 FIRMWARE_KEY = "status:device:currentduino:firmware"
 
+R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
+R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
+
+
 class Currentduino(object):
     def __init__(self, port, baudrate=115200, timeout=0.1):
         self.ser = None
@@ -92,6 +96,24 @@ class Currentduino(object):
             getLogger(__name__).debug(f"Send failed: {e}")
             # raise e
 
+    def parse(self, response):
+        if response[-1] == '?':
+            readValue = float(response.split(' ')[0])
+        try:
+            current = (readValue * (5.0 / 1023.0) * ((R1 + R2) / R2))
+        except Exception:
+            raise ValueError(f"Couldn't convert {response.split(' ')[0]} to float")
+        return {KEYS[5]: current}
+
+    def get_current_data(self):
+        try:
+            self.send('?', connect=True)
+            response = self.receive()
+            data = self.parse(response)
+        except Exception as e:
+            raise IOError(e)
+        return data
+
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
@@ -123,7 +145,8 @@ def store_high_current_board_status(redis, status:str):
 
 
 def store_high_current_board_current(redis_ts, data):
-    redis_ts.add(key=KEYS[5], value=data, timestamp='*')
+    for k, v in data.items():
+        redis_ts.add(key=k, value=v, timestamp='*')
 
 
 if __name__ == "__main__":
