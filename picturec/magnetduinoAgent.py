@@ -193,9 +193,9 @@ def store_firmware(redis):
 
 def get_redis_value(redis, key):
     try:
-        return redis.get(key).decode("utf-8")
+        return {key: redis.get(key).decode("utf-8")}
     except:
-        return ''
+        return {key: 'NO-VALUE'}
 
 
 def store_heat_switch_status(redis, data):
