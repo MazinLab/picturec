@@ -4,7 +4,8 @@ Author: Noah Swimmer 15 June 2020
 Program to control ArduinoUNO that will measure the current through the ADR magnet by monitoring the
 current-sensing resistor on the PIPER-designed HichCurrent Boost board (see picturec reference folder
 for circuit drawing). Will log values to redis, will also act as a safeguard to tell the magnet current
-control that the current is operating out of normal bounds.
+control that the current is operating out of normal bounds. NOTE: Redis/redistimeseries MUST be set up
+for the currentduino to work.
 
 TODO: - Make key creation more intuitive (instead of searching if it already exists, just handle the
  exception for a pre-existing key)
@@ -24,7 +25,7 @@ from redis import RedisError
 from redis import Redis
 from redistimeseries.client import Client
 
-CURRENTDUINO_VERSION = "0.1"
+CURRENTDUINO_VERSION = "0.2"
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 
@@ -39,17 +40,14 @@ R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
 
 class Currentduino(object):
-    def __init__(self, port, redis=None, baudrate=115200, timeout=0.1):
+    def __init__(self, port, redis, redis_ts, baudrate=115200, timeout=0.1):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.connect(raise_errors=False)
-        if redis is not None:
-            hs_position = self.initialize_heat_switch(get_redis_value(redis, 'device-settings:currentduino:heatswitch'), redis)
-            self.heat_switch_position = hs_position
-        else:
-            self.heat_switch_position = self.close_heat_switch()
+        self.redis = redis
+        self.redis_ts = redis_ts
 
     def connect(self, reconnect=False, raise_errors=True):
         if reconnect:
@@ -122,71 +120,37 @@ class Currentduino(object):
             raise IOError(e)
         return data
 
-    def open_heat_switch(self, redis=None):
-        if redis is not None:
-            pos = get_redis_value(redis, 'status:heatswitch')
-            if pos == 'open':
-                return {KEYS[3]: 'open'}
+    def open_heat_switch(self):
+        pos = get_redis_value(self.redis, 'status:heatswitch')
+        if pos == 'open':
+            store_heat_switch_status(self.redis, self.heat_switch_position)
+            return self.heat_switch_position
         else:
-            self.send('o', connect=True)
-            response = self.receive()
-            if response == 'o':
-                self.heat_switch_position = {KEYS[3]: 'open'}
-                return self.heat_switch_position
+            try:
+                self.send('o', connect=True)
+                response = self.receive()
+                if response == 'o':
+                    self.heat_switch_position = {KEYS[3]: 'open'}
+                    store_heat_switch_status(self.redis, self.heat_switch_position)
+            except Exception as e:
+                raise IOError(e)
+        return self.heat_switch_position
 
-    def close_heat_switch(self, redis=None):
-        if redis is not None:
-            pos = get_redis_value(redis, 'status:heatswitch')
-            if pos == 'close':
-                return {KEYS[3]: 'close'}
+    def close_heat_switch(self):
+        pos = get_redis_value(self.redis, 'status:heatswitch')
+        if pos == 'close':
+            store_heat_switch_status(self.redis, self.heat_switch_position)
+            return self.heat_switch_position
         else:
-            self.send('c', connect=True)
-            response = self.receive()
-            if response == 'c':
-                self.heat_switch_position = {KEYS[3]: 'close'}
-                return self.heat_switch_position
-
-    def initialize_heat_switch(self, position, redis=None):
-        if (position == 'o') or (position == 'open'):
-            status = self.open_heat_switch(redis)
-        elif (position == 'c') or (position == 'close'):
-            status = self.close_heat_switch(redis)
-        else:
-            status = self.close_heat_switch(redis)
-        return status
-
-    def run(self, redis, redis_ts):
-        """
-        While running properly, this will loop over and over
-        """
-        prev_redis_check_time = time.time()
-        prev_current_query_time = time.time()
-        while True:
-            r_check_time = time.time()
-            i_query_time = time.time()
-            if (r_check_time - prev_redis_check_time) > .1:
-                hs_desire = get_redis_value(redis, 'device-settings:currentduino:heatswitch')
-                prev_redis_check_time = time.time()
-                if hs_desire != self.heat_switch_position['device-settings:currentduino:heatswitch']:
-                    if hs_desire == 'close':
-                        self.close_heat_switch(redis)
-                    elif hs_desire == 'open':
-                        self.open_heat_switch(redis)
-                else:
-                    pass
-            if (i_query_time - prev_current_query_time) > QUERY_INTERVAL:
-                prev_current_query_time = time.time()
-                try:
-                    data = self.get_current_data()
-                    store_high_current_board_current(redis_ts, data)
-                    store_status(redis, 'OK')
-                    store_high_current_board_status(redis, 'OK')
-                except RedisError as e:
-                    log.error(f"Redis error {e}")
-                    sys.exit(1)
-                except IOError as e:
-                    log.error(f"Error {e}")
-                    store_status(redis, f"Error {e}")
+            try:
+                self.send('c', connect=True)
+                response = self.receive()
+                if response == 'c':
+                    self.heat_switch_position = {KEYS[3]: 'close'}
+                    store_heat_switch_status(self.redis, self.heat_switch_position)
+            except IOError as e:
+                raise IOError(e)
+        return self.heat_switch_position
 
 
 def setup_redis(host='localhost', port=6379, db=0):
@@ -197,16 +161,12 @@ def setup_redis(host='localhost', port=6379, db=0):
 def setup_redis_ts(host='localhost', port=6379, db=0):
     redis_ts = Client(host=host, port=port, db=db)
 
-    if 'status:highcurrentboard:current' not in redis_ts.keys('status:highcurrentboard:current'):
-        redis_ts.create('status:highcurrentboard:current')
-    return redis_ts
-
-
-def get_redis_value(redis, key):
     try:
-        return redis.get(key).decode("utf-8")
-    except:
-        return ''
+        redis_ts.create('status:highcurrentboard:current')
+    except RedisError:
+        # log.debug(f"KEY 'status:highcurrentboard:current' already exists")
+        pass
+    return redis_ts
 
 
 def store_status(redis, status):
@@ -215,6 +175,13 @@ def store_status(redis, status):
 
 def store_firmware(redis):
     redis.set(FIRMWARE_KEY, CURRENTDUINO_VERSION)
+
+
+def get_redis_value(redis, key):
+    try:
+        return redis.get(key).decode("utf-8")
+    except:
+        return ''
 
 
 def store_heat_switch_status(redis, data):
@@ -244,5 +211,3 @@ if __name__ == "__main__":
 
     store_firmware(redis)
     time.sleep(1)
-
-    currentduino.run(redis, redis_ts)
