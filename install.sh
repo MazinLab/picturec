@@ -1,5 +1,7 @@
 # Stuff will go here first
 
+# Assuming a fresh install with none of the computer set up, redis and redistimeseries installation must be included
+
 sudo cp etc/redis/redis.conf /etc/redis/
 sudo cp etc/systemd/system/* /etc/systemd/system/
 sudo cp etc/udev/rules.d/* /etc/udev/rules.d/
