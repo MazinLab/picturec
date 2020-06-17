@@ -1,35 +1,42 @@
-device-settings:
-  hemtduino:
-    hemts-enabled: False
-  currentduino:
-    highcurrentboard: 'OFF'
-    heatswitch: 'CLOSE'
-  ls240:
-    lhe-profile:
-    ln2-profile:
-  sim921:
-    resistance-range:
-    excitation-value:
-    excitation-mode:
-    time-constant:
-    temp-offset: 0.01
-    temp-slope:
-    resistance-offset: 19400.5
-    resistance-slope: 10e-5
-    curve-profile:
-    curve-channel: 1
-    manual-vout: 0
-    output-mode: 'MANUAL'
-  sim960:
-    mode: 'MANUAL'
-    vout-min-limit: -0.1
-    vout-max-limit: 10
-    pid:
-      p:
-      i:
-      d:
-    setpoint-mode: 'INTERNAL'
-    pid-control-vin-setpoint: 0
-    ramp-rate:
-    ramp-enable:
-    vout-value:
+default:
+  device-settings:
+    hemtduino:
+      hemts-enabled: False
+    currentduino:
+      highcurrentboard: 'off'
+      heatswitch: 'close'
+    ls240:
+      lhe-profile: 'linear'
+      ln2-profile: 'linear'
+    sim921:
+      resistance-range: 20e3
+      excitation-value: 100e-6
+      excitation-mode: 'voltage'
+      time-constant: 3
+      temp-offset: 100e-3
+      temp-slope: 1e-2
+      resistance-offset: 19400.5
+      resistance-slope: 1e-5
+      curve-profile: 'linear'
+      curve-channel: 1
+      manual-vout: 0
+      output-mode: 'manual'
+    sim960:
+      mode: 'manual'
+      vout-min-limit: -0.1
+      vout-max-limit: 10
+      pid:
+        p:
+          value: 1.6e1
+          enabled: True
+        i:
+          value: 0.2
+          enabled: True
+        d:
+          value: 0
+          enabled: False
+      setpoint-mode: 'internal'
+      pid-control-vin-setpoint: 0
+      ramp-rate: 1e-3
+      ramp-enable: True
+      vout-value: 0
