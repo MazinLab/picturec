@@ -48,6 +48,8 @@ class Currentduino(object):
         self.connect(raise_errors=False)
         self.redis = redis
         self.redis_ts = redis_ts
+        self.heat_switch_position = get_redis_value(self.redis, 'status:heatswitch')
+        self.initialize_heat_switch()
 
     def connect(self, reconnect=False, raise_errors=True):
         if reconnect:
@@ -123,7 +125,6 @@ class Currentduino(object):
     def open_heat_switch(self):
         pos = get_redis_value(self.redis, 'status:heatswitch')
         if pos == 'open':
-            store_heat_switch_status(self.redis, self.heat_switch_position)
             return self.heat_switch_position
         else:
             try:
@@ -139,7 +140,6 @@ class Currentduino(object):
     def close_heat_switch(self):
         pos = get_redis_value(self.redis, 'status:heatswitch')
         if pos == 'close':
-            store_heat_switch_status(self.redis, self.heat_switch_position)
             return self.heat_switch_position
         else:
             try:
@@ -151,6 +151,20 @@ class Currentduino(object):
             except IOError as e:
                 raise IOError(e)
         return self.heat_switch_position
+
+    def initialize_heat_switch(self):
+        desired_pos = get_redis_value(self.redis, 'device-settings:currentduino:heatswitch')
+        actual_pos = get_redis_value(self.redis, 'status:heatswitch')
+        if desired_pos == actual_pos:
+            self.heat_switch_position = {KEYS[3]: actual_pos}
+            return self.heat_switch_position
+        else:
+            if desired_pos == 'close':
+                self.heat_switch_position = self.close_heat_switch()
+            elif desired_pos == 'open':
+                self.heat_switch_position = self.open_heat_switch()
+            else:
+                self.heat_switch_position = self.close_heat_switch()
 
 
 def setup_redis(host='localhost', port=6379, db=0):
