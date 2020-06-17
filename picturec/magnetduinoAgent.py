@@ -37,6 +37,7 @@ FIRMWARE_KEY = "status:device:currentduino:firmware"
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
+
 class Currentduino(object):
     def __init__(self, port, redis, baudrate=115200, timeout=0.1):
         self.ser = None
@@ -44,7 +45,7 @@ class Currentduino(object):
         self.baudrate = baudrate
         self.timeout = timeout
         self.connect(raise_errors=False)
-        hs_position = self.initialize_heat_switch(get_redis_value('device-settings:currentduino:heatswitch'))
+        hs_position = self.initialize_heat_switch(get_redis_value(redis, 'device-settings:currentduino:heatswitch'), redis)
         self.heat_switch_position = hs_position['device-settings:currentduino:heatswitch']
 
     def connect(self, reconnect=False, raise_errors=True):
@@ -151,8 +152,6 @@ class Currentduino(object):
         """
         While running properly, this will loop over and over
         """
-
-
 
         # while True:
         #     try:
