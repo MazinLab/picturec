@@ -1,0 +1,35 @@
+device-settings:
+  hemtduino:
+    hemts-enabled: False
+  currentduino:
+    highcurrentboard: 'OFF'
+    heatswitch: 'CLOSE'
+  ls240:
+    lhe-profile:
+    ln2-profile:
+  sim921:
+    resistance-range:
+    excitation-value:
+    excitation-mode:
+    time-constant:
+    temp-offset: 0.01
+    temp-slope:
+    resistance-offset: 19400.5
+    resistance-slope: 10e-5
+    curve-profile:
+    curve-channel: 1
+    manual-vout: 0
+    output-mode: 'MANUAL'
+  sim960:
+    mode: 'MANUAL'
+    vout-min-limit: -0.1
+    vout-max-limit: 10
+    pid:
+      p:
+      i:
+      d:
+    setpoint-mode: 'INTERNAL'
+    pid-control-vin-setpoint: 0
+    ramp-rate:
+    ramp-enable:
+    vout-value:
