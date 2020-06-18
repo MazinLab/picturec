@@ -36,9 +36,7 @@ void setup() {
   Serial.begin(115200);
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, HIGH);
-  delay(100);
   digitalWrite(ledPin, LOW);
-  delay(100);
   digitalWrite(ledPin, HIGH);
 }
 
