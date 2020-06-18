@@ -109,7 +109,6 @@ class Currentduino(object):
             readValue = float(response.split(' ')[0])
         try:
             current = (readValue * (5.0 / 1023.0) * ((R1 + R2) / R2))
-            getLogger(__name__).info(f"Current measured by currentduino is {current} A")
         except Exception:
             raise ValueError(f"Couldn't convert {response.split(' ')[0]} to float")
         return {KEYS[5]: current}
