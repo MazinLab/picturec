@@ -26,6 +26,7 @@ defaults:
       vout-min-limit: -0.1
       vout-max-limit: 10
       pid:
+        polarity: '-'
         mode: 'pi'
         p: 1.6e1
         i: 0.2
@@ -35,3 +36,145 @@ defaults:
       ramp-rate: 1e-3
       ramp-enable: True
       vout-value: 0
+
+device-settings:
+  hemtduino:
+    hemts-enabled: False
+  currentduino:
+    highcurrentboard: 'off'
+    heatswitch: 'close'
+  ls240:
+    lhe-profile: 'linear'
+    ln2-profile: 'linear'
+  sim921:
+    resistance-range: 20e3
+    excitation-value: 100e-6
+    excitation-mode: 'voltage'
+    time-constant: 3
+    temp-offset: 100e-3
+    temp-slope: 1e-2
+    resistance-offset: 19400.5
+    resistance-slope: 1e-5
+    curve-profile: 'linear'
+    curve-channel: 1
+    manual-vout: 0
+    output-mode: 'manual'
+  sim960:
+    mode: 'manual'
+    vout-min-limit: -0.1
+    vout-max-limit: 10
+    pid:
+      polarity: '-'
+      mode: 'pi'
+      p: 1.6e1
+      i: 0.2
+      d: 0
+    setpoint-mode: 'internal'
+    pid-control-vin-setpoint: 0
+    ramp-rate: 1e-3
+    ramp-enable: True
+    vout-value: 0
+
+status:
+  feedline1:
+    hemt:
+      powered: False
+      sn: '33A'
+      drain-voltage-bias: 0
+      drain-current-bias: 0
+      gate-voltage-bias: 0
+  feedline2:
+    hemt:
+      powered: False
+      sn: '508Z'
+      drain-voltage-bias: 0
+      drain-current-bias: 0
+      gate-voltage-bias: 0
+  feedline3:
+    hemt:
+      powered: False
+      sn: '541Z'
+      drain-voltage-bias: 0
+      drain-current-bias: 0
+      gate-voltage-bias: 0
+  feedline4:
+    hemt:
+      powered: False
+      sn: '487Z'
+      drain-voltage-bias: 0
+      drain-current-bias: 0
+      gate-voltage-bias: 0
+  feedline5:
+    hemt:
+      powered: False
+      sn: '603Z'
+      drain-voltage-bias: 0
+      drain-current-bias: 0
+      gate-voltage-bias: 0
+  temps:
+    lhetank:
+      temp: 4.2
+    ln2tank:
+      temp: 77.0
+    mkidarray:
+      temp: 0.100
+      resistance: 19400.5
+  device:
+    hemtduino:
+      firmware: '0.1'
+      status: 'OK'
+    currentduino:
+      firmware: '0.2'
+      status: 'OK'
+    ls240:
+      firmware: 'x.x'
+      status: 'OFF'
+      model: '240-2P'
+      sn: 'xxxxxxx'
+    sim921:
+      firmware: 'x.x'
+      status: 'OFF'
+      model: 'SIM921'
+      sn: 'xxxxxx'
+      sim960-vout: 0
+    sim960:
+      firmware: 'x.x'
+      status: 'OFF'
+      model: 'SIM960'
+      sn: 'xxxxxx'
+      hcfet-control-voltage: 0
+      vout: 0.
+  magnet:
+    current: 0
+    state: 'OFF'
+  heatswitch: 'close'
+  highcurrentboard:
+    powered: 'OFF'
+    current: 0
+
+user-intent: 'COLD'
+
+site:
+  observatory: 'Las Campanas Observatory'
+  telescope: 'Magellan Clay 6.5-m'
+  instrument: 'MagAO-X+PICTURE-C'
+  lat: '29S00.54'
+  long: '70W41.30'
+  elevation: 2516
+
+tcs:
+  ra: 0
+  dec: 0
+  target-name: 'Vega'
+  starttime: 0000000000
+  duration: 0
+
+overseer:
+  status:
+    hemttempAgent: 'OFF'
+    currentduinoAgent: 'OFF'
+    lakeshoreAgent: 'OFF'
+    sim921Agent: 'OFF'
+    sim960Agent: 'OFF'
+    fridgeManager: 'OFF'
+    obsController: 'OFF'
