@@ -49,7 +49,7 @@ class Currentduino(object):
         self.redis = redis
         self.redis_ts = redis_ts
         self.heat_switch_position = get_redis_value(self.redis, 'status:heatswitch')
-        self.initialize_heat_switch()
+        # self.initialize_heat_switch()
 
     def connect(self, reconnect=False, raise_errors=True):
         if reconnect:
@@ -123,48 +123,40 @@ class Currentduino(object):
         return data
 
     def open_heat_switch(self):
-        pos = get_redis_value(self.redis, 'status:heatswitch')
-        if pos == 'open':
-            return self.heat_switch_position
+        current_position = get_redis_value(self.redis, KEYS[3])
+        if current_position[KEYS[3]] == 'open':
+            getLogger(__name__).debug(f"Heat switch was already open")
+            return {KEYS[3]: 'open'}
         else:
             try:
-                self.send('o', connect=True)
-                response = self.receive()
-                if response == 'o':
-                    self.heat_switch_position = {KEYS[3]: 'open'}
-                    store_heat_switch_status(self.redis, self.heat_switch_position)
+                self.send("o")
+                confirm = self.receive()
+                self.heat_switch_position = {KEYS[3]: 'open'}
+                store_heat_switch_status(self.redis, {KEYS[3]: 'open'})
+            except RedisError as e:
+                getLogger(__name__).error(f"Redis error: {e}")
+                return {KEYS[3]: 'open'}
             except Exception as e:
-                raise IOError(e)
-        return self.heat_switch_position
+                getLogger(__name__).error(f"Error: {e}")
+                return {KEYS[3]: get_redis_value(self.redis, KEYS[3])}
 
     def close_heat_switch(self):
-        pos = get_redis_value(self.redis, 'status:heatswitch')
-        if pos == 'close':
-            return self.heat_switch_position
+        current_position = get_redis_value(self.redis, KEYS[3])
+        if current_position[KEYS[3]] == 'open':
+            getLogger(__name__).debug(f"Heat switch was already close")
+            return {KEYS[3]: 'close'}
         else:
             try:
-                self.send('c', connect=True)
-                response = self.receive()
-                if response == 'c':
-                    self.heat_switch_position = {KEYS[3]: 'close'}
-                    store_heat_switch_status(self.redis, self.heat_switch_position)
-            except IOError as e:
-                raise IOError(e)
-        return self.heat_switch_position
-
-    def initialize_heat_switch(self):
-        desired_pos = get_redis_value(self.redis, 'device-settings:currentduino:heatswitch')
-        actual_pos = get_redis_value(self.redis, 'status:heatswitch')
-        if desired_pos == actual_pos:
-            self.heat_switch_position = {KEYS[3]: actual_pos}
-            return self.heat_switch_position
-        else:
-            if desired_pos == 'close':
-                self.heat_switch_position = self.close_heat_switch()
-            elif desired_pos == 'open':
-                self.heat_switch_position = self.open_heat_switch()
-            else:
-                self.heat_switch_position = self.close_heat_switch()
+                self.send("c")
+                confirm = self.receive()
+                self.heat_switch_position = {KEYS[3]: 'close'}
+                store_heat_switch_status(self.redis, {KEYS[3]: 'close'})
+            except RedisError as e:
+                getLogger(__name__).error(f"Redis error: {e}")
+                return {KEYS[3]: 'close'}
+            except Exception as e:
+                getLogger(__name__).error(f"Error: {e}")
+                return {KEYS[3]: get_redis_value(self.redis, KEYS[3])}
 
 
 def setup_redis(host='localhost', port=6379, db=0):
