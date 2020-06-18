@@ -167,7 +167,9 @@ class Currentduino(object):
         except RedisError as e:
             raise RedisError(e)
 
-        if desired_position == current_position:
+        getLogger(__name__).debug(f"Desired position is {desired_position} and currently the heat switch is {current_position}")
+
+        if desired_position[KEYS[1]] == current_position[KEYS[3]]:
             getLogger(__name__).info(f"Initial heat switch position is: {current_position}")
             self.heat_switch_position = current_position
         else:
@@ -181,24 +183,24 @@ class Currentduino(object):
                 getLogger(__name__).info(f"Heat switch set to {self.heat_switch_position}")
 
         try:
-            store_heat_switch_status(self.redis, self.heat_switch_position)
+            getLogger(__name__).debug(f"Storing heat switch position to redis: {self.heat_switch_position}")
+            store_redis_data(self.redis, self.heat_switch_position)
         except RedisError as e:
             raise RedisError(e)
 
     def run(self):
         while True:
             data = self.get_current_data()
-            store_high_current_board_current(self.redis_ts, data)
+            store_redis_ts_data(self.redis_ts, data)
             store_high_current_board_status(self.redis, "OK")
 
             switch_pos = get_redis_value(self.redis, KEYS[1])
-            if switch_pos[KEYS[1]]=='open':
-                store_heat_switch_status(self.redis, self.open_heat_switch())
-            elif switch_pos[KEYS[1]]=='close':
-                store_heat_switch_status(self.redis, self.open_heat_switch())
+            if switch_pos[KEYS[1]] == 'open':
+                store_redis_data(self.redis, self.open_heat_switch())
+            elif switch_pos[KEYS[1]] == 'close':
+                store_redis_data(self.redis, self.close_heat_switch())
 
             time.sleep(QUERY_INTERVAL)
-
 
 
 def setup_redis(host='localhost', port=6379, db=0):
@@ -229,19 +231,19 @@ def get_redis_value(redis, key):
     try:
         return {key: redis.get(key).decode("utf-8")}
     except:
-        return {key: 'NO-VALUE'}
-
-
-def store_heat_switch_status(redis, data):
-    for k, v in data.items():
-        redis.set(k, v)
+        return {key: ''}
 
 
 def store_high_current_board_status(redis, status:str):
     redis.set(KEYS[4], status)
 
 
-def store_high_current_board_current(redis_ts, data):
+def store_redis_data(redis, data):
+    for k, v in data.items():
+        redis.set(k, v)
+
+
+def store_redis_ts_data(redis_ts, data):
     for k, v in data.items():
         redis_ts.add(key=k, value=v, timestamp='*')
 
