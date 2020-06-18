@@ -27,7 +27,7 @@ from redistimeseries.client import Client
 
 CURRENTDUINO_VERSION = "0.2"
 REDIS_DB = 0
-QUERY_INTERVAL = 1
+QUERY_INTERVAL = .5
 
 KEYS = ['device-settings:currentduino:highcurrentboard', 'device-settings:currentduino:heatswitch',
         'status:magnet:current', 'status:heatswitch', 'status:highcurrentboard:powered',
@@ -49,8 +49,7 @@ class Currentduino(object):
         time.sleep(1)
         self.redis = redis
         self.redis_ts = redis_ts
-        self.heat_switch_position = get_redis_value(self.redis, 'status:heatswitch')
-        self.initialize_heat_switch()
+        self.heat_switch_position = None
 
     def connect(self, reconnect=False, raise_errors=True):
         if reconnect:
@@ -186,6 +185,21 @@ class Currentduino(object):
         except RedisError as e:
             raise RedisError(e)
 
+    def run(self):
+        while True:
+            data = self.get_current_data()
+            store_high_current_board_current(self.redis_ts, data)
+            store_high_current_board_status(self.redis, "OK")
+
+            switch_pos = get_redis_value(self.redis, KEYS[1])
+            if switch_pos[KEYS[1]]=='open':
+                store_heat_switch_status(self.redis, self.open_heat_switch())
+            elif switch_pos[KEYS[1]]=='close':
+                store_heat_switch_status(self.redis, self.open_heat_switch())
+
+            time.sleep(QUERY_INTERVAL)
+
+
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
@@ -244,3 +258,6 @@ if __name__ == "__main__":
 
     store_firmware(redis)
     time.sleep(1)
+
+    currentduino.initialize_heat_switch()
+    currentduino.run()
