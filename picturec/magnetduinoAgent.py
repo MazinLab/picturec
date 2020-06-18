@@ -109,6 +109,7 @@ class Currentduino(object):
             readValue = float(response.split(' ')[0])
         try:
             current = (readValue * (5.0 / 1023.0) * ((R1 + R2) / R2))
+            getLogger(__name__).info(f"Current measured by currentduino is {current} A")
         except Exception:
             raise ValueError(f"Couldn't convert {response.split(' ')[0]} to float")
         return {KEYS[5]: current}
@@ -240,11 +241,13 @@ def store_high_current_board_status(redis, status:str):
 
 def store_redis_data(redis, data):
     for k, v in data.items():
+        log.info(f"Setting key:value - {k}:{v}")
         redis.set(k, v)
 
 
 def store_redis_ts_data(redis_ts, data):
     for k, v in data.items():
+        log.info(f"Setting key:value - {k}:{v} at {int(time.time())}")
         redis_ts.add(key=k, value=v, timestamp='*')
 
 
