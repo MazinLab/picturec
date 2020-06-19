@@ -1,6 +1,8 @@
+#!/usr/bin/env bash
 # Stuff will go here first
-
 # Assuming a fresh install with none of the computer set up, redis and redistimeseries installation must be included
+
+# Add an actual copy of the picture-c repository!
 
 sudo cp etc/redis/redis.conf /etc/redis/
 sudo cp etc/systemd/system/* /etc/systemd/system/

@@ -38,6 +38,10 @@ FIRMWARE_KEY = "status:device:currentduino:firmware"
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
+logging.basicConfig()
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+
 
 class Currentduino(object):
     def __init__(self, port, redis, redis_ts, baudrate=115200, timeout=0.1):
@@ -251,10 +255,6 @@ def store_redis_ts_data(redis_ts, data):
 
 
 if __name__ == "__main__":
-
-    logging.basicConfig()
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)
 
     redis_ts = setup_redis_ts(host='localhost', port=6379, db=REDIS_DB)
     redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
