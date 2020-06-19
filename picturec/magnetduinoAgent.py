@@ -27,7 +27,7 @@ from redistimeseries.client import Client
 
 CURRENTDUINO_VERSION = "0.2"
 REDIS_DB = 0
-QUERY_INTERVAL = .5
+QUERY_INTERVAL = 1
 
 KEYS = ['device-settings:currentduino:highcurrentboard', 'device-settings:currentduino:heatswitch',
         'status:magnet:current', 'status:heatswitch', 'status:highcurrentboard:powered',
