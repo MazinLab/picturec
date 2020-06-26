@@ -6,9 +6,10 @@ sudo apt full-upgrade
 
 # Install the picturec repository
 cd /
-git clone https://github.com/MazinLab/picturec.git /picturec/
+git clone https://github.com/MazinLab/picturec.git /picturec
 
 # Install the different configuration necessities for picturec
+cd /picturec
 sudo cp etc/redis/redis.conf /etc/redis/
 sudo cp etc/systemd/system/* /etc/systemd/system/
 sudo cp etc/udev/rules.d/* /etc/udev/rules.d/
