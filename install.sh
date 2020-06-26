@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Stuff will go here first
-# Assuming a fresh install with none of the computer set up, redis and redistimeseries installation must be included
 
-# Add an actual copy of the picture-c repository!
+# Install dependencies and get computer ready for use
+sudo apt update
+sudo apt full-upgrade
 
+# Install the picturec repository
+cd /
+git clone https://github.com/MazinLab/picturec.git /picturec/
+
+# Install the different configuration necessities for picturec
 sudo cp etc/redis/redis.conf /etc/redis/
 sudo cp etc/systemd/system/* /etc/systemd/system/
 sudo cp etc/udev/rules.d/* /etc/udev/rules.d/
@@ -19,3 +24,7 @@ sudo systemctl start redis.service
 # Start hemtduino
 sudo systemctl enable /etc/systemd/system/hemtduino.service
 sudo systemctl start hemtduino.service
+
+#Start currentduino
+sudo systemctl enable /etc/systemd/system/currentduino.service
+sudo systemctl start currentduino.service

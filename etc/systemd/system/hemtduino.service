@@ -1,3 +1,5 @@
+# TODO: Enable automatic restarting
+
 [Unit]
 Description=Hemtduino Agent
 
