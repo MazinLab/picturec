@@ -1,0 +1,8 @@
+Needs for conda environment
+ - pyserial
+ - redis (python library)
+ - redistimeseries (python library)
+
+Needs for operation
+ - redis
+ - redistimeseries

@@ -3,6 +3,9 @@
 # Install dependencies and get computer ready for use
 sudo apt update
 sudo apt full-upgrade
+sudo pip install redis
+sudo pip install redistimeseries
+sudo pip install pyserial
 
 # Install the picturec repository
 cd /
@@ -29,3 +32,5 @@ sudo systemctl start hemtduino.service
 #Start currentduino
 sudo systemctl enable /etc/systemd/system/currentduino.service
 sudo systemctl start currentduino.service
+
+# sudo reboot
