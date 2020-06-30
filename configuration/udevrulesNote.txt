@@ -1,0 +1,8 @@
+Notes about creating udev rules for picturec devices
+    - The ArduinoUNO (currentduino) and ArduinoMEGA (hemttempAgent) udev rules are based on the
+        serial numbers from the devices themselves.
+    - The SIM921 and SIM960 (AC Resistance Bridge / PID Controller) use RS232-to-USB converters
+        so their udev rules are based on the FTDI chips in the USB-to-RS232 cable.
+        - Each cable will be labelled with the device it goes to to avoid confusion.
+
+TODO: LakeShore240 udev rule
