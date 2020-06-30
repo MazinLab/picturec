@@ -158,8 +158,8 @@ site:
   observatory: 'Las Campanas Observatory'
   telescope: 'Magellan Clay 6.5-m'
   instrument: 'MagAO-X+PICTURE-C'
-  lat: '29S00.54'
-  long: '70W41.30'
+  lat: -29.00'54"
+  long: -70.41'30"
   elevation: 2516
 
 tcs:
