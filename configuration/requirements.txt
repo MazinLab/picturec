@@ -3,6 +3,8 @@ Needs for conda environment
  - redis (python library)
  - redistimeseries (python library)
 
-Needs for operation
- - redis
- - redistimeseries
+OS needs (not included in pip install or install.sh script)
+ - redis (https://redis.io/topics/quickstart , https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-redis-on-ubuntu-18-04,
+ or https://realpython.com/python-redis/ have good introductions on installing redis).
+   - NOTE: Redis configuration is part of install.sh script
+ - redistimeseries (https://oss.redislabs.com/redistimeseries/ , https://github.com/RedisTimeSeries/RedisTimeSeries ).
