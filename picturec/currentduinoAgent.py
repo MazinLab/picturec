@@ -10,6 +10,7 @@ for the currentduino to work.
 TODO: - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
  of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
  - Test the heat switch touch signals to have an open/closed monitor.
+ - Handle IOErrors in run loop
 """
 
 import serial
