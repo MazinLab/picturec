@@ -7,11 +7,9 @@ for circuit drawing). Will log values to redis, will also act as a safeguard to 
 control that the current is operating out of normal bounds. NOTE: Redis/redistimeseries MUST be set up
 for the currentduino to work.
 
-TODO: - Add interaction between redis and currentduino (to enable heat switch control)
- - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
- of the magnet ('status:magnet:current') from the SIM960
- - Do we want error checking to be a part of the agent or at a higher level of the 'fridgeMonitor'? Is
- this even a negotiable question, do we need it one place or the other specifically?
+TODO: - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
+ of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
+ - Test the heat switch touch signals to have an open/closed monitor.
 """
 
 import serial
@@ -232,9 +230,10 @@ def store_firmware(redis):
 
 def get_redis_value(redis, key):
     try:
-        return {key: redis.get(key).decode("utf-8")}
+        val = redis.get(key).decode("utf-8")
     except:
-        return {key: ''}
+        return None
+    return val
 
 
 def store_high_current_board_status(redis, status:str):
