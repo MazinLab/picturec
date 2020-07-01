@@ -1,0 +1,31 @@
+File Summary (all positive polarity)
+
+#	File	Description
+	.tsc	Top Silk Screen
+	.tm	Top Solder Mask
+1	.top	Top Copper
+2	.L2	Inner Pwr/Gnd Copper
+3	.L3	Inner Pwr/Gnd Copper
+4	.bot	Bottom Copper
+	.bm	Bottom Solder Mask
+	.bsc	Bottom Silk Screen
+	.drd	NC Drill
+	.dri	Drill Station
+	.gpi	Photoplotter
+	.pdf	Schematic
+	.txt	summary
+
+
+Drill Hole Summary
+
+Qty     Size    Plating
+28	0.020"	PLT
+4	0.025"	PLT
+29	0.040"	PLT
+4	0.051"	PLT
+4	0.053"	PLT
+6	0.055"	PLT
+5	0.125"	PLT
+
+PLT = plating
+NPT = no plating

@@ -1,0 +1,44 @@
+Part  Value           Device           Package          Description
+C1    1n              C-USC0805        C0805            CAPACITOR, American symbol
+C2    1n              C-USC0805        C0805            CAPACITOR, American symbol
+C3    1n              C-USC0805        C0805            CAPACITOR, American symbol
+C4    1n              C-USC0805        C0805            CAPACITOR, American symbol
+C5    1n              C-USC0805        C0805            CAPACITOR, American symbol
+C6    1n              C-USC0805        C0805            CAPACITOR, American symbol
+C7    1n              C-USC0805        C0805            CAPACITOR, American symbol
+C8    1n              C-USC0805        C0805            CAPACITOR, American symbol
+C9    100n            C-USC0805        C0805            CAPACITOR, American symbol
+C10   100n            C-USC0805        C0805            CAPACITOR, American symbol
+C11   100n            C-USC0805        C0805            CAPACITOR, American symbol
+C12   100n            C-USC0805        C0805            CAPACITOR, American symbol
+D1    MUR420          DIODE_MUR420     MUR420            
+D2    MUR420          DIODE_MUR420     MUR420           
+J1    MOLEX 5566      MOLEX_6_PIN_5566 MOLEX_6_PIN_5566 MOLEX Mini-Fit Header, 6 contacts, vertical, dual row Source: http://www.molex.com
+J2    MOLEX 5566      MOLEX_4_PIN_5566 MOLEX_4_PIN_5566 MOLEX Mini-Fit Header, 4 contacts, vertical, dual row Source: http://www.molex.com
+J3    C-GRID-06-70543 C-GRID-06-70543  70543-06         CONNECTOR
+Q1    FDP047N10       FDP047N10        TO220BV          N-CHANNEL MOS FET
+Q2    IRF9640         IRF9640          TO220BV          P-CHANNEL HEXFET POWER-MOS-FET
+R1    NO              R-US_R0805       R0805            RESISTOR, American symbol 
+R2    NO              R-US_R0805       R0805            RESISTOR, American symbol 
+R3    49.9k*          R-US_R0805       R0805            RESISTOR, American symbol 
+R4    49.9k*          R-US_R0805       R0805            RESISTOR, American symbol 
+R5    100k*           R-US_R0805       R0805            RESISTOR, American symbol 
+R6    100k*           R-US_R0805       R0805            RESISTOR, American symbol 
+R7    100k*           R-US_R0805       R0805            RESISTOR, American symbol 
+R8    100k*           R-US_R0805       R0805            RESISTOR, American symbol 
+R9    20k             R-US_R0805       R0805            RESISTOR, American symbol 
+R10   100             R-US_R0805       R0805            RESISTOR, American symbol 
+R11   20k             R-US_R0805       R0805            RESISTOR, American symbol 
+R12   49.9k*          R-US_R0805       R0805            RESISTOR, American symbol 
+R13   49.9k*          R-US_R0805       R0805            RESISTOR, American symbol 
+R14   100k*           R-US_R0805       R0805            RESISTOR, American symbol 
+R15   100k*           R-US_R0805       R0805            RESISTOR, American symbol 
+R16   49.9            R-US_R0805       R0805            RESISTOR, American symbol 
+R17   1k*             R-US_R0805       R0805            RESISTOR, American symbol 
+R18   1k*             R-US_R0805       R0805            RESISTOR, American symbol 
+R19   49.9            R-US_R0805       R0805            RESISTOR, American symbol 
+R20   1M              R-US_R0805       R0805            RESISTOR, American symbol 
+R21   NO              R-US_R0805       R0805            RESISTOR, American symbol 
+R22   0.01            R-US_R2010       R2010            RESISTOR, American symbol 
+U1    OPA2192         OPA2192          SO08             OP AMP                    
+U2    OPA2192         OPA2192          SO08             OP AMP                    
