@@ -114,7 +114,7 @@ class Currentduino(object):
             current = (readValue * (5.0 / 1023.0) * ((R1 + R2) / R2))
         except Exception:
             raise ValueError(f"Couldn't convert {response.split(' ')[0]} to float")
-        return {KEYS[5]: current}
+        return {'status:highcurrentboard:current': current}
 
     def get_current_data(self):
         try:
@@ -127,39 +127,39 @@ class Currentduino(object):
 
     def open_heat_switch(self):
         try:
-            current_position = get_redis_value(self.redis, KEYS[3])
+            current_position = get_redis_value(self.redis, HEATSWITCH_STATUS_KEY)
         except RedisError as e:
             getLogger(__name__).error(f"Redis error: {e}")
-            return {KEYS[3]: "unknown"}
-        if current_position[KEYS[3]] == 'open':
+            return {HEATSWITCH_STATUS_KEY: "unknown"}
+        if current_position[HEATSWITCH_STATUS_KEY] == 'open':
             return current_position
         else:
             try:
                 self.send("o")
                 confirm = self.receive()
                 if confirm == "o":
-                    return {KEYS[3]: "open"}
+                    return {HEATSWITCH_STATUS_KEY: "open"}
                 else:
-                    return {KEYS[3]: "unknown"}
+                    return {HEATSWITCH_STATUS_KEY: "unknown"}
             except Exception as e:
                 raise IOError(e)
 
     def close_heat_switch(self):
         try:
-            current_position = get_redis_value(self.redis, KEYS[3])
+            current_position = get_redis_value(self.redis, HEATSWITCH_STATUS_KEY)
         except RedisError as e:
             getLogger(__name__).error(f"Redis error: {e}")
-            return {KEYS[3]: "unknown"}
-        if current_position[KEYS[3]] == 'close':
+            return {HEATSWITCH_STATUS_KEY: "unknown"}
+        if current_position[HEATSWITCH_STATUS_KEY] == 'close':
             return current_position
         else:
             try:
                 self.send("c")
                 confirm = self.receive()
                 if confirm == "c":
-                    return {KEYS[3]: "close"}
+                    return {HEATSWITCH_STATUS_KEY: "close"}
                 else:
-                    return {KEYS[3]: "unknown"}
+                    return {HEATSWITCH_STATUS_KEY: "unknown"}
             except Exception as e:
                 raise IOError(e)
 
@@ -172,15 +172,15 @@ class Currentduino(object):
 
         getLogger(__name__).debug(f"Desired position is {desired_position} and currently the heat switch is {current_position}")
 
-        if desired_position[KEYS[1]] == current_position[KEYS[3]]:
+        if desired_position[HEATSWITCH_MOVE_KEY] == current_position[HEATSWITCH_STATUS_KEY]:
             getLogger(__name__).info(f"Initial heat switch position is: {current_position}")
             self.heat_switch_position = current_position
         else:
-            if desired_position[KEYS[1]] == 'open':
+            if desired_position[HEATSWITCH_MOVE_KEY] == 'open':
                 getLogger(__name__).info("Opening heat switch")
                 self.heat_switch_position = self.open_heat_switch()
                 getLogger(__name__).info(f"Heat switch set to {self.heat_switch_position}")
-            elif desired_position[KEYS[1]] == 'close':
+            elif desired_position[HEATSWITCH_MOVE_KEY] == 'close':
                 getLogger(__name__).info("Closing heat switch")
                 self.heat_switch_position = self.close_heat_switch()
                 getLogger(__name__).info(f"Heat switch set to {self.heat_switch_position}")
@@ -239,7 +239,7 @@ def get_redis_value(redis, key):
 
 
 def store_high_current_board_status(redis, status:str):
-    redis.set(KEYS[4], status)
+    redis.set('status:highcurrentboard:powered', status)
 
 
 def store_redis_data(redis, data):
