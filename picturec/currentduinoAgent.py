@@ -2,7 +2,7 @@
 Author: Noah Swimmer 15 June 2020
 
 Program to control ArduinoUNO that will measure the current through the ADR magnet by monitoring the
-current-sensing resistor on the PIPER-designed HichCurrent Boost board (see picturec reference folder
+current-sensing resistor on the PIPER-designed HighCurrent Boost board (see picturec reference folder
 for circuit drawing). Will log values to redis, will also act as a safeguard to tell the magnet current
 control that the current is operating out of normal bounds. NOTE: Redis/redistimeseries MUST be set up
 for the currentduino to work.
@@ -10,7 +10,6 @@ for the currentduino to work.
 TODO: - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
  of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
  - Test the heat switch touch signals to have an open/closed monitor.
- - Handle IOErrors in run loop
 """
 
 import serial
@@ -33,6 +32,8 @@ KEYS = ['device-settings:currentduino:highcurrentboard', 'device-settings:curren
         'status:highcurrentboard:current']
 STATUS_KEY = "status:device:currentduino:status"
 FIRMWARE_KEY = "status:device:currentduino:firmware"
+HEATSWITCH_STATUS_KEY = 'status:heatswitch'
+HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
 
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
