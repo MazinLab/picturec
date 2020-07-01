@@ -193,15 +193,29 @@ class Currentduino(object):
 
     def run(self):
         while True:
-            data = self.get_current_data()
-            store_redis_ts_data(self.redis_ts, data)
-            store_high_current_board_status(self.redis, "OK")
+            try:
+                data = self.get_current_data()
+                store_redis_ts_data(self.redis_ts, data)
+                store_high_current_board_status(self.redis, "OK")
+            except RedisError as e:
+                log.error(f"Redis error{e}")
+                sys.exit(1)
+            except IOError as e:
+                log.error(f"Error {e}")
+                store_status(self.redis, f"Error {e}")
 
-            switch_pos = get_redis_value(self.redis, KEYS[1])
-            if switch_pos[KEYS[1]] == 'open':
-                store_redis_data(self.redis, self.open_heat_switch())
-            elif switch_pos[KEYS[1]] == 'close':
-                store_redis_data(self.redis, self.close_heat_switch())
+            try:
+                switch_pos = get_redis_value(self.redis, HEATSWITCH_MOVE_KEY)
+                if switch_pos[HEATSWITCH_MOVE_KEY] == 'open':
+                    store_redis_data(self.redis, self.open_heat_switch())
+                elif switch_pos[HEATSWITCH_MOVE_KEY] == 'close':
+                    store_redis_data(self.redis, self.close_heat_switch())
+            except RedisError as e:
+                log.error(f"Redis error{e}")
+                sys.exit(1)
+            except IOError as e:
+                log.error(f"Error {e}")
+                store_status(self.redis, f"Error {e}")
 
             time.sleep(QUERY_INTERVAL)
 
