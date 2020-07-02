@@ -1,6 +1,7 @@
 byte ledPin = 13;   // the onboard LED
 int N_ANALOG = 16;
 boolean started = false;
+float FIRMWARE_VERSION = 0.1;
 
 //===============
 
@@ -45,14 +46,19 @@ void loop() {
   if (Serial.available()>0) {
     while (Serial.available()) {
       char x = Serial.read();
-      confirm[1] = x;
+      confirm = x;
     }
-    for(int i=1; i<N_ANALOG; i++){
+    if (String(confirm)=="?") {
+      for(int i=1; i<N_ANALOG; i++){
+        Serial.print(" ");
+        Serial.print(analogRead(i));
+      }
       Serial.print(" ");
-      Serial.print(analogRead(i));
+      Serial.print(confirm);
+      Serial.println();
     }
-    Serial.print(" ");
-    Serial.print(confirm[1]);
-    Serial.println();
-  }
+    if (String(confirm)=="v") {
+      Serial.print(" ");
+      Serial.print(FIRMWARE_VERSION)
+    }
 }

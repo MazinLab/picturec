@@ -1,5 +1,6 @@
 float R1 = 11790;
 float R2 = 11690;
+float FIRMWARE_VERSION = 0.2;
 
 byte ledPin = 13;   // the onboard LED
 byte openPin = 10;
@@ -68,6 +69,10 @@ void loop() {
     }
     else if (String(confirm)=="c") {
       closeHeatSwitch();
+    }
+    else if (String(confirm)=="v") {
+      Serial.print(" ");
+      Serial.print(FIRMWARE_VERSION);
     }
     Serial.print(" ");
     Serial.print(confirm);
