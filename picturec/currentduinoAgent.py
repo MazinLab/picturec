@@ -23,7 +23,6 @@ from redis import RedisError
 from redis import Redis
 from redistimeseries.client import Client
 
-CURRENTDUINO_VERSION = "0.2"
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 
@@ -240,8 +239,8 @@ def store_status(redis, status):
     redis.set(STATUS_KEY, status)
 
 
-def store_firmware(redis):
-    redis.set(FIRMWARE_KEY, CURRENTDUINO_VERSION)
+def store_firmware(redis, currentduino_version):
+    redis.set(FIRMWARE_KEY, currentduino_version)
 
 
 def get_redis_value(redis, key):
@@ -273,6 +272,8 @@ if __name__ == "__main__":
     redis_ts = setup_redis_ts(host='localhost', port=6379, db=REDIS_DB)
     redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
     currentduino = Currentduino(port='/dev/currentduino', redis=redis, redis_ts=redis_ts, baudrate=115200, timeout=0.1)
+
+    # Add grabbing firmware value here (or in connect function whenever we connect?)
 
     store_firmware(redis)
     time.sleep(1)

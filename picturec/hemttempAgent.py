@@ -27,7 +27,6 @@ from redis import RedisError
 from redis import Redis
 from redistimeseries.client import Client
 
-HEMTDUINO_VERSION = "0.1"
 REDIS_DB = 0
 QUERY_INTERVAL = 3
 
@@ -139,8 +138,8 @@ def store_status(redis, status):
     redis.set(STATUS_KEY, status)
 
 
-def store_firmware(redis):
-    redis.set(FIRMWARE_KEY, HEMTDUINO_VERSION)
+def store_firmware(redis, hemtduino_version):
+    redis.set(FIRMWARE_KEY, hemtduino_version)
 
 
 def store_hemt_data(redis_ts, data):
@@ -158,6 +157,8 @@ if __name__ == "__main__":
     hemtduino.connect()
     redis_ts = setup_redis_ts(host='localhost', port=6379, db=REDIS_DB)
     redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
+
+    # Add grabbing firmware value here (or in connect function whenever we connect?)
 
     store_firmware(redis)
     time.sleep(1)
