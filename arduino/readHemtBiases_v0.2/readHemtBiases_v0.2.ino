@@ -42,7 +42,7 @@ void setup() {
 }
 
 void loop() {
-  char confirm[1];
+  char confirm;
   if (Serial.available()>0) {
     while (Serial.available()) {
       char x = Serial.read();
@@ -53,12 +53,13 @@ void loop() {
         Serial.print(" ");
         Serial.print(analogRead(i));
       }
-      Serial.print(" ");
-      Serial.print(confirm);
-      Serial.println();
     }
-    if (String(confirm)=="v") {
+    else if (String(confirm)=="v") {
       Serial.print(" ");
-      Serial.print(FIRMWARE_VERSION)
+      Serial.print(FIRMWARE_VERSION);
     }
+    Serial.print(" ");
+    Serial.print(confirm);
+    Serial.println();
+  }
 }
