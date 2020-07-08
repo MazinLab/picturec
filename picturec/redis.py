@@ -1,3 +1,12 @@
+"""
+Author: Noah Swimmer 29 June 2020
+
+A wrapper class to make using redis with PICTURE-C easier.
+
+TODO: Add getting/setting function for key:value pairs
+ Add function to create keys (and their rules if necessary) in redistimeseries
+"""
+
 from redis import Redis
 from redistimeseries.client import Client
 import logging
@@ -17,5 +26,7 @@ class PictureCRedis(object):
 
     def create_ts_keys(self, keys):
         """
-        If they do not exist, create keys that
+        If they do not exist, create keys that are needed
+        TODO: Think about if this should be in the instantiation of the PictureCRedis class so all timeseries keys will
+         be guaranteed to exist if the picturec redis wrapper class is in use
         """
