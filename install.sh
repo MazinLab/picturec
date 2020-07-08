@@ -3,13 +3,18 @@
 # Install dependencies and get computer ready for use
 sudo apt update
 sudo apt full-upgrade
+# Consider installing python/anaconda?
 sudo pip install redis
 sudo pip install redistimeseries
 sudo pip install pyserial
 
+# Make sure all necessary repositories are installed (mkidcore/readout/pipeline)
+#  if they become necessary
+
 # Install the picturec repository
 cd /
 git clone https://github.com/MazinLab/picturec.git /picturec
+# pip install picturec and make it pip installable correctly so import statements work
 
 # Install the different configuration necessities for picturec
 cd /picturec
