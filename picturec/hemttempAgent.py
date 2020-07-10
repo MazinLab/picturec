@@ -85,7 +85,7 @@ class Hemtduino(object):
         except (SerialException, IOError) as e:
             self.disconnect()
             getLogger(__name__).error(f"Send failed: {e}")
-            # raise e
+            raise e
 
     def receive(self):
         try:
@@ -96,8 +96,8 @@ class Hemtduino(object):
             return data
         except (IOError, SerialException) as e:
             self.disconnect()
-            getLogger(__name__).debug(f"Send failed {e}")
-            # raise e
+            getLogger(__name__).debug(f"Send failed: {e}")
+            raise e
 
     def parse(self, response):
         if response[-1] == '?':
