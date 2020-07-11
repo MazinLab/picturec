@@ -26,9 +26,13 @@ from redistimeseries.client import Client
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 
-KEYS = ['device-settings:currentduino:highcurrentboard', 'device-settings:currentduino:heatswitch',
-        'status:magnet:current', 'status:heatswitch', 'status:highcurrentboard:powered',
+KEYS = ['device-settings:currentduino:highcurrentboard',
+        'device-settings:currentduino:heatswitch',
+        'status:magnet:current',
+        'status:heatswitch',
+        'status:highcurrentboard:powered',
         'status:highcurrentboard:current']
+
 STATUS_KEY = "status:device:currentduino:status"
 FIRMWARE_KEY = "status:device:currentduino:firmware"
 HEATSWITCH_STATUS_KEY = 'status:heatswitch'
