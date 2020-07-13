@@ -124,8 +124,13 @@ class Hemtduino(object):
 def setup_redis_ts(host='localhost', port=6379, db=0):
     redis_ts = Client(host=host, port=port, db=db)
 
-    redis_keys = [k.decode('utf-8') for k in redis_ts.keys('status:*:hemt:*')]
-    [redis_ts.create(key) for key in KEYS if key not in redis_keys]
+    for key in KEYS:
+        try:
+            redis_ts.create(key)
+        except RedisError:
+            getLogger(__name__).debug(f"KEY '{key}' already exists")
+            pass
+
     return redis_ts
 
 
