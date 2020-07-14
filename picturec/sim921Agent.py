@@ -16,6 +16,8 @@ import numpy as np
 from logging import getLogger
 from serial import SerialException
 import time
+from redis import Redis, RedisError
+from redistimeseries.client import Client
 
 KEYS = ['device-settings:sim921:resistance-range',
         'device-settings:sim921:excitation-value',
@@ -32,7 +34,13 @@ KEYS = ['device-settings:sim921:resistance-range',
         'status:device:sim921:status',
         'status:device:sim921:model',
         'status:device:sim921:sn',
-        'status:device:sim921:sim960-vout']  # sim960-vout means the vout from sim921 to the sim960
+        'status:device:sim921:sim960-vout',  # sim960-vout means the vout from sim921 to the sim960
+        'status:temps:mkidarray:temp',
+        'status:temps:mkidarray:resistance']
+
+TS_KEYS = ['status:device:sim921:sim960-vout',
+           'status:temps:mkidarray:temp',
+           'status:temps:mkidarray:resistance']
 
 STATUS_KEY = 'status:device:sim921:status'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
@@ -158,6 +166,24 @@ class SIM921Agent(object):
                 raise e
         else:
             getLogger(__name__).warning(f"{value} Ohms is not a valid value for SIM921 resistance range.")
+
+    def set_time_constant_value(self, value):
+        """
+        Command the SIM921 to go to a new time constant
+        TIME_CONST_DICT has the desired values as keys and command codes as values
+        NOTE: A value of 0 (code -1) means that the time constant is off. DON'T TURN IT OFF.
+        """
+        TIME_CONST_DICT = {0: '-1', 0.3: '0', 1: '1', 3: '2', 10: '3', 30: '4', 100: '5', 300: '6'}
+
+        if value in TIME_CONST_DICT.keys():
+            getLogger(__name__).debug(f"{value} s is a valid value. Setting SIM921 time constant to {value} s")
+            try:
+                self.set_sim_value("TCON", TIME_CONST_DICT[value])
+                getLogger(__name__).info(f"Time constant successfully set to {value} s.")
+            except IOError as e:
+                raise e
+        else:
+            getLogger(__name__).warning(f"{value} s is not a valid value for SIM921 time constant.")
 
     def set_excitation_value(self, value):
         """
@@ -315,12 +341,30 @@ class SIM921Agent(object):
         else:
             getLogger(__name__).warning(f"{curve_number} is not a valid curve number for the SIM921!")
 
-    def load_calibration_curve(self, curve_num, curve_type, path_to_curve="../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl"):
+    def load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, path_to_curve="../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl"):
         valid_curves = [1, 2, 3]
         CURVE_TYPE_DICT = {'linear': '0',
                            'semilogt': '1',
                            'semilogr': '2',
                            'loglog': '3'}
+
+        if curve_num in valid_curves:
+            getLogger(__name__).debug(f"Curve {curve_num} is valid and can be initialized.")
+        else:
+            getLogger(__name__).warning(f"Curve {curve_num} is NOT valid. Not initializing any curve")
+            return False
+
+        if curve_type in CURVE_TYPE_DICT.keys():
+            getLogger(__name__).debug(f"Curve type {curve_type} is valid and can be initialized.")
+        else:
+            getLogger(__name__).warning(f"Curve type {curve_type} is NOT valid. Not initializing any curve")
+            return False
+
+        try:
+            curve_init_str = "CINI "+str(curve_num)+", "+str(CURVE_TYPE_DICT[curve_type]+", "+curve_name)
+            self.command(curve_init_str)
+        except IOError as e:
+            raise e
 
         try:
             curve_data = np.loadtxt(path_to_curve)
@@ -336,32 +380,97 @@ class SIM921Agent(object):
         except IOError as e:
             raise e
 
-
-    def initialize_SIM921(self):
+    def initialize_sim(self, load_curve=False):
         getLogger(__name__).info(f"Initializing SIM921")
         try:
             self.reset_sim()
 
             self.set_resistance_range(20e3)
+            store_redis_data(self.redis, {'device-settings:sim921:resistance-range': 20e3})
             self.set_excitation_value(100e-6)
+            store_redis_data(self.redis, {'device-settings:sim921:excitation-value': 100e-6})
             self.set_excitation_mode('voltage')
+            store_redis_data(self.redis, {'device-settings:sim921:excitation-mode': 'voltage'})
+            self.set_time_constant_value(3)
+            store_redis_data(self.redis, {'device-settings:sim921:time-constant': 3})
 
             self.set_temperature_offset(0.100)
+            store_redis_data(self.redis, {'device-settings:sim921:temp_offset': 0.100})
             self.set_analog_output_scale('temperature', 1e-2)
+            store_redis_data(self.redis, {'device-settings:sim921:temp-slope': 1e-2})
 
             self.set_resistance_offset(19400.5)
+            store_redis_data(self.redis, {'device-settings:sim921:resistance-offset': 19400.5})
             self.set_analog_output_scale('resistance', 1e-5)
+            store_redis_data(self.redis, {'device-settings:sim921:resistance-slope': 1e-5})
 
             self.set_analog_output_manual_voltage(0)
+            store_redis_data(self.redis, {'device-settings:sim921:manual-vout': 0})
             self.turn_manual_output_on()
+            store_redis_data(self.redis, {'device-settings:sim921:output-mode': 'manual'})
             self.set_analog_output_scale_units('resistance')
 
-            self.load_calibration_curve(1, 'linear', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
+            if load_curve:
+                self.load_calibration_curve(1, 'linear', 'PICTURE-C','../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
+                store_redis_data(self.redis, {'device-settings:sim921:curve-profile': '1,linear,PICTURE-C'})
+
             self.choose_calibration_curve(1)
 
-            self.command("DTEM 1")  # This value is... probably not necessary. This is just if the screen of the SIM921
-            # shows temperature (1) or resistance (0). For convenience, we set it to 1 here during testing.
+            self.command("DTEM 1")
 
         except IOError as e:
             getLogger(__name__).debug(f"Initialization failed: {e}")
             raise e
+        except RedisError as e:
+            getLogger(__name__).debug(f"Redis error occurred in initialization of SIM921: {e}")
+            raise e
+
+
+def setup_redis(host='localhost', port=6379, db=0):
+    redis = Redis(host=host, port=port, db=db)
+    return redis
+
+
+def setup_redis_ts(host='localhost', port=6379, db=0):
+    redis_ts = Client(host=host, port=port, db=db)
+
+    for key in TS_KEYS:
+        try:
+            redis_ts.create(key)
+        except RedisError:
+            getLogger(__name__).debug(f"KEY '{key}' already exists")
+            pass
+
+    return redis_ts
+
+
+def store_status(redis, status):
+    redis.set(STATUS_KEY, status)
+
+
+def store_firmware(redis, sim921_version):
+    redis.set(FIRMWARE_KEY, sim921_version)
+
+
+def get_redis_value(redis, key):
+    try:
+        val = redis.get(key).decode("utf-8")
+    except:
+        return None
+    return val
+
+def store_redis_data(redis, data):
+    for k, v in data.items():
+        getLogger(__name__).info(f"Setting key:value - {k}:{v}")
+        redis.set(k, v)
+
+
+def store_redis_ts_data(redis_ts, data):
+    for k, v in data.items():
+        getLogger(__name__).info(f"Setting key:value - {k}:{v} at {int(time.time())}")
+        redis_ts.add(key=k, value=v, timestamp='*')
+
+
+if __name__ == "__main__":
+    redis = setup_redis()
+    redis_ts = setup_redis_ts()
