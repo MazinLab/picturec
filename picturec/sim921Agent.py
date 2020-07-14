@@ -136,6 +136,22 @@ class SIM921Agent(object):
             raise IOError(e)
         return response
 
+    def query_ID(self):
+        try:
+            idn_msg = self.query("*IDN?")
+        except IOError as e:
+            raise e
+
+        try:
+            idn_info = idn_msg.split(',')
+            model = idn_info[1]
+            sn = idn_info[2]
+            firmware = idn_info[3]
+        except Exception as e:
+            raise ValueError(f"Illegal format. Check communication is working properly: {e}")
+
+        return [model, sn, firmware]
+
     def set_sim_value(self, setting: str, value: str):
         """
         Setting param must be one of the valid setting commands. Value must be a legal value to send to the SIM921 as
@@ -219,7 +235,6 @@ class SIM921Agent(object):
                 raise IOError
         else:
             getLogger(__name__).warning(f"'{mode}' is not a valid excitation mode on the SIM921.")
-
 
     def turn_excitation_off(self):
         try:
@@ -459,6 +474,17 @@ def get_redis_value(redis, key):
         return None
     return val
 
+
+def store_sim921_status(redis, status: str):
+    redis.set('status:device:sim921:status', status)
+
+
+def store_sim921_id_info(redis, info):
+    redis.set('status:device:sim921:model', info[0])
+    redis.set('status:device:sim921:sn', info[1])
+    redis.set('status:device:sim921:firmware', info[2])
+
+
 def store_redis_data(redis, data):
     for k, v in data.items():
         getLogger(__name__).info(f"Setting key:value - {k}:{v}")
@@ -474,3 +500,18 @@ def store_redis_ts_data(redis_ts, data):
 if __name__ == "__main__":
     redis = setup_redis()
     redis_ts = setup_redis_ts()
+
+    sim921 = SIM921Agent(port='/dev/sim921', redis=redis, redis_ts=redis_ts, baudrate=9600,
+                         timeout=0.1, initialize=True, mainframe=False)
+
+    try:
+        getLogger(__name__).info(f"Querying SIM921 for identification information.")
+        sim_info = sim921.query_ID()
+        store_sim921_id_info(sim_info)
+        getLogger(__name__).info(f"Successfully queried {sim_info[0]} (s/n {sim_info[1]}). Firmware is {sim_info[2]}.")
+    except IOError as e:
+        getLogger(__name__).error(f"Couldn't communicate with SIM921: {e}")
+    except ValueError as e:
+        getLogger(__name__).error(f"SIM921 returned an invalid value for the ID query: {e}")
+    except RedisError as e:
+        getLogger(__name__).error(f"Couldn't communicate with Redis to store sim ID information: {e}")
