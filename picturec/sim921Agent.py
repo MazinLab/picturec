@@ -7,7 +7,7 @@ responsible for properly conditioning its output signal so that the SIM960 (PID 
 the device temperature.
 
 TODO: - Create run function
- - Figure out redis subscribe functionality
+ - Restructure setting/getting SIM921 parameters using redis
  - Decide if mainframe mode is worth using (I think it is for testing)
 """
 
@@ -192,6 +192,58 @@ class SIM921Agent(object):
             raise ValueError(f"Illegal format. Check communication is working properly: {e}")
 
         return [model, sn, firmware]
+
+    def read_default_settings(self):
+        for i in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
+            value = get_redis_value(self.redis, i[0])
+            self.sim_settings[i][1] = value
+
+    def initialize_sim(self, load_curve=False):
+        getLogger(__name__).info(f"Initializing SIM921")
+
+        try:
+            self.reset_sim()
+
+            self.set_resistance_range(20e3)
+            store_redis_data(self.redis, {'device-settings:sim921:resistance-range': 20e3})
+            self.set_excitation_value(100e-6)
+            store_redis_data(self.redis, {'device-settings:sim921:excitation-value': 100e-6})
+            self.set_excitation_mode('voltage')
+            store_redis_data(self.redis, {'device-settings:sim921:excitation-mode': 'voltage'})
+            self.set_time_constant_value(3)
+            store_redis_data(self.redis, {'device-settings:sim921:time-constant': 3})
+
+            self.set_temperature_offset(0.100)
+            store_redis_data(self.redis, {'device-settings:sim921:temp_offset': 0.100})
+            self.set_analog_output_scale('temperature', 1e-2)
+            store_redis_data(self.redis, {'device-settings:sim921:temp-slope': 1e-2})
+
+            self.set_resistance_offset(19400.5)
+            store_redis_data(self.redis, {'device-settings:sim921:resistance-offset': 19400.5})
+            self.set_analog_output_scale('resistance', 1e-5)
+            store_redis_data(self.redis, {'device-settings:sim921:resistance-slope': 1e-5})
+
+            self.set_analog_output_manual_voltage(0)
+            store_redis_data(self.redis, {'device-settings:sim921:manual-vout': 0})
+            self.turn_manual_output_on()
+            store_redis_data(self.redis, {'device-settings:sim921:output-mode': 'manual'})
+            self.set_analog_output_scale_units('resistance')
+
+            if load_curve:
+                self.load_calibration_curve(1, 'linear', 'PICTURE-C', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
+                store_redis_data(self.redis, {'device-settings:sim921:curve-profile': '1,linear,PICTURE-C'})
+
+            self.choose_calibration_curve(1)
+            store_redis_data(self.redis, {'default:device-settings:sim921:curve-profile': 1})
+
+            self.command("DTEM 1")
+
+        except IOError as e:
+            getLogger(__name__).debug(f"Initialization failed: {e}")
+            raise e
+        except RedisError as e:
+            getLogger(__name__).debug(f"Redis error occurred in initialization of SIM921: {e}")
+            raise e
 
     def set_sim_value(self, setting: str, value: str):
         """
@@ -436,65 +488,9 @@ class SIM921Agent(object):
         except IOError as e:
             raise e
 
-    def initialize_sim(self, load_curve=False):
-        getLogger(__name__).info(f"Initializing SIM921")
-
-        try:
-            self.reset_sim()
-
-            self.set_resistance_range(20e3)
-            store_redis_data(self.redis, {'device-settings:sim921:resistance-range': 20e3})
-            self.set_excitation_value(100e-6)
-            store_redis_data(self.redis, {'device-settings:sim921:excitation-value': 100e-6})
-            self.set_excitation_mode('voltage')
-            store_redis_data(self.redis, {'device-settings:sim921:excitation-mode': 'voltage'})
-            self.set_time_constant_value(3)
-            store_redis_data(self.redis, {'device-settings:sim921:time-constant': 3})
-
-            self.set_temperature_offset(0.100)
-            store_redis_data(self.redis, {'device-settings:sim921:temp_offset': 0.100})
-            self.set_analog_output_scale('temperature', 1e-2)
-            store_redis_data(self.redis, {'device-settings:sim921:temp-slope': 1e-2})
-
-            self.set_resistance_offset(19400.5)
-            store_redis_data(self.redis, {'device-settings:sim921:resistance-offset': 19400.5})
-            self.set_analog_output_scale('resistance', 1e-5)
-            store_redis_data(self.redis, {'device-settings:sim921:resistance-slope': 1e-5})
-
-            self.set_analog_output_manual_voltage(0)
-            store_redis_data(self.redis, {'device-settings:sim921:manual-vout': 0})
-            self.turn_manual_output_on()
-            store_redis_data(self.redis, {'device-settings:sim921:output-mode': 'manual'})
-            self.set_analog_output_scale_units('resistance')
-
-            if load_curve:
-                self.load_calibration_curve(1, 'linear', 'PICTURE-C', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
-                store_redis_data(self.redis, {'device-settings:sim921:curve-profile': '1,linear,PICTURE-C'})
-
-            self.choose_calibration_curve(1)
-            store_redis_data(self.redis, {'default:device-settings:sim921:curve-profile': 1})
-
-            self.command("DTEM 1")
-
-        except IOError as e:
-            getLogger(__name__).debug(f"Initialization failed: {e}")
-            raise e
-        except RedisError as e:
-            getLogger(__name__).debug(f"Redis error occurred in initialization of SIM921: {e}")
-            raise e
-
-    def read_default_values_from_redis(self):
-        vals = []
-        for key in DEFAULT_SETTING_KEYS:
-            vals.append(get_redis_value(self.redis, key))
-
-        for k, v in zip(SETTING_KEYS, vals):
-            self.sim_settings[k] = v
-
     def check_values(self):
         new_values = [get_redis_value(self.redis, k) for k in self.sim_settings.keys()]
         old_values = self.sim_settings.keys()
-
 
 
 def setup_redis(host='localhost', port=6379, db=0):
