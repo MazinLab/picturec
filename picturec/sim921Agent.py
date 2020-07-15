@@ -183,7 +183,7 @@ class SIM921Agent(object):
 
     def read_default_settings(self):
         for i, j in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
-            value = get_redis_value(self.redis, i[0])
+            value = get_redis_value(self.redis, i)
             self.sim_settings[j] = value
 
     def initialize_sim(self, load_curve=False):
