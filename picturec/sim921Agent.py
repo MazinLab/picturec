@@ -182,9 +182,9 @@ class SIM921Agent(object):
         return [model, sn, firmware]
 
     def read_default_settings(self):
-        for i in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
+        for i, j in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
             value = get_redis_value(self.redis, i[0])
-            self.sim_settings[[i][1]] = value
+            self.sim_settings[j] = value
 
     def initialize_sim(self, load_curve=False):
         getLogger(__name__).info(f"Initializing SIM921")
