@@ -3,4 +3,4 @@
 SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0042", ATTRS{serial}=="9573632363235170F002", SYMLINK+="hemtduino"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0043", ATTRS{serial}=="95530343235351808002", SYMLINK+="currentduino"
 
-SUBSYSTEM=="tty". ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="FTDI_FT232R_USB_UART_AM00IHUS", SYMLINK+="sim921"
+SUBSYSTEM=="tty". ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AM00IHUS", SYMLINK+="sim921"
