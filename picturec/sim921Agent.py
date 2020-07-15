@@ -64,18 +64,6 @@ DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
                         'default:device-settings:sim921:manual-vout',
                         'default:device-settings:sim921:output-mode']
 
-# defaults = {'default:device-settings:sim921:resistance-range': 20e3,
-#             'default:device-settings:sim921:excitation-value': 100e-6,
-#             'default:device-settings:sim921:excitation-mode': 'voltage',
-#             'default:device-settings:sim921:time-constant': 3,
-#             'default:device-settings:sim921:temp-offset': 0.100,
-#             'default:device-settings:sim921:temp-slope': 1e-2,
-#             'default:device-settings:sim921:resistance-offset': 19400.5,
-#             'default:device-settings:sim921:resistance-slope': 1e-5,
-#             'default:device-settings:sim921:curve-profile': '1,linear,PICTURE-C',
-#             'default:device-settings:sim921:manual-vout': 0,
-#             'default:device-settings:sim921:output-mode': 'manual'}
-
 TS_KEYS = ['status:device:sim921:sim960-vout',
            'status:temps:mkidarray:temp',
            'status:temps:mkidarray:resistance']
@@ -196,7 +184,7 @@ class SIM921Agent(object):
     def read_default_settings(self):
         for i in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
             value = get_redis_value(self.redis, i[0])
-            self.sim_settings[i][1] = value
+            self.sim_settings[[i][1]] = value
 
     def initialize_sim(self, load_curve=False):
         getLogger(__name__).info(f"Initializing SIM921")
