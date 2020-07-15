@@ -531,7 +531,9 @@ class SIM921Agent(object):
 
     def check_values(self):
         new_values = [get_redis_value(self.redis, k) for k in self.sim_settings.keys()]
-        old_values = self.sim_settings.keys()
+        old_values = self.sim_settings.values()
+
+        return [old_values, new_values]
 
 
 def setup_redis(host='localhost', port=6379, db=0):
