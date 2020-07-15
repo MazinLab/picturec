@@ -534,7 +534,12 @@ class SIM921Agent(object):
         print(new_values)
         old_values = self.sim_settings.values()
         print(old_values)
-        return [old_values, new_values]
+
+        changed_idx = []
+        for i,j in enumerate(zip(new_values, old_values)):
+            if str(j[0]) != str(j[1]):
+                changed_idx.append(i)
+        return [old_values, new_values, changed_idx]
 
 
 def setup_redis(host='localhost', port=6379, db=0):
