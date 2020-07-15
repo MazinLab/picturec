@@ -86,6 +86,7 @@ class SIM921Agent(object):
         self.redis_ts = redis_ts
 
         self.sim_settings = {}
+        self.read_default_settings()
 
         if initialize:
             self.initialize_sim()
@@ -538,7 +539,10 @@ class SIM921Agent(object):
         changed_idx = []
         for i,j in enumerate(zip(new_values, old_values)):
             if str(j[0]) != str(j[1]):
-                changed_idx.append(i)
+                changed_idx.append(True)
+            else:
+                changed_idx.append(False)
+
         return [old_values, new_values, changed_idx]
 
 
