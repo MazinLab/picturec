@@ -6,9 +6,9 @@ is monitoring the temperature of the thermometer on the MKID device stage in the
 responsible for properly conditioning its output signal so that the SIM960 (PID Controller) can properly regulate
 the device temperature.
 
-TODO: - Create list of allowed commands
+TODO: - Create run function
+ - Figure out redis subscribe functionality
  - Decide if mainframe mode is worth using (I think it is for testing)
- - Associate keys with commands
 """
 
 import serial
@@ -38,11 +38,50 @@ KEYS = ['device-settings:sim921:resistance-range',
         'status:temps:mkidarray:temp',
         'status:temps:mkidarray:resistance']
 
+SETTING_KEYS = ['device-settings:sim921:resistance-range',
+                'device-settings:sim921:excitation-value',
+                'device-settings:sim921:excitation-mode',
+                'device-settings:sim921:time-constant',
+                'device-settings:sim921:temp-offset',
+                'device-settings:sim921:temp-slope',
+                'device-settings:sim921:resistance-offset',
+                'device-settings:sim921:resistance-slope',
+                'device-settings:sim921:curve-profile',
+                'device-settings:sim921:curve-number',
+                'device-settings:sim921:manual-vout',
+                'device-settings:sim921:output-mode']
+
+DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
+                        'default:device-settings:sim921:excitation-value',
+                        'default:device-settings:sim921:excitation-mode',
+                        'default:device-settings:sim921:time-constant',
+                        'default:device-settings:sim921:temp-offset',
+                        'default:device-settings:sim921:temp-slope',
+                        'default:device-settings:sim921:resistance-offset',
+                        'default:device-settings:sim921:resistance-slope',
+                        'default:device-settings:sim921:curve-profile',
+                        'default:device-settings:sim921:curve-number',
+                        'default:device-settings:sim921:manual-vout',
+                        'default:device-settings:sim921:output-mode']
+
+# defaults = {'default:device-settings:sim921:resistance-range': 20e3,
+#             'default:device-settings:sim921:excitation-value': 100e-6,
+#             'default:device-settings:sim921:excitation-mode': 'voltage',
+#             'default:device-settings:sim921:time-constant': 3,
+#             'default:device-settings:sim921:temp-offset': 0.100,
+#             'default:device-settings:sim921:temp-slope': 1e-2,
+#             'default:device-settings:sim921:resistance-offset': 19400.5,
+#             'default:device-settings:sim921:resistance-slope': 1e-5,
+#             'default:device-settings:sim921:curve-profile': '1,linear,PICTURE-C',
+#             'default:device-settings:sim921:manual-vout': 0,
+#             'default:device-settings:sim921:output-mode': 'manual'}
+
 TS_KEYS = ['status:device:sim921:sim960-vout',
            'status:temps:mkidarray:temp',
            'status:temps:mkidarray:resistance']
 
 STATUS_KEY = 'status:device:sim921:status'
+MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SERIALNO_KEY = 'status:device:sim921:sn'
 
@@ -58,8 +97,10 @@ class SIM921Agent(object):
         self.redis = redis
         self.redis_ts = redis_ts
 
+        self.sim_settings = {}
+
         if initialize:
-            self.initialize_SIM921()
+            self.initialize_sim()
 
     def connect(self, reconnect=False, raise_errors=True):
         if reconnect:
@@ -397,6 +438,7 @@ class SIM921Agent(object):
 
     def initialize_sim(self, load_curve=False):
         getLogger(__name__).info(f"Initializing SIM921")
+
         try:
             self.reset_sim()
 
@@ -426,10 +468,11 @@ class SIM921Agent(object):
             self.set_analog_output_scale_units('resistance')
 
             if load_curve:
-                self.load_calibration_curve(1, 'linear', 'PICTURE-C','../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
+                self.load_calibration_curve(1, 'linear', 'PICTURE-C', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
                 store_redis_data(self.redis, {'device-settings:sim921:curve-profile': '1,linear,PICTURE-C'})
 
             self.choose_calibration_curve(1)
+            store_redis_data(self.redis, {'default:device-settings:sim921:curve-profile': 1})
 
             self.command("DTEM 1")
 
@@ -439,6 +482,19 @@ class SIM921Agent(object):
         except RedisError as e:
             getLogger(__name__).debug(f"Redis error occurred in initialization of SIM921: {e}")
             raise e
+
+    def read_default_values_from_redis(self):
+        vals = []
+        for key in DEFAULT_SETTING_KEYS:
+            vals.append(get_redis_value(self.redis, key))
+
+        for k, v in zip(SETTING_KEYS, vals):
+            self.sim_settings[k] = v
+
+    def check_values(self):
+        new_values = [get_redis_value(self.redis, k) for k in self.sim_settings.keys()]
+        old_values = self.sim_settings.keys()
+
 
 
 def setup_redis(host='localhost', port=6379, db=0):
@@ -470,19 +526,20 @@ def store_firmware(redis, sim921_version):
 def get_redis_value(redis, key):
     try:
         val = redis.get(key).decode("utf-8")
-    except:
+    except RedisError as e:
+        getLogger(__name__).error(f"Error accessing {key} from redis: {e}")
         return None
     return val
 
 
 def store_sim921_status(redis, status: str):
-    redis.set('status:device:sim921:status', status)
+    redis.set(STATUS_KEY, status)
 
 
 def store_sim921_id_info(redis, info):
-    redis.set('status:device:sim921:model', info[0])
-    redis.set('status:device:sim921:sn', info[1])
-    redis.set('status:device:sim921:firmware', info[2])
+    redis.set(MODEL_KEY, info[0])
+    redis.set(SERIALNO_KEY, info[1])
+    redis.set(FIRMWARE_KEY, info[2])
 
 
 def store_redis_data(redis, data):
