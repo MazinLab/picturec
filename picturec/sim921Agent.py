@@ -35,6 +35,7 @@ SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:manual-vout',
                 'device-settings:sim921:output-mode']
 
+
 DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
                         'default:device-settings:sim921:excitation-value',
                         'default:device-settings:sim921:excitation-mode',
@@ -47,16 +48,37 @@ DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
                         'default:device-settings:sim921:manual-vout',
                         'default:device-settings:sim921:output-mode']
 
+
 TEMP_KEY = 'status:temps:mkidarray:temp'
 RES_KEY = 'status:temps:mkidarray:resistance'
 OUTPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'
 
+
 TS_KEYS = [TEMP_KEY, RES_KEY, OUTPUT_VOLTAGE_KEY]
+
 
 STATUS_KEY = 'status:device:sim921:status'
 MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SERIALNO_KEY = 'status:device:sim921:sn'
+
+
+COMMAND_DICT = {'default:device-settings:sim921:resistance-range': {20e-3: '0', 200e-3: '1', 2: '2',
+                                                                    20: '3', 200: '4', 2e3: '5',
+                                                                    20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'},
+                'device-settings:sim921:excitation-value': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3',
+                                                            300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'},
+                'device-settings:sim921:excitation-mode': {'passive': '0', 'current': '1',
+                                                           'voltage': '2', 'power': '3'},
+                'device-settings:sim921:time-constant': {0: '-1', 0.3: '0', 1: '1', 3: '2', 10: '3',
+                                                         30: '4', 100: '5', 300: '6'},
+                'default:device-settings:sim921:temp-offset': [0.050, 40],
+                'default:device-settings:sim921:temp-slope': [0, 1e-2],
+                'default:device-settings:sim921:resistance-offset': [1049.08, 63765.1],
+                'default:device-settings:sim921:resistance-slope': [0, 1e-5],
+                'default:device-settings:sim921:curve-number': [1, 2, 3],
+                'default:device-settings:sim921:manual-vout': [-10, 10],
+                'default:device-settings:sim921:output-mode': {'scaled': 0, 'manual': 1}}
 
 
 class SIM921Agent(object):
