@@ -652,7 +652,7 @@ class SIM921Agent(object):
                 self.read_and_store_output()
                 store_status(self.redis, "OK")
             except IOError as e:
-                getLogger(__name__).error(f"IOError occured in run loop: {e}")
+                getLogger(__name__).error(f"IOError occurred in run loop: {e}")
                 store_status(self.redis, f"Error {e}")
             except RedisError as e:
                 getLogger(__name__).error(f"Error with redis while running: {e}")
