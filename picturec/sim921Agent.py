@@ -7,7 +7,9 @@ responsible for properly conditioning its output signal so that the SIM960 (PID 
 the device temperature.
 
 TODO: - Create run function
- - Initializing curve should only be an engineering function. Changing curve should also be restricted to engineering
+ - Give keys names and use them that way
+ - Consider restructuring the commands to pass it a key and value and then have the command function using the key to
+ determine the command that must be sent (e.g. 'device-settings:sim921:resistance-range' -> "RANG", etc.)
  - Decide if mainframe mode is worth using (I think it is for testing)
 """
 
@@ -18,25 +20,8 @@ from serial import SerialException
 import time
 from redis import Redis, RedisError
 from redistimeseries.client import Client
+import sys
 
-KEYS = ['device-settings:sim921:resistance-range',
-        'device-settings:sim921:excitation-value',
-        'device-settings:sim921:excitation-mode',
-        'device-settings:sim921:time-constant',
-        'device-settings:sim921:temp-offset',
-        'device-settings:sim921:temp-slope',
-        'device-settings:sim921:resistance-offset',
-        'device-settings:sim921:resistance-slope',
-        'device-settings:sim921:curve-number',
-        'device-settings:sim921:manual-vout',
-        'device-settings:sim921:output-mode',
-        'status:device:sim921:firmware',
-        'status:device:sim921:status',
-        'status:device:sim921:model',
-        'status:device:sim921:sn',
-        'status:device:sim921:sim960-vout',  # sim960-vout means the vout from sim921 to the sim960
-        'status:temps:mkidarray:temp',
-        'status:temps:mkidarray:resistance']
 
 SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:excitation-value',
@@ -62,9 +47,11 @@ DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
                         'default:device-settings:sim921:manual-vout',
                         'default:device-settings:sim921:output-mode']
 
-TS_KEYS = ['status:device:sim921:sim960-vout',
-           'status:temps:mkidarray:temp',
-           'status:temps:mkidarray:resistance']
+TEMP_KEY = 'status:temps:mkidarray:temp'
+RES_KEY = 'status:temps:mkidarray:resistance'
+OUTPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'
+
+TS_KEYS = [TEMP_KEY, RES_KEY, OUTPUT_VOLTAGE_KEY]
 
 STATUS_KEY = 'status:device:sim921:status'
 MODEL_KEY = 'status:device:sim921:model'
@@ -91,6 +78,10 @@ class SIM921Agent(object):
             self.initialize_sim()
 
     def connect(self, reconnect=False, raise_errors=True):
+        """
+        Create serial connection with the SIM921. In reality, the SIM921 connection is only up to the USB-to-RS232
+        interface, and so disconnects will need to be checked differently from either side of the converter.
+        """
         if reconnect:
             self.disconnect()
 
@@ -114,13 +105,23 @@ class SIM921Agent(object):
                 return False
 
     def disconnect(self):
+        """
+        Disconnect from the SIM921 serial connection
+        """
         try:
             self.ser.close()
             self.ser = None
         except Exception as e:
             getLogger(__name__).info(f"Exception durring disconnect: {e}")
 
-    def send(self, msg:str, connect=True):
+    def send(self, msg: str, connect=True):
+        """
+        Send a message to the SIM921 in its desired format.
+        The typical message is all caps, terminated with a newline character '\n'
+        Commands will be followed by a code, typically a number (e.g. 'RANG 3\n')
+        Queries will be followed by a question mark (e.g. 'TVAL?\n')
+        The identity query (and a number of other 'special' commands) start with a * (e.g. '*IDN?')
+        """
         if connect:
             self.connect()
         msg = msg.strip().upper() + "\n"
@@ -134,6 +135,11 @@ class SIM921Agent(object):
             raise e
 
     def receive(self):
+        """
+        Receiving from the SIM921 consists of reading a line, as some queries may return longer strings than others,
+        and each query has its own parsing needs (for example: '*IDN?' returns a string with model, serial number,
+        firmware, and company, while 'TVAL?' or 'RVAL?' returns the measured temperature/resistance value at the time)
+        """
         try:
             data = self.ser.readline().decode("utf-8").strip()
             getLogger(__name__).debug(f"read {data} from SIM921")
@@ -144,12 +150,25 @@ class SIM921Agent(object):
             raise e
 
     def reset_sim(self):
+        """
+        Send a reset command to the SIM device. This should not be used in regular operation, but if the device is not
+        working it is a useful command to be able to send.
+        BE CAREFUL - This will reset certain parameters which are set for us to read out the thermometer in the
+        PICTURE-C cryostat (as of 2020, a LakeShore RX102-A).
+        If you do perform a reset, it will then be helpful to restore the 'default settings' which we have determined
+        to be the optimal to read out the hardware we have.
+        """
         try:
+            getLogger(__name__).info(f"Resetting the SIM921!")
             self.send("*RST")
         except IOError as e:
             raise e
 
     def command(self, command_msg: str):
+        """
+        A wrapper for the self.send function. This assumes that the command_msg input is a legal command as dictated by
+        the manual in picturec/hardware/thermometry/SRS-SIM921-ResistanceBridge-Manual.pdf
+        """
         try:
             getLogger(__name__).debug(f"Sending command '{command_msg}' to SIM921")
             self.send(command_msg)
@@ -157,6 +176,12 @@ class SIM921Agent(object):
             raise e
 
     def query(self, query_msg: str):
+        """
+        A wrapper to both send and receive in one holistic block so that we ensure if a query is sent, and answer is
+        received.
+        This assumes that the command_msg input is a legal query as dictated by the manual in
+        picturec/hardware/thermometry/SRS-SIM921-ResistanceBridge-Manual.pdf
+        """
         try:
             getLogger(__name__).debug(f"Querying '{query_msg}' from SIM921")
             self.send(query_msg)
@@ -166,6 +191,10 @@ class SIM921Agent(object):
         return response
 
     def query_ID(self):
+        """
+        Specific function to query the SIM921 identity to get its s/n, firmware, and model. Will be used in
+        conjunction with store_sim921_id_info to ensure we properly log the .
+        """
         try:
             idn_msg = self.query("*IDN?")
         except IOError as e:
@@ -176,18 +205,33 @@ class SIM921Agent(object):
             model = idn_info[1]
             sn = idn_info[2]
             firmware = idn_info[3]
+            getLogger(__name__).info(f"SIM921 Identity - model {model}, s/n:{sn}, firmware {firmware}")
         except Exception as e:
             raise ValueError(f"Illegal format. Check communication is working properly: {e}")
 
         return [model, sn, firmware]
 
     def read_default_settings(self):
-        for i, j in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
-            value = get_redis_value(self.redis, i)
-            self.prev_sim_settings[j] = value
+        """
+        Reads all of the default SIM921 settings that are stored in the redis database and reads them into the
+        dictionaries which the agent will use to command the SIM921 to change settings. Also reads these now current
+        settings into the redis database.
+        """
+        try:
+            for i, j in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
+                value = get_redis_value(self.redis, i)
+                self.prev_sim_settings[j] = value
+                store_redis_data(self.redis, {j: value})
+        except RedisError as e:
+            raise e
+
         self.new_sim_settings = np.copy(self.prev_sim_settings)
 
     def initialize_sim(self, load_curve=False):
+        """
+        Sets all of the values that are read in in the self.read_default_settings() function to their default values.
+        TODO: Have this in a manner where it uses the self.new_sim_settings dictionary.
+        """
         getLogger(__name__).info(f"Initializing SIM921")
 
         try:
@@ -209,9 +253,9 @@ class SIM921Agent(object):
             self.set_analog_output_scale_units('resistance')
 
             if load_curve:
-                self.load_calibration_curve(1, 'linear', 'PICTURE-C', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
+                self._load_calibration_curve(1, 'linear', 'PICTURE-C', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
 
-            self.choose_calibration_curve(1)
+            self._choose_calibration_curve(1)
 
             self.command("DTEM 1")
 
@@ -446,7 +490,7 @@ class SIM921Agent(object):
         try:
             getLogger(__name__).info(f"Setting manual output voltage to {value} V.")
             self.set_sim_value("AOUT", str(value))
-            store_redis_data(self.redis, {MANUAL_OUTPUT_KEY, value})
+            store_redis_data(self.redis, {MANUAL_OUTPUT_KEY: value})
         except IOError as e:
             raise e
         except RedisError as e:
@@ -528,8 +572,11 @@ class SIM921Agent(object):
             raise e
 
     def _check_settings(self):
-        for i in self.new_sim_settings.keys():
-            self.new_sim_settings[i] = get_redis_value(self.redis, i)
+        try:
+            for i in self.new_sim_settings.keys():
+                self.new_sim_settings[i] = get_redis_value(self.redis, i)
+        except RedisError as e:
+            raise e
 
         changed_idx = []
         for i,j in enumerate(zip(self.prev_sim_settings.values(), self.new_sim_settings.values())):
@@ -541,12 +588,75 @@ class SIM921Agent(object):
         keysToChange = np.array(self.new_sim_settings.keys())[changed_idx]
         valsToChange = np.array(self.new_sim_settings.values())[changed_idx]
 
-        return keysToChange, valsToChange
+        return {k:v for k,v in zip (keysToChange, valsToChange)}
 
     def update_sim_settings(self):
-        keys, vals = self._check_settings()
+        key_val_dict = self._check_settings()
+        keys = list(key_val_dict.keys())
+        try:
+            if 'device-settings:sim921:resistance-range' in keys:
+                self.set_resistance_range(key_val_dict['device-settings:sim921:resistance-range'])
+            if 'device-settings:sim921:excitation-value' in keys:
+                self.set_excitation_value(key_val_dict['device-settings:sim921:excitation-value'])
+            if 'device-settings:sim921:excitation-mode' in keys:
+                self.set_excitation_mode(key_val_dict['device-settings:sim921:excitation-mode'])
+            if 'device-settings:sim921:time-constant' in keys:
+                self.set_time_constant_value(key_val_dict['device-settings:sim921:time-constant'])
+            if 'device-settings:sim921:temp-offset' in keys:
+                self.set_temperature_offset(key_val_dict['device-settings:sim921:temp-offset'])
+            if 'device-settings:sim921:temp-slope' in keys:
+                self.set_analog_output_scale(key_val_dict['device-settings:sim921:temp-slope'])
+            if 'device-settings:sim921:resistance-offset' in keys:
+                self.set_resistance_offset(key_val_dict['device-settings:sim921:resistance-offset'])
+            if 'device-settings:sim921:resistance-slope' in keys:
+                self.set_analog_output_scale(key_val_dict['device-settings:sim921:resistance-slope'])
+            if 'device-settings:sim921:curve-number' in keys:
+                self._choose_calibration_curve(key_val_dict['device-settings:sim921:curve-number'])
+            if 'device-settings:sim921:manual-vout' in keys:
+                self.set_analog_output_manual_voltage(key_val_dict['device-settings:sim921:manual-vout'])
+            if 'device-settings:sim921:output-mode' in keys:
+                if key_val_dict['device-settings:sim921:output-mode'] == 'manual':
+                    self.turn_manual_output_on()
+                elif key_val_dict['device-settings:sim921:output-mode'] == 'scaled':
+                    self.turn_scaled_output_on()
+        except (IOError, RedisError) as e:
+            raise e
 
+        self.prev_sim_settings = self.new_sim_settings
 
+    def read_and_store_thermometry(self):
+        try:
+            tval = self.query("TVAL?")
+            rval = self.query("RVAL?")
+            store_redis_ts_data(self.redis_ts, {TEMP_KEY: tval})
+            store_redis_ts_data(self.redis_ts, {RES_KEY: rval})
+        except IOError as e:
+            raise e
+        except RedisError as e:
+            raise e
+
+    def read_and_store_output(self):
+        try:
+            output = self.query("AOUT?")
+            store_redis_ts_data(self.redis_ts, {OUTPUT_VOLTAGE_KEY: output})
+        except IOError as e:
+            raise e
+        except RedisError as e:
+            raise e
+
+    def run(self):
+        while True:
+            try:
+                self.update_sim_settings()
+                self.read_and_store_thermometry()
+                self.read_and_store_output()
+                store_status(self.redis, "OK")
+            except IOError as e:
+                getLogger(__name__).error(f"IOError occured in run loop: {e}")
+                store_status(self.redis, f"Error {e}")
+            except RedisError as e:
+                getLogger(__name__).error(f"Error with redis while running: {e}")
+                sys.exit(1)
 
 
 def setup_redis(host='localhost', port=6379, db=0):
@@ -569,10 +679,6 @@ def setup_redis_ts(host='localhost', port=6379, db=0):
 
 def store_status(redis, status):
     redis.set(STATUS_KEY, status)
-
-
-def store_firmware(redis, sim921_version):
-    redis.set(FIRMWARE_KEY, sim921_version)
 
 
 def get_redis_value(redis, key):
