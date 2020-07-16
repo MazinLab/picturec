@@ -7,7 +7,7 @@ responsible for properly conditioning its output signal so that the SIM960 (PID 
 the device temperature.
 
 TODO: - Create run function
- - Restructure setting/getting SIM921 parameters using redis
+ - Initializing curve should only be an engineering function. Changing curve should also be restricted to engineering
  - Decide if mainframe mode is worth using (I think it is for testing)
 """
 
@@ -27,7 +27,7 @@ KEYS = ['device-settings:sim921:resistance-range',
         'device-settings:sim921:temp-slope',
         'device-settings:sim921:resistance-offset',
         'device-settings:sim921:resistance-slope',
-        'device-settings:sim921:curve-profile',
+        'device-settings:sim921:curve-number',
         'device-settings:sim921:manual-vout',
         'device-settings:sim921:output-mode',
         'status:device:sim921:firmware',
@@ -46,7 +46,6 @@ SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:temp-slope',
                 'device-settings:sim921:resistance-offset',
                 'device-settings:sim921:resistance-slope',
-                'device-settings:sim921:curve-profile',
                 'device-settings:sim921:curve-number',
                 'device-settings:sim921:manual-vout',
                 'device-settings:sim921:output-mode']
@@ -59,7 +58,6 @@ DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
                         'default:device-settings:sim921:temp-slope',
                         'default:device-settings:sim921:resistance-offset',
                         'default:device-settings:sim921:resistance-slope',
-                        'default:device-settings:sim921:curve-profile',
                         'default:device-settings:sim921:curve-number',
                         'default:device-settings:sim921:manual-vout',
                         'default:device-settings:sim921:output-mode']
@@ -467,8 +465,7 @@ class SIM921Agent(object):
         else:
             getLogger(__name__).warning(f"Invalid unit! Cannot set analog output scale to {units} units!")
 
-    def choose_calibration_curve(self, curve_number, curve_type, curve_name: str):
-        CURVE_PROFILE_KEY = 'device-settings:sim921:curve-profile'
+    def _choose_calibration_curve(self, curve_number):
         CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
         valid_curves = [1, 2, 3]
         if curve_number in valid_curves:
@@ -476,7 +473,6 @@ class SIM921Agent(object):
                 getLogger(__name__).info(f"Setting the SIM921 to use calibration curve {curve_number}."
                                          f"For more information on curve use 'CINI? <curve_number>'.")
                 self.set_sim_value("CURV", str(curve_number))
-                store_redis_data(self.redis, {CURVE_PROFILE_KEY: str(curve_type) + ", " + str(curve_type) + ", " + curve_name})
                 store_redis_data(self.redis, {CURVE_NUMBER_KEY: curve_number})
             except IOError as e:
                 raise e
@@ -485,10 +481,10 @@ class SIM921Agent(object):
         else:
             getLogger(__name__).warning(f"{curve_number} is not a valid curve number for the SIM921!")
 
-    def load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, path_to_curve="../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl"):
-        CURVE_PROFILE_KEY = 'device-settings:sim921:curve-profile'
+    def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, path_to_curve="../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl"):
         CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
         valid_curves = [1, 2, 3]
+
         CURVE_TYPE_DICT = {'linear': '0',
                            'semilogt': '1',
                            'semilogr': '2',
@@ -527,7 +523,6 @@ class SIM921Agent(object):
             raise e
 
         try:
-            store_redis_data(self.redis, {CURVE_PROFILE_KEY: str(curve_num)+", "+str(CURVE_TYPE_DICT[curve_type])+", "+curve_name})
             store_redis_data(self.redis, {CURVE_NUMBER_KEY: curve_num})
         except RedisError as e:
             raise e
@@ -544,14 +539,15 @@ class SIM921Agent(object):
                 changed_idx.append(False)
 
         keysToChange = np.array(self.new_sim_settings.keys())[changed_idx]
-        valsToChange = np.array(self.new_sim_settings.value())[changed_idx]
+        valsToChange = np.array(self.new_sim_settings.values())[changed_idx]
 
         return keysToChange, valsToChange
 
     def update_sim_settings(self):
         keys, vals = self._check_settings()
-        # Do stuff here to update the sim and send commands to set the correct values!
-        # Consider curve/curveprofile
+
+
+
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
