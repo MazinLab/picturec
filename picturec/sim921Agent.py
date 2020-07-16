@@ -85,7 +85,8 @@ class SIM921Agent(object):
         self.redis = redis
         self.redis_ts = redis_ts
 
-        self.sim_settings = {}
+        self.prev_sim_settings = {}
+        self.new_sim_settings = {}
         self.read_default_settings()
 
         if initialize:
@@ -185,7 +186,8 @@ class SIM921Agent(object):
     def read_default_settings(self):
         for i, j in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
             value = get_redis_value(self.redis, i)
-            self.sim_settings[j] = value
+            self.prev_sim_settings[j] = value
+        self.new_sim_settings = np.copy(self.prev_sim_settings)
 
     def initialize_sim(self, load_curve=False):
         getLogger(__name__).info(f"Initializing SIM921")
@@ -530,21 +532,26 @@ class SIM921Agent(object):
         except RedisError as e:
             raise e
 
-    def check_values(self):
-        new_values = [get_redis_value(self.redis, k) for k in self.sim_settings.keys()]
-        print(new_values)
-        old_values = self.sim_settings.values()
-        print(old_values)
+    def _check_settings(self):
+        for i in self.new_sim_settings.keys():
+            self.new_sim_settings[i] = get_redis_value(self.redis, i)
 
         changed_idx = []
-        for i,j in enumerate(zip(new_values, old_values)):
+        for i,j in enumerate(zip(self.prev_sim_settings.values(), self.new_sim_settings.values())):
             if str(j[0]) != str(j[1]):
                 changed_idx.append(True)
             else:
                 changed_idx.append(False)
 
-        return [old_values, new_values, changed_idx]
+        keysToChange = np.array(self.new_sim_settings.keys())[changed_idx]
+        valsToChange = np.array(self.new_sim_settings.value())[changed_idx]
 
+        return keysToChange, valsToChange
+
+    def update_sim_settings(self):
+        keys, vals = self._check_settings()
+        # Do stuff here to update the sim and send commands to set the correct values!
+        # Consider curve/curveprofile
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
