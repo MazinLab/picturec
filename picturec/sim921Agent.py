@@ -312,149 +312,229 @@ class SIM921Agent(object):
         except IOError as e:
             raise e
 
-    def set_resistance_range(self, value):
-        """
-        Command the SIM921 to go to a new resistance range.
-        RANGE_DICT has the desired values as keys and command codes as values
-        """
-        RANGE_KEY = 'device-settings:sim921:resistance-range'
-        RANGE_DICT = {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4',
-                      2e3: '5', 20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'}
-
-        if value in RANGE_DICT.keys():
-            getLogger(__name__).debug(f"{value} Ohms is a valid value. Setting SIM921 resistance range to {value} Ohms")
-            try:
-                self.set_sim_value("RANG", RANGE_DICT[value])
-                store_redis_data(self.redis, {RANGE_KEY: value})
-                getLogger(__name__).info(f"Resistance range successfully set to {value} Ohms.")
-            except IOError as e:
-                raise e
-            except RedisError as e:
-                raise e
-        else:
-            getLogger(__name__).warning(f"{value} Ohms is not a valid value for SIM921 resistance range.")
-
-    def set_time_constant_value(self, value):
-        """
-        Command the SIM921 to go to a new time constant
-        TIME_CONST_DICT has the desired values as keys and command codes as values
-        NOTE: A value of 0 (code -1) means that the time constant is off. DON'T TURN IT OFF.
-        """
-        TIME_CONST_KEY = 'device-settings:sim921:time-constant'
-        TIME_CONST_DICT = {0: '-1', 0.3: '0', 1: '1', 3: '2', 10: '3', 30: '4', 100: '5', 300: '6'}
-
-        if value in TIME_CONST_DICT.keys():
-            getLogger(__name__).debug(f"{value} s is a valid value. Setting SIM921 time constant to {value} s")
-            try:
-                self.set_sim_value("TCON", TIME_CONST_DICT[value])
-                store_redis_data(self.redis, {TIME_CONST_KEY: value})
-                getLogger(__name__).info(f"Time constant successfully set to {value} s.")
-            except IOError as e:
-                raise e
-            except RedisError as e:
-                raise e
-        else:
-            getLogger(__name__).warning(f"{value} s is not a valid value for SIM921 time constant.")
-
-    def set_excitation_value(self, value):
-        """
-        Command the SIM921 to go to a new excitation value.
-        EXCITATION_DICT has the desired values as keys and command codes as values
-        NOTE: A value of 0 (code -1) means that the excitation is off.
-        """
-        EXCITATION_KEY = 'device-settings:sim921:excitation-value'
-        EXCITATION_DICT = {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3',
-                           300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'}
-
-        if value in EXCITATION_DICT.keys():
-            getLogger(__name__).debug(f"{value} V is a valid value. Setting SIM921 excitation value to {value} V")
-            try:
-                if value:
-                    self.set_sim_value("EXON", "1")
-                else:
-                    self.set_sim_value("EXON", "0")
-                self.set_sim_value("EXCI", EXCITATION_DICT[value])
-                store_redis_data(self.redis, {EXCITATION_KEY: value})
-                getLogger(__name__).info(f"Excitation successfully set to {value} V.")
-            except IOError as e:
-                raise e
-            except RedisError as e:
-                raise e
-        else:
-            getLogger(__name__).warning(f"{value} V is not a valid value for SIM921 excitation value.")
-
-    def set_excitation_mode(self, mode='voltage'):
-        EXCITATION_MODE_KEY = 'device-settings:sim921:excitation-mode'
-        EXCITATION_MODES = {'passive': '0',
-                            'current': '1',
-                            'voltage': '2',
-                            'power': '3'}
-        mode = mode.lower()
-        if mode in EXCITATION_MODES.keys():
-            getLogger(__name__).debug(f"'{mode}' is a valid mode. Setting SIM921 excitation mode to {mode}")
-            try:
-                self.set_sim_value("MODE", mode)
-                store_redis_data(self.redis, {EXCITATION_MODE_KEY: mode})
-                getLogger(__name__).info(f"Successfully set excitation to {mode} mode.")
-            except IOError as e:
-                raise e
-            except RedisError as e:
-                raise e
-        else:
-            getLogger(__name__).warning(f"'{mode}' is not a valid excitation mode on the SIM921.")
-
-    def turn_excitation_off(self):
-        EXCITATION_KEY = 'device-settings:sim921:excitation-value'
+    def set_sim_param(self, command, value):
         try:
-            getLogger(__name__).info(f"Turning excitation off")
-            self.set_sim_value("EXON", "0")
-            store_redis_data(self.redis, {EXCITATION_KEY: 0})
+            dict_for_command = COMMAND_DICT[command]
+        except KeyError as e:
+            raise KeyError(f"'{command}' is not a valid SIM921 command!")
+
+        command_key = dict_for_command['key'] if 'key' in dict_for_command.keys() else None
+        command_vals = dict_for_command['vals']
+
+        if type(command_vals) is list:
+            min_val = command_vals[0]
+            max_val = command_vals[1]
+
+            if value < min_val:
+                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is below the minimum allowed "
+                                            f"value! Setting {command_key} to minimum allowed value: {min_val}")
+                cmd_value = str(min_val)
+            elif value > max_val:
+                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is above the maximum allowed "
+                                            f"value! Setting {command_key} to maximum allowed value: {max_val}")
+                cmd_value = str(max_val)
+            else:
+                getLogger(__name__).info(f"Setting {command_key} to {value}")
+                cmd_value = str(value)
+        else:
+            try:
+                cmd_value = command_vals[value]
+                getLogger(__name__).info(f"Setting {command_key} to {value}")
+            except KeyError:
+                raise KeyError(f"{value} is not a valid value for '{command}")
+
+        try:
+            self.set_sim_value(command, cmd_value)
+            if command_key is not None:
+                store_redis_data(self.redis, {command_key: value})
         except IOError as e:
             raise e
         except RedisError as e:
+            raise e
+
+    def set_resistance_range(self, value):
+        try:
+            self.set_sim_param("RANG", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_time_constant_value(self, value):
+        try:
+            self.set_sim_param("TCON", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_excitation_value(self, value):
+        try:
+            if float(value) == 0:
+                self.set_sim_value("EXON", "0")
+            else:
+                self.set_sim_param("EXON", "1")
+            self.set_sim_param("EXCI", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_excitation_mode(self, mode):
+        try:
+            self.set_sim_param("MODE", mode)
+        except (IOError, RedisError) as e:
             raise e
 
     def set_temperature_offset(self, value):
-        TEMPERATURE_OFFSET_KEY = 'device-settings:sim921:temp-offset'
-        t_min = 0.05
-        t_max = 40
-
-        if value < t_min:
-            getLogger(__name__).info(f"{value} K is too low for an offset value. Setting offset T to {t_min} K.")
-            value = t_min
-        elif value > t_max:
-            getLogger(__name__).info(f"{value} K is too high for an offset value. Setting offset T to {t_max} K.")
-            value = t_max
-
         try:
-            getLogger(__name__).info(f"Setting offset temperature to {value} K.")
-            self.set_sim_value("TSET", str(value))
-            store_redis_data(self.redis, {TEMPERATURE_OFFSET_KEY: value})
-        except IOError as e:
-            raise e
-        except RedisError as e:
+            self.set_sim_param("TSET", float(value))
+        except (IOError, RedisError) as e:
             raise e
 
     def set_resistance_offset(self, value):
-        RESISTANCE_OFFSET_KEY = 'device-settings:sim921:resistance-offset'
-        r_min = 1049.08
-        r_max = 63765.1
-
-        if value < r_min:
-            getLogger(__name__).info(f"{value} Ohms is too low for an offset value. Setting offset R to {r_min} Ohms.")
-            value = r_min
-        elif value > r_max:
-            getLogger(__name__).info(f"{value} Ohms is too high for an offset value. Setting offset R to {r_max} Ohms.")
-            value = r_max
-
         try:
-            getLogger(__name__).info(f"Setting offset resistance to {value} Ohms.")
-            self.set_sim_value("RSET", str(value))
-            store_redis_data(self.redis, {RESISTANCE_OFFSET_KEY: value})
-        except IOError as e:
+            self.set_sim_param("RSET", float(value))
+        except (IOError, RedisError) as e:
             raise e
-        except RedisError as e:
-            raise e
+
+    # def set_resistance_range(self, value):
+    #     """
+    #     Command the SIM921 to go to a new resistance range.
+    #     RANGE_DICT has the desired values as keys and command codes as values
+    #     """
+    #     RANGE_KEY = 'device-settings:sim921:resistance-range'
+    #     RANGE_DICT = {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4',
+    #                   2e3: '5', 20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'}
+    #
+    #     if value in RANGE_DICT.keys():
+    #         getLogger(__name__).debug(f"{value} Ohms is a valid value. Setting SIM921 resistance range to {value} Ohms")
+    #         try:
+    #             self.set_sim_value("RANG", RANGE_DICT[value])
+    #             store_redis_data(self.redis, {RANGE_KEY: value})
+    #             getLogger(__name__).info(f"Resistance range successfully set to {value} Ohms.")
+    #         except IOError as e:
+    #             raise e
+    #         except RedisError as e:
+    #             raise e
+    #     else:
+    #         getLogger(__name__).warning(f"{value} Ohms is not a valid value for SIM921 resistance range.")
+
+    # def set_time_constant_value(self, value):
+    #     """
+    #     Command the SIM921 to go to a new time constant
+    #     TIME_CONST_DICT has the desired values as keys and command codes as values
+    #     NOTE: A value of 0 (code -1) means that the time constant is off. DON'T TURN IT OFF.
+    #     """
+    #     TIME_CONST_KEY = 'device-settings:sim921:time-constant'
+    #     TIME_CONST_DICT = {0: '-1', 0.3: '0', 1: '1', 3: '2', 10: '3', 30: '4', 100: '5', 300: '6'}
+    #
+    #     if value in TIME_CONST_DICT.keys():
+    #         getLogger(__name__).debug(f"{value} s is a valid value. Setting SIM921 time constant to {value} s")
+    #         try:
+    #             self.set_sim_value("TCON", TIME_CONST_DICT[value])
+    #             store_redis_data(self.redis, {TIME_CONST_KEY: value})
+    #             getLogger(__name__).info(f"Time constant successfully set to {value} s.")
+    #         except IOError as e:
+    #             raise e
+    #         except RedisError as e:
+    #             raise e
+    #     else:
+    #         getLogger(__name__).warning(f"{value} s is not a valid value for SIM921 time constant.")
+
+    # def set_excitation_value(self, value):
+    #     """
+    #     Command the SIM921 to go to a new excitation value.
+    #     EXCITATION_DICT has the desired values as keys and command codes as values
+    #     NOTE: A value of 0 (code -1) means that the excitation is off.
+    #     """
+    #     EXCITATION_KEY = 'device-settings:sim921:excitation-value'
+    #     EXCITATION_DICT = {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3',
+    #                        300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'}
+    #
+    #     if value in EXCITATION_DICT.keys():
+    #         getLogger(__name__).debug(f"{value} V is a valid value. Setting SIM921 excitation value to {value} V")
+    #         try:
+    #             if value:
+    #                 self.set_sim_value("EXON", "1")
+    #             else:
+    #                 self.set_sim_value("EXON", "0")
+    #             self.set_sim_value("EXCI", EXCITATION_DICT[value])
+    #             store_redis_data(self.redis, {EXCITATION_KEY: value})
+    #             getLogger(__name__).info(f"Excitation successfully set to {value} V.")
+    #         except IOError as e:
+    #             raise e
+    #         except RedisError as e:
+    #             raise e
+    #     else:
+    #         getLogger(__name__).warning(f"{value} V is not a valid value for SIM921 excitation value.")
+
+    # def set_excitation_mode(self, mode='voltage'):
+    #     EXCITATION_MODE_KEY = 'device-settings:sim921:excitation-mode'
+    #     EXCITATION_MODES = {'passive': '0',
+    #                         'current': '1',
+    #                         'voltage': '2',
+    #                         'power': '3'}
+    #     mode = mode.lower()
+    #     if mode in EXCITATION_MODES.keys():
+    #         getLogger(__name__).debug(f"'{mode}' is a valid mode. Setting SIM921 excitation mode to {mode}")
+    #         try:
+    #             self.set_sim_value("MODE", mode)
+    #             store_redis_data(self.redis, {EXCITATION_MODE_KEY: mode})
+    #             getLogger(__name__).info(f"Successfully set excitation to {mode} mode.")
+    #         except IOError as e:
+    #             raise e
+    #         except RedisError as e:
+    #             raise e
+    #     else:
+    #         getLogger(__name__).warning(f"'{mode}' is not a valid excitation mode on the SIM921.")
+    #
+    # def turn_excitation_off(self):
+    #     EXCITATION_KEY = 'device-settings:sim921:excitation-value'
+    #     try:
+    #         getLogger(__name__).info(f"Turning excitation off")
+    #         self.set_sim_value("EXON", "0")
+    #         store_redis_data(self.redis, {EXCITATION_KEY: 0})
+    #     except IOError as e:
+    #         raise e
+    #     except RedisError as e:
+    #         raise e
+
+    # def set_temperature_offset(self, value):
+    #     TEMPERATURE_OFFSET_KEY = 'device-settings:sim921:temp-offset'
+    #     t_min = 0.05
+    #     t_max = 40
+    #
+    #     if value < t_min:
+    #         getLogger(__name__).info(f"{value} K is too low for an offset value. Setting offset T to {t_min} K.")
+    #         value = t_min
+    #     elif value > t_max:
+    #         getLogger(__name__).info(f"{value} K is too high for an offset value. Setting offset T to {t_max} K.")
+    #         value = t_max
+    #
+    #     try:
+    #         getLogger(__name__).info(f"Setting offset temperature to {value} K.")
+    #         self.set_sim_value("TSET", str(value))
+    #         store_redis_data(self.redis, {TEMPERATURE_OFFSET_KEY: value})
+    #     except IOError as e:
+    #         raise e
+    #     except RedisError as e:
+    #         raise e
+
+    # def set_resistance_offset(self, value):
+    #     RESISTANCE_OFFSET_KEY = 'device-settings:sim921:resistance-offset'
+    #     r_min = 1049.08
+    #     r_max = 63765.1
+    #
+    #     if value < r_min:
+    #         getLogger(__name__).info(f"{value} Ohms is too low for an offset value. Setting offset R to {r_min} Ohms.")
+    #         value = r_min
+    #     elif value > r_max:
+    #         getLogger(__name__).info(f"{value} Ohms is too high for an offset value. Setting offset R to {r_max} Ohms.")
+    #         value = r_max
+    #
+    #     try:
+    #         getLogger(__name__).info(f"Setting offset resistance to {value} Ohms.")
+    #         self.set_sim_value("RSET", str(value))
+    #         store_redis_data(self.redis, {RESISTANCE_OFFSET_KEY: value})
+    #     except IOError as e:
+    #         raise e
+    #     except RedisError as e:
+    #         raise e
 
     def set_analog_output_scale(self, mode, value):
         TEMPERATURE_SLOPE_KEY = 'device-settings:sim921:temp-slope'
@@ -690,46 +770,6 @@ class SIM921Agent(object):
             except RedisError as e:
                 getLogger(__name__).error(f"Error with redis while running: {e}")
                 sys.exit(1)
-
-    def set_sim_param(self, command, value):
-        try:
-            dict_for_command = COMMAND_DICT[command]
-        except KeyError as e:
-            raise KeyError(f"'{command}' is not a valid SIM921 command!")
-
-        command_key = dict_for_command['key'] if 'key' in dict_for_command.keys() else None
-        command_vals = dict_for_command['vals']
-
-        if type(command_vals) is list:
-            cmd_type = 'cont'
-            min_val = command_vals[0]
-            max_val = command_vals[1]
-        else:
-            cmd_type = 'disc'
-
-        if cmd_type == 'cont':
-            if value < min_val:
-                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is below the minimum allowed "
-                                            f"value! Setting {command_key} to minimum allowed value: {min_val}")
-                value = str(min_val)
-            elif value > max_val:
-                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is above the maximum allowed "
-                                            f"value! Setting {command_key} to maximum allowed value: {max_val}")
-                value = str(max_val)
-            else:
-                getLogger(__name__).info(f"Setting {command_key} to {value}")
-                value = str(value)
-
-        elif cmd_type == 'disc':
-            try:
-                value = command_vals[value]
-            except KeyError:
-                raise KeyError(f"{value} is not a valid value for '{command}")
-
-        self.set_sim_value(command, value)
-        store_redis_data(self.redis, {command_key: value})
-
-
 
 
 def setup_redis(host='localhost', port=6379, db=0):
