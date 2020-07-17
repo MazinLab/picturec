@@ -63,22 +63,48 @@ FIRMWARE_KEY = 'status:device:sim921:firmware'
 SERIALNO_KEY = 'status:device:sim921:sn'
 
 
-COMMAND_DICT = {'default:device-settings:sim921:resistance-range': {20e-3: '0', 200e-3: '1', 2: '2',
-                                                                    20: '3', 200: '4', 2e3: '5',
-                                                                    20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'},
+COMMAND_DICT = {'device-settings:sim921:resistance-range': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4', 2e3: '5',
+                                                            20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'},
                 'device-settings:sim921:excitation-value': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3',
                                                             300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'},
                 'device-settings:sim921:excitation-mode': {'passive': '0', 'current': '1',
                                                            'voltage': '2', 'power': '3'},
                 'device-settings:sim921:time-constant': {0: '-1', 0.3: '0', 1: '1', 3: '2', 10: '3',
                                                          30: '4', 100: '5', 300: '6'},
-                'default:device-settings:sim921:temp-offset': [0.050, 40],
-                'default:device-settings:sim921:temp-slope': [0, 1e-2],
-                'default:device-settings:sim921:resistance-offset': [1049.08, 63765.1],
-                'default:device-settings:sim921:resistance-slope': [0, 1e-5],
-                'default:device-settings:sim921:curve-number': [1, 2, 3],
-                'default:device-settings:sim921:manual-vout': [-10, 10],
-                'default:device-settings:sim921:output-mode': {'scaled': 0, 'manual': 1}}
+                'device-settings:sim921:temp-offset': [0.050, 40],
+                'device-settings:sim921:temp-slope': [0, 1e-2],
+                'device-settings:sim921:resistance-offset': [1049.08, 63765.1],
+                'device-settings:sim921:resistance-slope': [0, 1e-5],
+                'device-settings:sim921:curve-number': [1, 2, 3],
+                'device-settings:sim921:manual-vout': [-10, 10],
+                'device-settings:sim921:output-mode': {'scaled': 0, 'manual': 1}}
+
+COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
+                         'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4',
+                                  2e3: '5', 20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'}},
+                'EXCI': {'key': 'device-settings:sim921:excitation-value',
+                         'vals': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3',
+                                  300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'}},
+                'MODE': {'key': 'device-settings:sim921:excitation-mode',
+                         'vals': {'passive': '0', 'current': '1', 'voltage': '2', 'power': '3'}},
+                'EXON': {'key': 'device-settings:sim921:excitation-value',
+                         'vals': {'off': '0', 'on': '1'}},
+                'TSET': {'key': 'device-settings:sim921:temp-offset',
+                         'vals': [0.050, 40]},
+                'RSET': {'key': 'device-settings:sim921:resistance-offset',
+                         'vals': [1049.08, 63765.1]},
+                'VKEL': {'key': 'device-settings:sim921:temp-slope',
+                         'vals': [0, 1e-2]},
+                'VOHM': {'key': 'device-settings:sim921:resistance-slope',
+                         'vals': [0, 1e-5]},
+                'AMAN': {'key': 'device-settings:sim921:output-mode',
+                         'vals': {'scaled': '1', 'manual': '0'}},
+                'AOUT': {'key': 'device-settings:sim921:manual-vout',
+                         'vals': [-10, 10]},
+                'ATEM': {'vals': {'resistance': '0', 'temperature': '1'}},
+                'CURV': {'key': 'device-settings:sim921:curve-number',
+                         'vals': {1: '1', 2: '2', 3: '3'}}
+                }
 
 
 class SIM921Agent(object):
@@ -87,7 +113,7 @@ class SIM921Agent(object):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
-        self.connect(raise_errors=False)
+        # self.connect(raise_errors=False)
         time.sleep(1)
         self.redis = redis
         self.redis_ts = redis_ts
@@ -247,7 +273,7 @@ class SIM921Agent(object):
         except RedisError as e:
             raise e
 
-        self.new_sim_settings = np.copy(self.prev_sim_settings)
+        self.new_sim_settings = self.prev_sim_settings
 
     def initialize_sim(self, load_curve=False):
         """
@@ -405,7 +431,7 @@ class SIM921Agent(object):
 
     def set_temperature_offset(self, value):
         TEMPERATURE_OFFSET_KEY = 'device-settings:sim921:temp-offset'
-        t_min = 0.005
+        t_min = 0.05
         t_max = 40
 
         if value < t_min:
@@ -679,6 +705,23 @@ class SIM921Agent(object):
             except RedisError as e:
                 getLogger(__name__).error(f"Error with redis while running: {e}")
                 sys.exit(1)
+
+    def set_sim_param(self, command, value):
+        try:
+            dict_for_command = COMMAND_DICT[command]
+        except KeyError as e:
+            raise KeyError(f"'{command}' is not a valid SIM921 command!")
+
+        command_key = dict_for_command['key'] if 'key' in dict_for_command.keys() else None
+        command_vals = dict_for_command['vals']
+
+        if type(command_vals) is list:
+            min_val = command_vals[0]
+            max_val = command_vals[1]
+        else:
+            valid_vals = command_vals.keys()
+
+
 
 
 def setup_redis(host='localhost', port=6379, db=0):
