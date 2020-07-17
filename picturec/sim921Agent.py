@@ -8,8 +8,9 @@ the device temperature.
 
 TODO: - Create run function
  - Give keys names and use them that way
- - Consider restructuring the commands to pass it a key and value and then have the command function using the key to
- determine the command that must be sent (e.g. 'device-settings:sim921:resistance-range' -> "RANG", etc.)
+ - Restructure commands!
+ - Turn load_new_curve and set_analog_output_scale_units into internal functions (should only be used for engineering)
+ - In curve selection function, add a validity check to only allow us to change to valid curves.
  - Decide if mainframe mode is worth using (I think it is for testing)
 """
 
@@ -62,22 +63,6 @@ MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SERIALNO_KEY = 'status:device:sim921:sn'
 
-
-COMMAND_DICT = {'device-settings:sim921:resistance-range': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4', 2e3: '5',
-                                                            20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'},
-                'device-settings:sim921:excitation-value': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3',
-                                                            300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'},
-                'device-settings:sim921:excitation-mode': {'passive': '0', 'current': '1',
-                                                           'voltage': '2', 'power': '3'},
-                'device-settings:sim921:time-constant': {0: '-1', 0.3: '0', 1: '1', 3: '2', 10: '3',
-                                                         30: '4', 100: '5', 300: '6'},
-                'device-settings:sim921:temp-offset': [0.050, 40],
-                'device-settings:sim921:temp-slope': [0, 1e-2],
-                'device-settings:sim921:resistance-offset': [1049.08, 63765.1],
-                'device-settings:sim921:resistance-slope': [0, 1e-5],
-                'device-settings:sim921:curve-number': [1, 2, 3],
-                'device-settings:sim921:manual-vout': [-10, 10],
-                'device-settings:sim921:output-mode': {'scaled': 0, 'manual': 1}}
 
 COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
                          'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4',
@@ -716,10 +701,33 @@ class SIM921Agent(object):
         command_vals = dict_for_command['vals']
 
         if type(command_vals) is list:
+            cmd_type = 'cont'
             min_val = command_vals[0]
             max_val = command_vals[1]
         else:
-            valid_vals = command_vals.keys()
+            cmd_type = 'disc'
+
+        if cmd_type == 'cont':
+            if value < min_val:
+                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is below the minimum allowed "
+                                            f"value! Setting {command_key} to minimum allowed value: {min_val}")
+                value = str(min_val)
+            elif value > max_val:
+                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is above the maximum allowed "
+                                            f"value! Setting {command_key} to maximum allowed value: {max_val}")
+                value = str(max_val)
+            else:
+                getLogger(__name__).info(f"Setting {command_key} to {value}")
+                value = str(value)
+
+        elif cmd_type == 'disc':
+            try:
+                value = command_vals[value]
+            except KeyError:
+                raise KeyError(f"{value} is not a valid value for '{command}")
+
+        self.set_sim_value(command, value)
+        store_redis_data(self.redis, {command_key: value})
 
 
 
