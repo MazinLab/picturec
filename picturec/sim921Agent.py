@@ -97,8 +97,8 @@ class SIM921Agent(object):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
-        self.connect(raise_errors=False)
-        time.sleep(.5)
+        # self.connect(raise_errors=False)
+        # time.sleep(.5)
         self.redis = redis
         self.redis_ts = redis_ts
 
@@ -253,11 +253,10 @@ class SIM921Agent(object):
             for i, j in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
                 value = get_redis_value(self.redis, i)
                 self.prev_sim_settings[j] = value
+                self.new_sim_settings[j] = value
                 store_redis_data(self.redis, {j: value})
         except RedisError as e:
             raise e
-
-        self.new_sim_settings = self.prev_sim_settings
 
     def initialize_sim(self, load_curve=False):
         """
@@ -492,8 +491,8 @@ class SIM921Agent(object):
             else:
                 changed_idx.append(False)
 
-        keysToChange = np.array(self.new_sim_settings.keys())[changed_idx]
-        valsToChange = np.array(self.new_sim_settings.values())[changed_idx]
+        keysToChange = np.array(list(self.new_sim_settings.keys()))[changed_idx]
+        valsToChange = np.array(list(self.new_sim_settings.values()))[changed_idx]
 
         return {k: v for k, v in zip(keysToChange, valsToChange)}
 
