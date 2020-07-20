@@ -1,0 +1,11 @@
+TODO: Enable restarting
+
+[Unit]
+Description=SIM921 Agent
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/kids/anaconda3/bin/python /home/kids/Documents/repositories/picturec/picturec/sim921Agent.py
