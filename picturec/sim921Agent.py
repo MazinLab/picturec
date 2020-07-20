@@ -8,7 +8,6 @@ the device temperature.
 
 TODO: - Create run function
  - Give keys names and use them that way
- - Restructure commands!
  - Turn load_new_curve and set_analog_output_scale_units into internal functions (should only be used for engineering)
  - In curve selection function, add a validity check to only allow us to change to valid curves.
  - Decide if mainframe mode is worth using (I think it is for testing)
@@ -316,7 +315,7 @@ class SIM921Agent(object):
         try:
             dict_for_command = COMMAND_DICT[command]
         except KeyError as e:
-            raise KeyError(f"'{command}' is not a valid SIM921 command!")
+            raise KeyError(f"'{command}' is not a valid SIM921 command! Error: {e}")
 
         command_key = dict_for_command['key'] if 'key' in dict_for_command.keys() else None
         command_vals = dict_for_command['vals']
@@ -391,6 +390,180 @@ class SIM921Agent(object):
             self.set_sim_param("RSET", float(value))
         except (IOError, RedisError) as e:
             raise e
+
+    def set_temperature_output_scale(self, value):
+        try:
+            self.set_sim_param("VKEL", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_resistance_output_scale(self, value):
+        try:
+            self.set_sim_param("VOHM", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_output_scale_units(self, units):
+        try:
+            self.set_sim_param("ATEM", str(units))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_output_mode(self, mode):
+        try:
+            self.set_sim_param("AMAN", str(mode))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_output_manual_voltage(self, value):
+        try:
+            self.set_sim_param("AOUT", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def choose_calibration_curve(self, curve):
+        LOADED_CURVES = [1]
+        if curve in LOADED_CURVES:
+            try:
+                self.set_sim_param("CURV", int(curve))
+            except (IOError, RedisError) as e:
+                raise e
+        else:
+            getLogger(__name__).warning(f"Curve number {curve} has not been loaded into the SIM921. This curve"
+                                        f"cannot be used to convert resistance to temperature!")
+
+    def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, path_to_curve="../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl"):
+        CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
+        valid_curves = [1, 2, 3]
+
+        CURVE_TYPE_DICT = {'linear': '0',
+                           'semilogt': '1',
+                           'semilogr': '2',
+                           'loglog': '3'}
+
+        if curve_num in valid_curves:
+            getLogger(__name__).debug(f"Curve {curve_num} is valid and can be initialized.")
+        else:
+            getLogger(__name__).warning(f"Curve {curve_num} is NOT valid. Not initializing any curve")
+            return False
+
+        if curve_type in CURVE_TYPE_DICT.keys():
+            getLogger(__name__).debug(f"Curve type {curve_type} is valid and can be initialized.")
+        else:
+            getLogger(__name__).warning(f"Curve type {curve_type} is NOT valid. Not initializing any curve")
+            return False
+
+        try:
+            curve_init_str = "CINI "+str(curve_num)+", "+str(CURVE_TYPE_DICT[curve_type]+", "+curve_name)
+            self.command(curve_init_str)
+        except IOError as e:
+            raise e
+
+        try:
+            curve_data = np.loadtxt(path_to_curve)
+            temp_data = np.flip(curve_data[:, 0], axis=0)
+            res_data = np.flip(curve_data[:, 1], axis=0)
+        except Exception:
+            raise ValueError(f"{path_to_curve} couldn't be loaded.")
+
+        try:
+            for t, r in zip(temp_data, res_data):
+                self.command("CAPT"+str(curve_num)+", "+str(r)+", "+str(t))
+                time.sleep(0.1)
+        except IOError as e:
+            raise e
+
+        try:
+            store_redis_data(self.redis, {CURVE_NUMBER_KEY: curve_num})
+        except RedisError as e:
+            raise e
+
+    def _check_settings(self):
+        try:
+            for i in self.new_sim_settings.keys():
+                self.new_sim_settings[i] = get_redis_value(self.redis, i)
+        except RedisError as e:
+            raise e
+
+        changed_idx = []
+        for i,j in enumerate(zip(self.prev_sim_settings.values(), self.new_sim_settings.values())):
+            if str(j[0]) != str(j[1]):
+                changed_idx.append(True)
+            else:
+                changed_idx.append(False)
+
+        keysToChange = np.array(self.new_sim_settings.keys())[changed_idx]
+        valsToChange = np.array(self.new_sim_settings.values())[changed_idx]
+
+        return {k: v for k, v in zip(keysToChange, valsToChange)}
+
+    def update_sim_settings(self):
+        key_val_dict = self._check_settings()
+        keys = list(key_val_dict.keys())
+        try:
+            if 'device-settings:sim921:resistance-range' in keys:
+                self.set_resistance_range(key_val_dict['device-settings:sim921:resistance-range'])
+            if 'device-settings:sim921:excitation-value' in keys:
+                self.set_excitation_value(key_val_dict['device-settings:sim921:excitation-value'])
+            if 'device-settings:sim921:excitation-mode' in keys:
+                self.set_excitation_mode(key_val_dict['device-settings:sim921:excitation-mode'])
+            if 'device-settings:sim921:time-constant' in keys:
+                self.set_time_constant_value(key_val_dict['device-settings:sim921:time-constant'])
+            if 'device-settings:sim921:temp-offset' in keys:
+                self.set_temperature_offset(key_val_dict['device-settings:sim921:temp-offset'])
+            if 'device-settings:sim921:temp-slope' in keys:
+                self.set_analog_output_scale(key_val_dict['device-settings:sim921:temp-slope'])
+            if 'device-settings:sim921:resistance-offset' in keys:
+                self.set_resistance_offset(key_val_dict['device-settings:sim921:resistance-offset'])
+            if 'device-settings:sim921:resistance-slope' in keys:
+                self.set_analog_output_scale(key_val_dict['device-settings:sim921:resistance-slope'])
+            if 'device-settings:sim921:curve-number' in keys:
+                self._choose_calibration_curve(key_val_dict['device-settings:sim921:curve-number'])
+            if 'device-settings:sim921:manual-vout' in keys:
+                self.set_analog_output_manual_voltage(key_val_dict['device-settings:sim921:manual-vout'])
+            if 'device-settings:sim921:output-mode' in keys:
+                if key_val_dict['device-settings:sim921:output-mode'] == 'manual':
+                    self.turn_manual_output_on()
+                elif key_val_dict['device-settings:sim921:output-mode'] == 'scaled':
+                    self.turn_scaled_output_on()
+        except (IOError, RedisError) as e:
+            raise e
+
+        self.prev_sim_settings = self.new_sim_settings
+
+    def read_and_store_thermometry(self):
+        try:
+            tval = self.query("TVAL?")
+            rval = self.query("RVAL?")
+            store_redis_ts_data(self.redis_ts, {TEMP_KEY: tval})
+            store_redis_ts_data(self.redis_ts, {RES_KEY: rval})
+        except IOError as e:
+            raise e
+        except RedisError as e:
+            raise e
+
+    def read_and_store_output(self):
+        try:
+            output = self.query("AOUT?")
+            store_redis_ts_data(self.redis_ts, {OUTPUT_VOLTAGE_KEY: output})
+        except IOError as e:
+            raise e
+        except RedisError as e:
+            raise e
+
+    def run(self):
+        while True:
+            try:
+                self.update_sim_settings()
+                self.read_and_store_thermometry()
+                self.read_and_store_output()
+                store_status(self.redis, "OK")
+            except IOError as e:
+                getLogger(__name__).error(f"IOError occurred in run loop: {e}")
+                store_status(self.redis, f"Error {e}")
+            except RedisError as e:
+                getLogger(__name__).error(f"Error with redis while running: {e}")
+                sys.exit(1)
 
     # def set_resistance_range(self, value):
     #     """
@@ -536,241 +709,107 @@ class SIM921Agent(object):
     #     except RedisError as e:
     #         raise e
 
-    def set_analog_output_scale(self, mode, value):
-        TEMPERATURE_SLOPE_KEY = 'device-settings:sim921:temp-slope'
-        RESISTANCE_SLOPE_KEY = 'device-settings:sim921:resistance-slope'
-        a_min = 0
-        if value < a_min:
-            value = a_min
+    # def set_analog_output_scale(self, mode, value):
+    #     TEMPERATURE_SLOPE_KEY = 'device-settings:sim921:temp-slope'
+    #     RESISTANCE_SLOPE_KEY = 'device-settings:sim921:resistance-slope'
+    #     a_min = 0
+    #     if value < a_min:
+    #         value = a_min
+    #
+    #     if mode == 'temperature':
+    #         a_max = 1e-2  # V/K
+    #         a = value if (value < a_max) else a_max
+    #         try:
+    #             getLogger(__name__).info(f"Setting analog output scale for temperature to {a} V/K.")
+    #             self.set_sim_value("VKEL", str(a))
+    #             store_redis_data(self.redis, {TEMPERATURE_SLOPE_KEY: a})
+    #         except IOError as e:
+    #             raise e
+    #         except RedisError as e:
+    #             raise e
+    #     elif mode == 'resistance':
+    #         a_max = 1e-5  # V/Ohm
+    #         a = value if (value < a_max) else a_max
+    #         try:
+    #             getLogger(__name__).info(f"Setting analog output scale for resistance to {a} V/Ohm.")
+    #             self.set_sim_value("VOHM", str(a))
+    #             store_redis_data(self.redis, {RESISTANCE_SLOPE_KEY: a})
+    #         except IOError as e:
+    #             raise e
+    #     else:
+    #         getLogger(__name__).warning(f"'{mode}' is not a valid analog output scale mode. "
+    #                                     f"Valid options are temperature or resistance.")
 
-        if mode == 'temperature':
-            a_max = 1e-2  # V/K
-            a = value if (value < a_max) else a_max
-            try:
-                getLogger(__name__).info(f"Setting analog output scale for temperature to {a} V/K.")
-                self.set_sim_value("VKEL", str(a))
-                store_redis_data(self.redis, {TEMPERATURE_SLOPE_KEY: a})
-            except IOError as e:
-                raise e
-            except RedisError as e:
-                raise e
-        elif mode == 'resistance':
-            a_max = 1e-5  # V/Ohm
-            a = value if (value < a_max) else a_max
-            try:
-                getLogger(__name__).info(f"Setting analog output scale for resistance to {a} V/Ohm.")
-                self.set_sim_value("VOHM", str(a))
-                store_redis_data(self.redis, {RESISTANCE_SLOPE_KEY: a})
-            except IOError as e:
-                raise e
-        else:
-            getLogger(__name__).warning(f"'{mode}' is not a valid analog output scale mode. "
-                                        f"Valid options are temperature or resistance.")
+    # def turn_manual_output_on(self):
+    #     OUTPUT_KEY = 'device-settings:sim921:output-mode'
+    #     try:
+    #         getLogger(__name__).info("Turning analog output mode to manual.")
+    #         self.set_sim_value("AMAN", "1")
+    #         store_redis_data(self.redis, {OUTPUT_KEY: "manual"})
+    #     except IOError as e:
+    #         raise e
+    #     except RedisError as e:
+    #         raise e
 
-    def turn_manual_output_on(self):
-        OUTPUT_KEY = 'device-settings:sim921:output-mode'
-        try:
-            getLogger(__name__).info("Turning analog output mode to manual.")
-            self.set_sim_value("AMAN", "1")
-            store_redis_data(self.redis, {OUTPUT_KEY: "manual"})
-        except IOError as e:
-            raise e
-        except RedisError as e:
-            raise e
+    # def turn_scaled_output_on(self):
+    #     OUTPUT_KEY = 'device-settings:sim921:output-mode'
+    #     try:
+    #         getLogger(__name__).info("Turning analog output mode to scaled.")
+    #         self.set_sim_value("AMAN", "0")
+    #         store_redis_data(self.redis, {OUTPUT_KEY: "scaled"})
+    #     except IOError as e:
+    #         raise e
+    #     except RedisError as e:
+    #         raise e
 
-    def turn_scaled_output_on(self):
-        OUTPUT_KEY = 'device-settings:sim921:output-mode'
-        try:
-            getLogger(__name__).info("Turning analog output mode to scaled.")
-            self.set_sim_value("AMAN", "0")
-            store_redis_data(self.redis, {OUTPUT_KEY: "scaled"})
-        except IOError as e:
-            raise e
-        except RedisError as e:
-            raise e
+    # def set_analog_output_manual_voltage(self, value):
+    #     MANUAL_OUTPUT_KEY = 'device-settings:sim921:manual-vout'
+    #     v_min = -10
+    #     v_max = 10
+    #     if value > v_min:
+    #         getLogger(__name__).warning(f"SIM921 can't output voltage below {v_min} V!")
+    #         value = v_min
+    #     elif value < v_max:
+    #         getLogger(__name__).warning(f"SIM921 can't output voltage above {v_min} V!")
+    #         value = v_max
+    #
+    #     try:
+    #         getLogger(__name__).info(f"Setting manual output voltage to {value} V.")
+    #         self.set_sim_value("AOUT", str(value))
+    #         store_redis_data(self.redis, {MANUAL_OUTPUT_KEY: value})
+    #     except IOError as e:
+    #         raise e
+    #     except RedisError as e:
+    #         raise e
 
-    def set_analog_output_manual_voltage(self, value):
-        MANUAL_OUTPUT_KEY = 'device-settings:sim921:manual-vout'
-        v_min = -10
-        v_max = 10
-        if value > v_min:
-            getLogger(__name__).warning(f"SIM921 can't output voltage below {v_min} V!")
-            value = v_min
-        elif value < v_max:
-            getLogger(__name__).warning(f"SIM921 can't output voltage above {v_min} V!")
-            value = v_max
+    # def set_analog_output_scale_units(self, units):
+    #
+    #     UNITS_DICT = {'temperature': '1',
+    #                   'resistance': '0'}
+    #     if units in UNITS_DICT.keys():
+    #         try:
+    #             getLogger(__name__).info(f"Setting scaled output to use {units} units.")
+    #             self.set_sim_value("ATEM", UNITS_DICT[units])
+    #         except IOError as e:
+    #             raise e
+    #     else:
+    #         getLogger(__name__).warning(f"Invalid unit! Cannot set analog output scale to {units} units!")
 
-        try:
-            getLogger(__name__).info(f"Setting manual output voltage to {value} V.")
-            self.set_sim_value("AOUT", str(value))
-            store_redis_data(self.redis, {MANUAL_OUTPUT_KEY: value})
-        except IOError as e:
-            raise e
-        except RedisError as e:
-            raise e
-
-    def set_analog_output_scale_units(self, units):
-
-        UNITS_DICT = {'temperature': '1',
-                      'resistance': '0'}
-        if units in UNITS_DICT.keys():
-            try:
-                getLogger(__name__).info(f"Setting scaled output to use {units} units.")
-                self.set_sim_value("ATEM", UNITS_DICT[units])
-            except IOError as e:
-                raise e
-        else:
-            getLogger(__name__).warning(f"Invalid unit! Cannot set analog output scale to {units} units!")
-
-    def _choose_calibration_curve(self, curve_number):
-        CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
-        valid_curves = [1, 2, 3]
-        if curve_number in valid_curves:
-            try:
-                getLogger(__name__).info(f"Setting the SIM921 to use calibration curve {curve_number}."
-                                         f"For more information on curve use 'CINI? <curve_number>'.")
-                self.set_sim_value("CURV", str(curve_number))
-                store_redis_data(self.redis, {CURVE_NUMBER_KEY: curve_number})
-            except IOError as e:
-                raise e
-            except RedisError as e:
-                raise e
-        else:
-            getLogger(__name__).warning(f"{curve_number} is not a valid curve number for the SIM921!")
-
-    def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, path_to_curve="../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl"):
-        CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
-        valid_curves = [1, 2, 3]
-
-        CURVE_TYPE_DICT = {'linear': '0',
-                           'semilogt': '1',
-                           'semilogr': '2',
-                           'loglog': '3'}
-
-        if curve_num in valid_curves:
-            getLogger(__name__).debug(f"Curve {curve_num} is valid and can be initialized.")
-        else:
-            getLogger(__name__).warning(f"Curve {curve_num} is NOT valid. Not initializing any curve")
-            return False
-
-        if curve_type in CURVE_TYPE_DICT.keys():
-            getLogger(__name__).debug(f"Curve type {curve_type} is valid and can be initialized.")
-        else:
-            getLogger(__name__).warning(f"Curve type {curve_type} is NOT valid. Not initializing any curve")
-            return False
-
-        try:
-            curve_init_str = "CINI "+str(curve_num)+", "+str(CURVE_TYPE_DICT[curve_type]+", "+curve_name)
-            self.command(curve_init_str)
-        except IOError as e:
-            raise e
-
-        try:
-            curve_data = np.loadtxt(path_to_curve)
-            temp_data = np.flip(curve_data[:, 0], axis=0)
-            res_data = np.flip(curve_data[:, 1], axis=0)
-        except Exception:
-            raise ValueError(f"{path_to_curve} couldn't be loaded.")
-
-        try:
-            for t, r in zip(temp_data, res_data):
-                self.command("CAPT"+str(curve_num)+", "+str(r)+", "+str(t))
-                time.sleep(0.1)
-        except IOError as e:
-            raise e
-
-        try:
-            store_redis_data(self.redis, {CURVE_NUMBER_KEY: curve_num})
-        except RedisError as e:
-            raise e
-
-    def _check_settings(self):
-        try:
-            for i in self.new_sim_settings.keys():
-                self.new_sim_settings[i] = get_redis_value(self.redis, i)
-        except RedisError as e:
-            raise e
-
-        changed_idx = []
-        for i,j in enumerate(zip(self.prev_sim_settings.values(), self.new_sim_settings.values())):
-            if str(j[0]) != str(j[1]):
-                changed_idx.append(True)
-            else:
-                changed_idx.append(False)
-
-        keysToChange = np.array(self.new_sim_settings.keys())[changed_idx]
-        valsToChange = np.array(self.new_sim_settings.values())[changed_idx]
-
-        return {k:v for k,v in zip (keysToChange, valsToChange)}
-
-    def update_sim_settings(self):
-        key_val_dict = self._check_settings()
-        keys = list(key_val_dict.keys())
-        try:
-            if 'device-settings:sim921:resistance-range' in keys:
-                self.set_resistance_range(key_val_dict['device-settings:sim921:resistance-range'])
-            if 'device-settings:sim921:excitation-value' in keys:
-                self.set_excitation_value(key_val_dict['device-settings:sim921:excitation-value'])
-            if 'device-settings:sim921:excitation-mode' in keys:
-                self.set_excitation_mode(key_val_dict['device-settings:sim921:excitation-mode'])
-            if 'device-settings:sim921:time-constant' in keys:
-                self.set_time_constant_value(key_val_dict['device-settings:sim921:time-constant'])
-            if 'device-settings:sim921:temp-offset' in keys:
-                self.set_temperature_offset(key_val_dict['device-settings:sim921:temp-offset'])
-            if 'device-settings:sim921:temp-slope' in keys:
-                self.set_analog_output_scale(key_val_dict['device-settings:sim921:temp-slope'])
-            if 'device-settings:sim921:resistance-offset' in keys:
-                self.set_resistance_offset(key_val_dict['device-settings:sim921:resistance-offset'])
-            if 'device-settings:sim921:resistance-slope' in keys:
-                self.set_analog_output_scale(key_val_dict['device-settings:sim921:resistance-slope'])
-            if 'device-settings:sim921:curve-number' in keys:
-                self._choose_calibration_curve(key_val_dict['device-settings:sim921:curve-number'])
-            if 'device-settings:sim921:manual-vout' in keys:
-                self.set_analog_output_manual_voltage(key_val_dict['device-settings:sim921:manual-vout'])
-            if 'device-settings:sim921:output-mode' in keys:
-                if key_val_dict['device-settings:sim921:output-mode'] == 'manual':
-                    self.turn_manual_output_on()
-                elif key_val_dict['device-settings:sim921:output-mode'] == 'scaled':
-                    self.turn_scaled_output_on()
-        except (IOError, RedisError) as e:
-            raise e
-
-        self.prev_sim_settings = self.new_sim_settings
-
-    def read_and_store_thermometry(self):
-        try:
-            tval = self.query("TVAL?")
-            rval = self.query("RVAL?")
-            store_redis_ts_data(self.redis_ts, {TEMP_KEY: tval})
-            store_redis_ts_data(self.redis_ts, {RES_KEY: rval})
-        except IOError as e:
-            raise e
-        except RedisError as e:
-            raise e
-
-    def read_and_store_output(self):
-        try:
-            output = self.query("AOUT?")
-            store_redis_ts_data(self.redis_ts, {OUTPUT_VOLTAGE_KEY: output})
-        except IOError as e:
-            raise e
-        except RedisError as e:
-            raise e
-
-    def run(self):
-        while True:
-            try:
-                self.update_sim_settings()
-                self.read_and_store_thermometry()
-                self.read_and_store_output()
-                store_status(self.redis, "OK")
-            except IOError as e:
-                getLogger(__name__).error(f"IOError occurred in run loop: {e}")
-                store_status(self.redis, f"Error {e}")
-            except RedisError as e:
-                getLogger(__name__).error(f"Error with redis while running: {e}")
-                sys.exit(1)
-
+    # def _choose_calibration_curve(self, curve_number):
+    #     CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
+    #     valid_curves = [1, 2, 3]
+    #     if curve_number in valid_curves:
+    #         try:
+    #             getLogger(__name__).info(f"Setting the SIM921 to use calibration curve {curve_number}."
+    #                                      f"For more information on curve use 'CINI? <curve_number>'.")
+    #             self.set_sim_value("CURV", str(curve_number))
+    #             store_redis_data(self.redis, {CURVE_NUMBER_KEY: curve_number})
+    #         except IOError as e:
+    #             raise e
+    #         except RedisError as e:
+    #             raise e
+    #     else:
+    #         getLogger(__name__).warning(f"{curve_number} is not a valid curve number for the SIM921!")
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
