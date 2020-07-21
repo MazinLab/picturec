@@ -5,10 +5,6 @@ Program for communicating with and controlling the SIM921 AC resistance bridge. 
 is monitoring the temperature of the thermometer on the MKID device stage in the PICTURE-C cryostat. It is also
 responsible for properly conditioning its output signal so that the SIM960 (PID Controller) can properly regulate
 the device temperature.
-
-TODO: - Create run function
- - In curve selection function, add a validity check to only allow us to change to valid curves.
- - Decide if mainframe mode is worth using (I think it is for testing)
 """
 
 import serial
@@ -95,8 +91,8 @@ class SIM921Agent(object):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
-        # self.connect(raise_errors=False)
-        # time.sleep(.5)
+        self.connect(raise_errors=False)
+        time.sleep(.5)
         self.redis = redis
         self.redis_ts = redis_ts
 
