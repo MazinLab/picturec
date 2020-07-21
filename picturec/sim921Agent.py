@@ -7,8 +7,6 @@ responsible for properly conditioning its output signal so that the SIM960 (PID 
 the device temperature.
 
 TODO: - Create run function
- - Give keys names and use them that way
- - Turn load_new_curve and set_analog_output_scale_units into internal functions (should only be used for engineering)
  - In curve selection function, add a validity check to only allow us to change to valid curves.
  - Decide if mainframe mode is worth using (I think it is for testing)
 """
@@ -315,6 +313,14 @@ class SIM921Agent(object):
             raise e
 
     def set_sim_param(self, command, value):
+        """
+        Takes a given command from the SIM921 manual (the top level key in the COMMAND_DICT) and uses the keys/vals
+        in the dictionary value for that command to determine if legal values are being sent to the SIM921. If all of
+        the rules for a given command are properly met, sends that command to the SIM921 for the value to be changed.
+
+        TODO: Check to make sure that it's not setting an already set value? (e.g. TIME_CONSTANT=3 -> TIME_CONSTANT=3).
+         This is sort of in place, but it could be beneficial to add a more robust check.
+        """
         try:
             dict_for_command = COMMAND_DICT[command]
         except KeyError as e:
@@ -425,7 +431,15 @@ class SIM921Agent(object):
             raise e
 
     def choose_calibration_curve(self, curve):
-        LOADED_CURVES = [1]
+        """
+        Choose the Resistance-vs-Temperature curve to report temperature. As of July 2020, there is only one possible
+        option that is loaded into channel 1, the LakeShore RX-102-A calibration curve for the thermistor that we have
+        in the PICTURE-C cryostat. Channels 2 and 3 are not 'legal' channels since we have not loaded any calibration
+        curves into them. When we do, LOADED_CURVES should be changed to reflect that so that curve can be used during
+        normal operation.
+        """
+        LOADED_CURVES = [1]  # This parameter should probably be updated in redis/somewhere permanent. But the most we
+        # can have is 3 curves on channels 1, 2, or 3. Loaded curves is currently manually set to whichever we have loaded
         if curve in LOADED_CURVES:
             try:
                 self.set_sim_param("CURV", int(curve))
@@ -436,6 +450,16 @@ class SIM921Agent(object):
                                         f"cannot be used to convert resistance to temperature!")
 
     def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, path_to_curve="../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl"):
+        """
+        This is an engineering function for the SIM921 device. In normal operation of the fridge, the user should never
+        have to load a curve in. This should only ever be used if (1) a new curve becomes available, (2) the
+        thermometer used by the SIM921 is changed out for a new one, or (3) the original curve becomes corrupted.
+        Currently (21 July 2020) designed specifically to read in the LakeShore RX-102-A calibration curve, but can be
+        modified without difficulty to take in other curves. The command syntax will not change for loading the curve
+        onto the SIM921, only the np.loadtxt() and data manipulation of the curve data itself. As long as the curve
+        is in a format where resistance[n] < resistance[n+1] for all points n on the curve, it can be loaded into the
+        SIM921 instrument.
+        """
         CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
         valid_curves = [1, 2, 3]
 
@@ -482,6 +506,15 @@ class SIM921Agent(object):
             raise e
 
     def _check_settings(self):
+        """
+        Reads in the redis database values of the setting keys to self.new_sim_settings and then compares them to
+        those in self.prev_sim_settings. If any of the values are different, it stores the key of the desired value to
+        change as well as the new value. These will be used in self.update_sim_settings() to send the necessary commands
+        to the SIM921 to change any of the necessary settings on the instrument.
+
+        Returns a dictionary where the keys are the redis keys that correspond to the SIM921 settings and the values are
+        the new, desired values to set them to.
+        """
         try:
             for i in self.new_sim_settings.keys():
                 self.new_sim_settings[i] = get_redis_value(self.redis, i)
@@ -501,8 +534,16 @@ class SIM921Agent(object):
         return {k: v for k, v in zip(keysToChange, valsToChange)}
 
     def update_sim_settings(self):
+        """
+        Takes the output of self._check_settings() and sends the appropriate commands to the SIM921 to update the
+        desired settings. Leaves the unchanged settings alone and does not send any commands associated with them.
+
+        After changing all of the necessary settings, self.new_sim_settings is read into self.prev_sim_settings for
+        continuity. This happens each time through the loop so self.prev_sim_settings reflects what the settings were in
+        the previous loop and self.new_sim_settings reflects the desired state.
+        """
         key_val_dict = self._check_settings()
-        keys = list(key_val_dict.keys())
+        keys = key_val_dict.keys()
         try:
             if 'device-settings:sim921:resistance-range' in keys:
                 self.set_resistance_range(key_val_dict['device-settings:sim921:resistance-range'])
@@ -529,9 +570,14 @@ class SIM921Agent(object):
         except (IOError, RedisError) as e:
             raise e
 
-        self.prev_sim_settings = self.new_sim_settings
+        # Update the self.prev_sim_settings dictionary. Consider doing this in the self.set_...() functions?
+        for i in self.prev_sim_settings.keys():
+            self.prev_sim_settings[i] = self.new_sim_settings[i]
 
     def read_and_store_thermometry(self):
+        """
+        Query and store the resistance and temperature values at a given time.
+        """
         try:
             tval = self.query("TVAL?")
             rval = self.query("RVAL?")
@@ -543,6 +589,12 @@ class SIM921Agent(object):
             raise e
 
     def read_and_store_output(self):
+        """
+        Query and store the output value from the SIM921 that will go to the SIM960. This is ultimately the signal which
+        will be used to run the PID loop and keep the temperature at 100 mK (or whatever operating temperature we may
+        choose to use). Ultimately, we should be comparing this at some point with what the SIM960 measures at its
+        input to confirm that the expected value is what it is reading.
+        """
         try:
             output = self.query("AOUT?")
             store_redis_ts_data(self.redis_ts, {OUTPUT_VOLTAGE_KEY: output})
@@ -552,6 +604,10 @@ class SIM921Agent(object):
             raise e
 
     def run(self):
+        """
+        For each loop, update the sim settings if they need to, read and store the thermometry data, read and store the
+        SIM921 output voltage, update the status of the program, and handle any potential errors that may come up.
+        """
         while True:
             try:
                 self.update_sim_settings()
