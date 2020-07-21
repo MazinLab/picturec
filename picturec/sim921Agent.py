@@ -696,3 +696,5 @@ if __name__ == "__main__":
         getLogger(__name__).error(f"SIM921 returned an invalid value for the ID query: {e}")
     except RedisError as e:
         getLogger(__name__).error(f"Couldn't communicate with Redis to store sim ID information: {e}")
+
+    sim921.run()
