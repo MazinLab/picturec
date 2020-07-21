@@ -261,32 +261,36 @@ class SIM921Agent(object):
     def initialize_sim(self, load_curve=False):
         """
         Sets all of the values that are read in in the self.read_default_settings() function to their default values.
-        TODO: Have this in a manner where it uses the self.new_sim_settings dictionary.
+        In this instance, self.prev_sim_settings are the values from the default:* keys in the redis db.
         """
         getLogger(__name__).info(f"Initializing SIM921")
 
         try:
+            self.read_default_settings()
+
             self.reset_sim()
 
-            self.set_resistance_range(20e3)
-            self.set_excitation_value(100e-6)
-            self.set_excitation_mode('voltage')
-            self.set_time_constant_value(3)
+            self.set_resistance_range(self.prev_sim_settings['device-settings:sim921:resistance-range'])
+            self.set_excitation_value(self.prev_sim_settings['device-settings:sim921:excitation-value'])
+            self.set_excitation_mode(self.prev_sim_settings['device-settings:sim921:excitation-mode'])
+            self.set_time_constant_value(self.prev_sim_settings['device-settings:sim921:time-constant'])
 
-            self.set_temperature_offset(0.100)
-            self.set_temperature_output_scale(1e-2)
+            self.set_temperature_offset(self.prev_sim_settings['device-settings:sim921:temp-offset'])
+            self.set_temperature_output_scale(self.prev_sim_settings['device-settings:sim921:temp-slope'])
 
-            self.set_resistance_offset(19400.5)
-            self.set_resistance_output_scale(1e-5)
+            self.set_resistance_offset(self.prev_sim_settings['device-settings:sim921:resistance-offset'])
+            self.set_resistance_output_scale(self.prev_sim_settings['device-settings:sim921:resistance-slope'])
 
-            self.set_output_manual_voltage(0)
-            self.set_output_mode('manual')
-            self.set_output_scale_units('resistance')
+            self.set_output_manual_voltage(self.prev_sim_settings['device-settings:sim921:manual-vout'])
+            self.set_output_mode(self.prev_sim_settings['device-settings:sim921:output-mode'])
+            self.set_output_scale_units(self.scale_units)
 
             if load_curve:
+                # Loading the curve can and should probably be automated, but at the moment we only have one possible
+                # curve we can use and so it is more trouble than it is worth to go through not hardcoding it.
                 self._load_calibration_curve(1, 'linear', 'PICTURE-C', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
 
-            self.choose_calibration_curve(1)
+            self.choose_calibration_curve(self.prev_sim_settings['device-settings:sim921:curve-number'])
 
             self.command("DTEM 1")
 
