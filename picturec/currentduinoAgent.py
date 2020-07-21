@@ -234,7 +234,7 @@ def setup_redis_ts(host='localhost', port=6379, db=0):
     try:
         redis_ts.create('status:highcurrentboard:current')
     except RedisError:
-        # log.debug(f"KEY 'status:highcurrentboard:current' already exists")
+        log.debug(f"KEY 'status:highcurrentboard:current' already exists")
         pass
     return redis_ts
 
