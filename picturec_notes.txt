@@ -1,0 +1,9 @@
+Still to do:
+
+  - SIM960agent
+
+  - LakeShore240agent
+
+  - Order/configure switches to use them with the PICTURE-C electronics rack.
+    - Determine how we want to control the power.
+    - Figure out how we want to account for instruments being off in the software side of things.
