@@ -387,7 +387,7 @@ class SIM921Agent(object):
 
     def set_excitation_mode(self, mode):
         try:
-            self.set_sim_param("MODE", mode)
+            self.set_sim_param("MODE", str(mode))
         except (IOError, RedisError) as e:
             raise e
 
