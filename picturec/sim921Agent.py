@@ -100,12 +100,15 @@ class SIM921Agent(object):
         self.redis = redis
         self.redis_ts = redis_ts
 
+        self.scale_units = scale_units
+
         self.prev_sim_settings = {}
         self.new_sim_settings = {}
-        self.read_default_settings()
 
         if initialize:
             self.initialize_sim()
+        else:
+            self.read_default_settings()
 
     def connect(self, reconnect=False, raise_errors=True):
         """
@@ -680,7 +683,7 @@ if __name__ == "__main__":
     redis_ts = setup_redis_ts()
 
     sim921 = SIM921Agent(port='/dev/sim921', redis=redis, redis_ts=redis_ts, baudrate=9600,
-                         timeout=0.1, initialize=True, mainframe=False)
+                         timeout=0.1, initialize=True)
 
     try:
         getLogger(__name__).info(f"Querying SIM921 for identification information.")
