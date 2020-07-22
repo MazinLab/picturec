@@ -86,13 +86,13 @@ COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
 
 
 class SIM921Agent(object):
-    def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True, scale_units='resistance'):
+    def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True, scale_units='resistance', mainframe_args=[False, 2, xyz]):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.connect(raise_errors=False)
-        time.sleep(.5)
+        time.sleep(.2)
         self.redis = redis
         self.redis_ts = redis_ts
 
@@ -100,6 +100,9 @@ class SIM921Agent(object):
 
         self.prev_sim_settings = {}
         self.new_sim_settings = {}
+
+        if mainframe_args[0]:
+            self.send(f'CONN {mainframe_args[1]}, {mainframe_args[2]}')
 
         if initialize:
             self.initialize_sim()
