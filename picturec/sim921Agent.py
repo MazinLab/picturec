@@ -102,7 +102,7 @@ class SIM921Agent(object):
         self.new_sim_settings = {}
 
         if mainframe_args[0]:
-            self.send(f'CONN {mainframe_args[1]}, {mainframe_args[2]}')
+            self.mainframe_connect(mainframe_args)
 
         if initialize:
             self.initialize_sim()
@@ -622,6 +622,12 @@ class SIM921Agent(object):
             except RedisError as e:
                 getLogger(__name__).error(f"Error with redis while running: {e}")
                 sys.exit(1)
+
+    def mainframe_connect(self, args):
+        self.send(f'CONN {args[1]}, {args[2]}')
+
+    def mainframe_disconnect(self, args):
+        self.send(f'{args[2]}')
 
 
 def setup_redis(host='localhost', port=6379, db=0):
