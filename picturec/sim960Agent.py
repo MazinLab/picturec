@@ -3,6 +3,9 @@ Author: Noah Swimmer, 21 July 2020
 
 NOTE: Unlike the SIM921, the SIM960 supports different baudrates. These need to be tested outside of the mainframe
 before settling on the most appropriate one.
+
+TODO: Determine how to set PID parameters in a way that makes sense with both the redis database and the command structure
+ - Make a check on the manual output voltage (to ensure we're outputting what we expect)
 """
 
 import serial
@@ -56,10 +59,35 @@ MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SERIALNO_KEY = 'status:device:sim921:sn'
 
-COMMAND_DICT = {}
+COMMAND_DICT = {'AMAN': {'key': 'device-settings:sim960:mode',
+                         'vals': {'manual': '0', 'pid': '1'}},
+                'MOUT': {'key': 'device-settings:sim960:vout-value',
+                         'vals': [-10, 10]},
+                'FLOW': {'vals': {'none': '0', 'rts': '1', 'xon': '2'}},
+                'LLIM': {'key': 'device-settings:sim960:vout-min-limit',
+                         'vals': [-10, 10]},
+                'ULIM': {'key': 'device-settings:sim960:vout-max-limit',
+                         'vals': [-10, 10]},
+                'INPT': {'key': 'device-settings:sim960:setpoint-mode',
+                         'vals': {'internal': '0', 'external': '1'}},
+                'SETP': {'key': 'device-settings:sim960:pid-control-vin-setpoint',
+                         'vals': [-10, 10]},
+                'PCTL': {'key': 'default:device-settings:sim960:pid',
+                         'vals': {'p': '1', 'i': '0', 'd': '0', 'pi': '1', 'pd': '1', 'id': '0', 'pid': '1'}},
+                'ICTL': {'key': 'default:device-settings:sim960:pid',
+                         'vals': {'p': '0', 'i': '1', 'd': '0', 'pi': '1', 'pd': '0', 'id': '1', 'pid': '1'}},
+                'DCTL': {'key': 'default:device-settings:sim960:pid',
+                         'vals': {'p': '0', 'i': '0', 'd': '1', 'pi': '0', 'pd': '1', 'id': '1', 'pid': '1'}},
+                'APOL': {'vals': {'negative': '0', 'positive': '1'}},
+                'GAIN': {'key': 'default:device-settings:sim960:pid-p',
+                         'vals': [1e-1, 1e3]},
+                'INTG': {'key': 'default:device-settings:sim960:pid-i',
+                         'vals': [1e-2, 5e5]},
+                'DERV': {'key': 'default:device-settings:sim960:pid-d',
+                         'vals': [1e-6, 1e1]}}
 
 class SIM960Agent(object):
-    def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True):
+    def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True, sim_polarity='negative'):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
@@ -68,6 +96,8 @@ class SIM960Agent(object):
         time.sleep(.5)
         self.redis = redis
         self.redis_ts = redis_ts
+
+        self.sim_polarity = sim_polarity
 
         self.prev_sim_settings = {}
         self.new_sim_settings = {}
@@ -79,7 +109,7 @@ class SIM960Agent(object):
 
     def connect(self, reconnect=False, raise_errors=True):
         """
-        Create serial connection with the SIM921. In reality, the SIM921 connection is only up to the USB-to-RS232
+        Create serial connection with the SIM960. In reality, the SIM960 connection is only up to the USB-to-RS232
         interface, and so disconnects will need to be checked differently from either side of the converter.
         """
         if reconnect:
@@ -106,7 +136,7 @@ class SIM960Agent(object):
 
     def disconnect(self):
         """
-        Disconnect from the SIM921 serial connection
+        Disconnect from the SIM960 serial connection
         """
         try:
             self.ser.close()
@@ -116,10 +146,10 @@ class SIM960Agent(object):
 
     def send(self, msg: str, connect=True):
         """
-        Send a message to the SIM921 in its desired format.
+        Send a message to the SIM960 in its desired format.
         The typical message is all caps, terminated with a newline character '\n'
-        Commands will be followed by a code, typically a number (e.g. 'RANG 3\n')
-        Queries will be followed by a question mark (e.g. 'TVAL?\n')
+        Commands will be followed by a code, typically a number (e.g. 'AMAN 0\n')
+        Queries will be followed by a question mark (e.g. 'MOUT?\n')
         The identity query (and a number of other 'special' commands) start with a * (e.g. '*IDN?')
         """
         if connect:
@@ -136,13 +166,13 @@ class SIM960Agent(object):
 
     def receive(self):
         """
-        Receiving from the SIM921 consists of reading a line, as some queries may return longer strings than others,
+        Receiving from the SIM960 consists of reading a line, as some queries may return longer strings than others,
         and each query has its own parsing needs (for example: '*IDN?' returns a string with model, serial number,
-        firmware, and company, while 'TVAL?' or 'RVAL?' returns the measured temperature/resistance value at the time)
+        firmware, and company, while 'MOUT?' returns the measured voltage output value at the time)
         """
         try:
             data = self.ser.readline().decode("utf-8").strip()
-            getLogger(__name__).debug(f"read {data} from SIM921")
+            getLogger(__name__).debug(f"read {data} from SIM960")
             return data
         except (IOError, SerialException) as e:
             self.disconnect()
@@ -153,13 +183,12 @@ class SIM960Agent(object):
         """
         Send a reset command to the SIM device. This should not be used in regular operation, but if the device is not
         working it is a useful command to be able to send.
-        BE CAREFUL - This will reset certain parameters which are set for us to read out the thermometer in the
-        PICTURE-C cryostat (as of 2020, a LakeShore RX102-A).
+        BE CAREFUL - This will reset certain parameters which are set for us to control the ADR magnet.
         If you do perform a reset, it will then be helpful to restore the 'default settings' which we have determined
         to be the optimal to read out the hardware we have.
         """
         try:
-            getLogger(__name__).info(f"Resetting the SIM921!")
+            getLogger(__name__).info(f"Resetting the SIM960!")
             self.send("*RST")
         except IOError as e:
             raise e
@@ -167,10 +196,10 @@ class SIM960Agent(object):
     def command(self, command_msg: str):
         """
         A wrapper for the self.send function. This assumes that the command_msg input is a legal command as dictated by
-        the manual in picturec/hardware/thermometry/SRS-SIM921-ResistanceBridge-Manual.pdf
+        the manual in picturec/hardware/thermometry/SRS-SIM960-PIDController-Manual.pdf
         """
         try:
-            getLogger(__name__).debug(f"Sending command '{command_msg}' to SIM921")
+            getLogger(__name__).debug(f"Sending command '{command_msg}' to SIM960")
             self.send(command_msg)
         except IOError as e:
             raise e
@@ -180,10 +209,10 @@ class SIM960Agent(object):
         A wrapper to both send and receive in one holistic block so that we ensure if a query is sent, and answer is
         received.
         This assumes that the command_msg input is a legal query as dictated by the manual in
-        picturec/hardware/thermometry/SRS-SIM921-ResistanceBridge-Manual.pdf
+        picturec/hardware/thermometry/SRS-SIM960-PIDController-Manual.pdf
         """
         try:
-            getLogger(__name__).debug(f"Querying '{query_msg}' from SIM921")
+            getLogger(__name__).debug(f"Querying '{query_msg}' from SIM960")
             self.send(query_msg)
             response = self.receive()
         except Exception as e:
@@ -192,8 +221,8 @@ class SIM960Agent(object):
 
     def query_ID(self):
         """
-        Specific function to query the SIM921 identity to get its s/n, firmware, and model. Will be used in
-        conjunction with store_sim921_id_info to ensure we properly log the .
+        Specific function to query the SIM960 identity to get its s/n, firmware, and model. Will be used in
+        conjunction with store_sim960_id_info to ensure we properly log the .
         """
         try:
             idn_msg = self.query("*IDN?")
@@ -205,7 +234,7 @@ class SIM960Agent(object):
             model = idn_info[1]
             sn = idn_info[2]
             firmware = idn_info[3]
-            getLogger(__name__).info(f"SIM921 Identity - model {model}, s/n:{sn}, firmware {firmware}")
+            getLogger(__name__).info(f"SIM960 Identity - model {model}, s/n:{sn}, firmware {firmware}")
         except Exception as e:
             raise ValueError(f"Illegal format. Check communication is working properly: {e}")
 
@@ -213,8 +242,8 @@ class SIM960Agent(object):
 
     def read_default_settings(self):
         """
-        Reads all of the default SIM921 settings that are stored in the redis database and reads them into the
-        dictionaries which the agent will use to command the SIM921 to change settings. Also reads these now current
+        Reads all of the default SIM960 settings that are stored in the redis database and reads them into the
+        dictionaries which the agent will use to command the SIM960 to change settings. Also reads these now current
         settings into the redis database.
         """
         try:
@@ -231,11 +260,154 @@ class SIM960Agent(object):
 
         try:
             self.read_default_settings()
+
+            self.reset_sim()
+
+            self.set_output_mode("manual")
+            self.set_manual_output_voltage(0)
+            self.set_flow_control("none")
+            self.set_output_lower_limit(-0.100)
+            self.set_output_upper_limit(10)
+            self.set_setpoint_mode("internal")
+            self.set_internal_setpoint_value(0.0)
+
+            self.set_pid_polarity("negative")
+            self.set_pid_p_value("pi", -1.6e1)
+            self.set_pid_i_value("pi", 0.2)
+            self.set_pid_d_value("pi", 0.0)
+
         except IOError as e:
             getLogger(__name__).debug(f"Initialization failed: {e}")
             raise e
         except RedisError as e:
-            getLogger(__name__).debug(f"Redis error occurred in initialization of SIM921: {e}")
+            getLogger(__name__).debug(f"Redis error occurred in initialization of SIM960: {e}")
+            raise e
+
+    def set_sim_value(self, setting: str, value: str):
+        """
+        Setting param must be one of the valid setting commands. Value must be a legal value to send to the SIM960 as
+        laid out in its manual, pages 3-8 to 3-24 (picturec/hardware/thermometry/SRS-SIM960-PIDController-Manual.pdf)
+        """
+        set_string = setting + " " + value
+        try:
+            self.command(set_string)
+        except IOError as e:
+            raise e
+
+    def set_sim_param(self, command, value):
+        """
+        Takes a given command from the SIM960 manual (the top level key in the COMMAND_DICT) and uses the keys/vals
+        in the dictionary value for that command to determine if legal values are being sent to the SIM960. If all of
+        the rules for a given command are properly met, sends that command to the SIM960 for the value to be changed.
+        """
+        try:
+            dict_for_command = COMMAND_DICT[command]
+        except KeyError as e:
+            raise KeyError(f"'{command}' is not a valid SIM960 command! Error: {e}")
+
+        command_key = dict_for_command['key'] if 'key' in dict_for_command.keys() else None
+        command_vals = dict_for_command['vals']
+
+        if type(command_vals) is list:
+            min_val = command_vals[0]
+            max_val = command_vals[1]
+
+            if value < min_val:
+                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is below the minimum allowed "
+                                            f"value! Setting {command_key} to minimum allowed value: {min_val}")
+                cmd_value = str(min_val)
+            elif value > max_val:
+                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is above the maximum allowed "
+                                            f"value! Setting {command_key} to maximum allowed value: {max_val}")
+                cmd_value = str(max_val)
+            else:
+                getLogger(__name__).info(f"Setting {command_key} to {value}")
+                cmd_value = str(value)
+        else:
+            try:
+                cmd_value = command_vals[value]
+                getLogger(__name__).info(f"Setting {command_key} to {value}")
+            except KeyError:
+                raise KeyError(f"{value} is not a valid value for '{command}")
+
+        try:
+            self.set_sim_value(command, cmd_value)
+            if command_key is not None:
+                store_redis_data(self.redis, {command_key: value})
+        except IOError as e:
+            raise e
+        except RedisError as e:
+            raise e
+
+    def set_output_mode(self, mode):
+        try:
+            self.set_sim_param("AMAN", str(mode))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_manual_output_voltage(self, voltage):
+        try:
+            self.set_sim_param("MOUT", float(voltage))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_flow_control(self, method):
+        try:
+            self.set_sim_param("FLOW", str(method))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_output_lower_limit(self, value):
+        # TODO: Check to make sure lower limit is less than upper limit
+        try:
+            self.set_sim_param("LLIM", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_output_upper_limit(self, value):
+        # TODO: Check to make sure upper limit is greater than lower limit
+        try:
+            self.set_sim_param("ULIM", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_setpoint_mode(self, mode):
+        try:
+            self.set_sim_param("INPT", str(mode))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_internal_setpoint_value(self, value):
+        try:
+            self.set_sim_param("SETP", float(value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_pid_p_value(self, p_on, p_value):
+        try:
+            self.set_sim_param("PCTL", str(p_on))
+            self.set_sim_param("GAIN", float(p_value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_pid_i_value(self, i_on, i_value):
+        try:
+            self.set_sim_param("ICTL", str(i_on))
+            self.set_sim_param("INTG", float(i_value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_pid_d_value(self, d_on, d_value):
+        try:
+            self.set_sim_param("DCTL", str(d_on))
+            self.set_sim_param("DERV", float(d_value))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_pid_polarity(self, polarity):
+        try:
+            self.set_sim_param("APOL", str(polarity))
+        except (IOError, RedisError) as e:
             raise e
 
 
@@ -270,11 +442,11 @@ def get_redis_value(redis, key):
     return val
 
 
-def store_sim921_status(redis, status: str):
+def store_sim960_status(redis, status: str):
     redis.set(STATUS_KEY, status)
 
 
-def store_sim921_id_info(redis, info):
+def store_sim960_id_info(redis, info):
     redis.set(MODEL_KEY, info[0])
     redis.set(SERIALNO_KEY, info[1])
     redis.set(FIRMWARE_KEY, info[2])
