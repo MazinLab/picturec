@@ -410,6 +410,34 @@ class SIM960Agent(object):
         except (IOError, RedisError) as e:
             raise e
 
+    def _check_settings(self):
+        """
+        Reads in the redis database values of the setting keys to self.new_sim_settings and then compares them to
+        those in self.prev_sim_settings. If any of the values are different, it stores the key of the desired value to
+        change as well as the new value. These will be used in self.update_sim_settings() to send the necessary commands
+        to the SIM960 to change any of the necessary settings on the instrument.
+
+        Returns a dictionary where the keys are the redis keys that correspond to the SIM960 settings and the values are
+        the new, desired values to set them to.
+        """
+        try:
+            for i in self.new_sim_settings.keys():
+                self.new_sim_settings[i] = get_redis_value(self.redis, i)
+        except RedisError as e:
+            raise e
+
+        changed_idx = []
+        for i,j in enumerate(zip(self.prev_sim_settings.values(), self.new_sim_settings.values())):
+            if str(j[0]) != str(j[1]):
+                changed_idx.append(True)
+            else:
+                changed_idx.append(False)
+
+        keysToChange = np.array(list(self.new_sim_settings.keys()))[changed_idx]
+        valsToChange = np.array(list(self.new_sim_settings.values()))[changed_idx]
+
+        return {k: v for k, v in zip(keysToChange, valsToChange)}
+
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
