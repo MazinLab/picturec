@@ -316,9 +316,6 @@ class SIM921Agent(object):
         Takes a given command from the SIM921 manual (the top level key in the COMMAND_DICT) and uses the keys/vals
         in the dictionary value for that command to determine if legal values are being sent to the SIM921. If all of
         the rules for a given command are properly met, sends that command to the SIM921 for the value to be changed.
-
-        TODO: Check to make sure that it's not setting an already set value? (e.g. TIME_CONSTANT=3 -> TIME_CONSTANT=3).
-         This is sort of in place, but it could be beneficial to add a more robust check.
         """
         try:
             dict_for_command = COMMAND_DICT[command]
