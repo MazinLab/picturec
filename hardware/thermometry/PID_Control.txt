@@ -1,0 +1,56 @@
+As a default from the High Precision Device ADR manual we are defaulting to using the settings that they laid out for us.
+P = 1e6
+I = 0.2
+D = 0
+
+The way that we are using the PID controller is as follows.
+
+Using the SIM921 we read out the temperature (and resistance) of a thermometer on the device stage in the PICTURE-C cryostat.
+The SIM921 can take this reading and use it to create an output voltage which is fed into the SIM960 to control the current
+through the ADR which in turn will influence the temperature of the device stage.
+With the thermometer we are using, we choose to scale the output voltage based on the resistance reading because all of
+the possible values are within an order of magnitude of each other (1000 Ohms to 65000 Ohms) as opposed to the temperature,
+which has values that range from 50 mK to 40 K (four orders of magnitude).
+Additionally, since we're reading out the resistance and converting to temperature using a calibration curve, it is more
+natural to use the resistance reading anyway.
+
+Now that we've decided to use the resistance signal we can discuss how it is conditioned to give an appropriate output
+for the SIM960 to use.
+The output of the SIM921 is governed by the equation Output=Aout*(Value-Offset)
+First, we take the offset to be the resistance value that corresponds to our operating temperature (100 mK), which is
+19400.5 Ohms.
+This means that at 100 mK the SIM921 should output 0 V.
+Next, we have to decide the proper slope (Aout) to ensure that we don't input values to the SIM960 that it can't handle.
+The scale we want to output is +/-1 volt.
+Since the greatest values of Value-Offset we could have are about -18000 to +46000, we choose Aout=10^-5 V/Ohm meaning
+the most extreme voltages we can output would be -0.2 V to +0.5 V.
+
+Now, we have to figure out how to properly configure the PID settings.
+From the ADR manual, we have the P,I,D values (enabling PI and disabling D, which is fairly standard for slowly changing
+signals) and so will use those at first to see if that works.
+
+This leaves the decision of the polarity of the controller.
+To figure out the polarity, we have to consider the response of the output (SIM921 value) to a small change from the
+input (SIM960 output - controlling the current.)
+As per the SIM960 manual, a non-inverting process (positive change at the input results in a positive change at the
+output) needs a positive P polarity to ensure negative feedback.
+Conversely, and inverting process (positive change at the input results in negative change from the output) needs a
+negative P polarity should be used.
+For our system, the 'input' corresponds to the SIM960 analog voltage output and the 'output' corresponds to the SIM921
+signal that is is the properly conditioned signal from the temperature sensor next to the MKID device.
+
+Now, let's just follow the effects of a positive change (increaseing the voltage from the SIM960 analog output).
+The rough path a 'signal' will take is SIM960->High Current Boost Board->ADR Magnet->Device Thermometer->SIM921.
+There is an implied physical conversion from 'signal' to current in the second arrow, current to temperature in the
+third arrow, and temperature (or resistance) back to 'signal' in the fourth arrow.
+This makes it somewhat more of a pseudo-signal but for brevity, any of these forms will be called signal.
+If we increase the voltage from the SIM960 output, that will cause an increase in current that's sourced by the HC board.
+An increase in current from the HC board will cause an increase in current through the ADR, which will cause an
+increase in the temperature of the device (this holds true during the ramp and during regulation).
+Increasing the temperature of the device means the resistance of the thermometer will decrease.
+A decrease in the resistance will cause a decrease in the voltage output from the SIM921 (even if it is below 0, the
+output will become more negative), completing the loop.
+
+From this we can see that a small positive change at the input (increase in current) will cause a small negative change
+at the output (decrease in voltage from SIM921-conditioned signal) meaning we have an inverting process, which tells us
+we should be using a negative P polarity.
