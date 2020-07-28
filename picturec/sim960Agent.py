@@ -6,6 +6,13 @@ before settling on the most appropriate one.
 
 TODO: Determine how to set PID parameters in a way that makes sense with both the redis database and the command structure
  - Make a check on the manual output voltage (to ensure we're outputting what we expect)
+ - Run/ramp functions
+ - Ensure reading in/out of redis values is correct.
+ - Make sure that the proper settings have commands that can be used.
+ - Make sure that polarity setting works as expected (gain can be set as -16 and polarity as negative and those don't
+ cancel each other out)
+ - Only let polarity and flow control be set at initialization (and only change them with good reason, e.g. we changed
+ the thermometer!)
 """
 
 import serial
@@ -72,19 +79,23 @@ COMMAND_DICT = {'AMAN': {'key': 'device-settings:sim960:mode',
                          'vals': {'internal': '0', 'external': '1'}},
                 'SETP': {'key': 'device-settings:sim960:pid-control-vin-setpoint',
                          'vals': [-10, 10]},
-                'PCTL': {'key': 'default:device-settings:sim960:pid',
+                'PCTL': {'key': 'device-settings:sim960:pid',
                          'vals': {'p': '1', 'i': '0', 'd': '0', 'pi': '1', 'pd': '1', 'id': '0', 'pid': '1'}},
-                'ICTL': {'key': 'default:device-settings:sim960:pid',
+                'ICTL': {'key': 'device-settings:sim960:pid',
                          'vals': {'p': '0', 'i': '1', 'd': '0', 'pi': '1', 'pd': '0', 'id': '1', 'pid': '1'}},
-                'DCTL': {'key': 'default:device-settings:sim960:pid',
+                'DCTL': {'key': 'device-settings:sim960:pid',
                          'vals': {'p': '0', 'i': '0', 'd': '1', 'pi': '0', 'pd': '1', 'id': '1', 'pid': '1'}},
                 'APOL': {'vals': {'negative': '0', 'positive': '1'}},
-                'GAIN': {'key': 'default:device-settings:sim960:pid-p',
+                'GAIN': {'key': 'device-settings:sim960:pid-p',
                          'vals': [1e-1, 1e3]},
-                'INTG': {'key': 'default:device-settings:sim960:pid-i',
+                'INTG': {'key': 'device-settings:sim960:pid-i',
                          'vals': [1e-2, 5e5]},
-                'DERV': {'key': 'default:device-settings:sim960:pid-d',
-                         'vals': [1e-6, 1e1]}}
+                'DERV': {'key': 'device-settings:sim960:pid-d',
+                         'vals': [1e-6, 1e1]},
+                'RAMP': {'key': 'device-settings:sim960:ramp-enable',
+                         'vals': {'off': '0', 'on': '1'}},
+                'RATE': {'key': 'device-settings:sim960:ramp-rate',
+                         'vals': [1e-3, 1e4]}}
 
 class SIM960Agent(object):
     def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True, sim_polarity='negative'):
@@ -269,6 +280,8 @@ class SIM960Agent(object):
             self.set_output_lower_limit(-0.100)
             self.set_output_upper_limit(10)
             self.set_setpoint_mode("internal")
+            self.enable_setpoint_ramping("on")
+            self.set_setpoint_ramping_rate(5e-3)
             self.set_internal_setpoint_value(0.0)
 
             self.set_pid_polarity("negative")
@@ -407,6 +420,18 @@ class SIM960Agent(object):
     def set_pid_polarity(self, polarity):
         try:
             self.set_sim_param("APOL", str(polarity))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def enable_setpoint_ramping(self, enabled):
+        try:
+            self.set_sim_param("RAMP", str(enabled))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_setpoint_ramping_rate(self, rate):
+        try:
+            self.set_sim_param("RATE", float(rate))
         except (IOError, RedisError) as e:
             raise e
 
