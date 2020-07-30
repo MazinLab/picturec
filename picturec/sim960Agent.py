@@ -13,6 +13,7 @@ TODO: Determine how to set PID parameters in a way that makes sense with both th
  cancel each other out)
  - Only let polarity and flow control be set at initialization (and only change them with good reason, e.g. we changed
  the thermometer!)
+ - Make notes on each function and what it does.
 """
 
 import serial
