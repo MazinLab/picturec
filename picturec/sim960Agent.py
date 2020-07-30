@@ -464,6 +464,56 @@ class SIM960Agent(object):
 
         return {k: v for k, v in zip(keysToChange, valsToChange)}
 
+    def update_sim_settings(self):
+        """
+        Takes the output of self._check_settings() and sends the appropriate commands to the SIM960 to update the
+        desired settings. Leaves the unchanged settings alone and does not send any commands associated with them.
+
+        After changing all of the necessary settings, self.new_sim_settings is read into self.prev_sim_settings for
+        continuity. This happens each time through the loop so self.prev_sim_settings reflects what the settings were in
+        the previous loop and self.new_sim_settings reflects the desired state.
+        """
+        key_val_dict = self._check_settings()
+        keys = key_val_dict.keys()
+        try:
+            if 'device-settings:sim960:mode' in keys:
+                self.set_setpoint_mode(key_val_dict['device-settings:sim960:mode'])
+            if 'device-settings:sim960:vout-min-limit' in keys:
+                self.set_output_lower_limit(key_val_dict['device-settings:sim960:vout-min-limit'])
+            if 'device-settings:sim960:vout-max-limit' in keys:
+                self.set_output_upper_limit(key_val_dict['device-settings:sim960:vout-max-limit'])
+            if 'device-settings:sim960:pid' in keys:
+                self.set_pid_p_value(key_val_dict['device-settings:sim960:pid'],
+                                     self.new_sim_settings['device-settings:sim960:pid-p'])
+                self.set_pid_i_value(key_val_dict['device-settings:sim960:pid'],
+                                     self.new_sim_settings['device-settings:sim960:pid-i'])
+                self.set_pid_d_value(key_val_dict['device-settings:sim960:pid'],
+                                     self.new_sim_settings['device-settings:sim960:pid-d'])
+            if 'device-settings:sim960:pid-p' in keys:
+                self.set_pid_p_value(self.new_sim_settings['device-settings:sim960:pid'],
+                                     key_val_dict['device-settings:sim960:pid-p'])
+            if 'device-settings:sim960:pid-i' in keys:
+                self.set_pid_i_value(self.new_sim_settings['device-settings:sim960:pid'],
+                                     key_val_dict['device-settings:sim960:pid-i'])
+            if 'device-settings:sim960:pid-d' in keys:
+                self.set_pid_d_value(self.new_sim_settings['device-settings:sim960:pid'],
+                                     key_val_dict['device-settings:sim960:pid-d'])
+            if 'device-settings:sim960:setpoint-mode' in keys:
+                self.set_setpoint_mode(key_val_dict['device-settings:sim960:setpoint-mode'])
+            if 'device-settings:sim960:pid-control-vin-setpoint' in keys:
+                self.set_internal_setpoint_value(key_val_dict['device-settings:sim960:pid-control-vin-setpoint'])
+            if 'device-settings:sim960:ramp-rate' in keys:
+                self.set_setpoint_ramping_rate(key_val_dict['device-settings:sim960:ramp-rate'])
+            if 'device-settings:sim960:ramp-enable' in keys:
+                self.enable_setpoint_ramping(key_val_dict['device-settings:sim960:ramp-enable'])
+            if 'device-settings:sim960:vout-value' in keys:
+                self.set_manual_output_voltage(key_val_dict['device-settings:sim960:vout-value'])
+        except (IOError, RedisError) as e:
+            raise e
+
+        for i in self.prev_sim_settings.keys():
+            self.prev_sim_settings[i] = self.new_sim_settings[i]
+
 
 def setup_redis(host='localhost', port=6379, db=0):
     redis = Redis(host=host, port=port, db=db)
