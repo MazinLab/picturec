@@ -4,16 +4,13 @@ Author: Noah Swimmer, 21 July 2020
 NOTE: Unlike the SIM921, the SIM960 supports different baudrates. These need to be tested outside of the mainframe
 before settling on the most appropriate one.
 
-TODO: Determine how to set PID parameters in a way that makes sense with both the redis database and the command structure
- - Make a check on the manual output voltage (to ensure we're outputting what we expect)
+TODO: - Make a check on the manual output voltage (to ensure we're outputting what we expect)
  - Run/ramp functions
- - Ensure reading in/out of redis values is correct.
- - Make sure that the proper settings have commands that can be used.
- - Make sure that polarity setting works as expected (gain can be set as -16 and polarity as negative and those don't
- cancel each other out)
  - Only let polarity and flow control be set at initialization (and only change them with good reason, e.g. we changed
  the thermometer!)
+ - Potentially break out PID tuning into more granular functions for more controllability.
  - Make notes on each function and what it does.
+ - Figure out how to start the ramp (via redis setting or is there a better way?)
 """
 
 import serial
@@ -34,9 +31,11 @@ SETTING_KEYS = ['device-settings:sim960:mode',
                 'device-settings:sim960:pid-d',
                 'device-settings:sim960:setpoint-mode',
                 'device-settings:sim960:pid-control-vin-setpoint',
+                'device-settings:sim960:setpoint-ramp-rate',
+                'device-settings:sim960:setpoint-ramp-enable',
+                'device-settings:sim960:vout-value',
                 'device-settings:sim960:ramp-rate',
-                'device-settings:sim960:ramp-enable',
-                'device-settings:sim960:vout-value']
+                'device-settings:sim960:ramp-enable']
 
 DEFAULT_SETTING_KEYS = ['default:device-settings:sim960:mode',
                         'default:device-settings:sim960:vout-min-limit',
@@ -47,9 +46,11 @@ DEFAULT_SETTING_KEYS = ['default:device-settings:sim960:mode',
                         'default:device-settings:sim960:pid-d',
                         'default:device-settings:sim960:setpoint-mode',
                         'default:device-settings:sim960:pid-control-vin-setpoint',
+                        'default:device-settings:sim960:setpoint-ramp-rate',
+                        'default:device-settings:sim960:setpoint-ramp-enable',
+                        'default:device-settings:sim960:vout-value',
                         'default:device-settings:sim960:ramp-rate',
-                        'default:device-settings:sim960:ramp-enable',
-                        'default:device-settings:sim960:vout-value']
+                        'default:device-settings:sim960:ramp-enable']
 
 OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'
 INPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'
@@ -93,9 +94,9 @@ COMMAND_DICT = {'AMAN': {'key': 'device-settings:sim960:mode',
                          'vals': [1e-2, 5e5]},
                 'DERV': {'key': 'device-settings:sim960:pid-d',
                          'vals': [1e-6, 1e1]},
-                'RAMP': {'key': 'device-settings:sim960:ramp-enable',
+                'RAMP': {'key': 'device-settings:sim960:setpoint-ramp-enable',
                          'vals': {'off': '0', 'on': '1'}},
-                'RATE': {'key': 'device-settings:sim960:ramp-rate',
+                'RATE': {'key': 'device-settings:sim960:setpoint-ramp-rate',
                          'vals': [1e-3, 1e4]}}
 
 class SIM960Agent(object):
@@ -502,10 +503,10 @@ class SIM960Agent(object):
                 self.set_setpoint_mode(key_val_dict['device-settings:sim960:setpoint-mode'])
             if 'device-settings:sim960:pid-control-vin-setpoint' in keys:
                 self.set_internal_setpoint_value(key_val_dict['device-settings:sim960:pid-control-vin-setpoint'])
-            if 'device-settings:sim960:ramp-rate' in keys:
-                self.set_setpoint_ramping_rate(key_val_dict['device-settings:sim960:ramp-rate'])
-            if 'device-settings:sim960:ramp-enable' in keys:
-                self.enable_setpoint_ramping(key_val_dict['device-settings:sim960:ramp-enable'])
+            if 'device-settings:sim960:setpoint-ramp-rate' in keys:
+                self.set_setpoint_ramping_rate(key_val_dict['device-settings:sim960:setpoint-ramp-rate'])
+            if 'device-settings:sim960:setpoint-ramp-enable' in keys:
+                self.enable_setpoint_ramping(key_val_dict['device-settings:sim960:setpoint-ramp-enable'])
             if 'device-settings:sim960:vout-value' in keys:
                 self.set_manual_output_voltage(key_val_dict['device-settings:sim960:vout-value'])
         except (IOError, RedisError) as e:
