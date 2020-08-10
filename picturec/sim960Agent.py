@@ -4,13 +4,9 @@ Author: Noah Swimmer, 21 July 2020
 NOTE: Unlike the SIM921, the SIM960 supports different baudrates. These need to be tested outside of the mainframe
 before settling on the most appropriate one.
 
-TODO: - Make a check on the manual output voltage (to ensure we're outputting what we expect)
- - Run/ramp functions
- - Only let polarity and flow control be set at initialization (and only change them with good reason, e.g. we changed
- the thermometer!)
- - Potentially break out PID tuning into more granular functions for more controllability.
- - Make notes on each function and what it does.
- - Figure out how to start the ramp (via redis setting or is there a better way?)
+TODO: - Run/ramp functions
+ - Make PID tuning easier and more coherent
+ - Coherent checks on lower/upper output limits
 """
 
 import serial
