@@ -48,13 +48,14 @@ DEFAULT_SETTING_KEYS = ['default:device-settings:sim960:mode',
                         'default:device-settings:sim960:ramp-rate',
                         'default:device-settings:sim960:ramp-enable']
 
-OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'
-INPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'
+OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'  # Set by 'MOUT' in manual mode, monitored by 'OMON?' always
+INPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'  # This is the output from the sim921 to the sim960 for PID control
 MAGNET_CURRENT_KEY = 'status:magnet:current'  # To get the current from the sim960. We will need to run a calibration
 # test to figure out what the output voltage to current conversion is.
-MAGNET_STATE_KEY = 'status:magnet:state'
-HEATSWITCH_STATUS_KEY = 'status:heatswitch'
-HC_BOARD_CURRENT = 'status:highcurrentboard:current'
+MAGNET_STATE_KEY = 'status:magnet:state'  # OFF | RAMPING | SOAKING | QUENCH (DON'T QUENCH!)
+HEATSWITCH_STATUS_KEY = 'status:heatswitch'  # Needs to be read to determine its status, and set by the sim960agent during
+# normal operation so it's possible to run the ramp appropriately
+HC_BOARD_CURRENT = 'status:highcurrentboard:current'  #
 
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY,
            MAGNET_STATE_KEY, HEATSWITCH_STATUS_KEY, HC_BOARD_CURRENT]
