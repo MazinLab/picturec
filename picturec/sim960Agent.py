@@ -370,16 +370,22 @@ class SIM960Agent(object):
             raise e
 
     def set_output_lower_limit(self, value):
-        # TODO: Check to make sure lower limit is less than upper limit
         try:
-            self.set_sim_param("LLIM", float(value))
+            ulim = self.query("ULIM?")
+            if float(ulim) > float(value):
+                self.set_sim_param("LLIM", float(value))
+            else:
+                getLogger(__name__).warning(f"Trying to set an lower voltage limit above the upper voltage limit!")
         except (IOError, RedisError) as e:
             raise e
 
     def set_output_upper_limit(self, value):
-        # TODO: Check to make sure upper limit is greater than lower limit
         try:
-            self.set_sim_param("ULIM", float(value))
+            llim = self.query("LLIM?")
+            if float(llim) < float(value):
+                self.set_sim_param("ULIM", float(value))
+            else:
+                getLogger(__name__).warning(f"Trying to set an upper voltage limit below the lower voltage limit!")
         except (IOError, RedisError) as e:
             raise e
 
