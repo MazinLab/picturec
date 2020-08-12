@@ -7,6 +7,19 @@ responsible for properly conditioning its output signal so that the SIM960 (PID 
 the device temperature.
 
 TODO: Make sure that when done in mainframe mode, the exit string is sent to the SIM921
+
+TODO describe the different mods of operation of this program and what they are. "Mainframe?!"
+
+TODO:
+ Why not
+  self.redis.get_redis_value(key: (str, tuple, list)) and
+  self.redis.set_redis_value(setting: (dict, tuple or list of 2-tuples))
+  instead of e.g.
+    for k, v in pairs: store_redis_data(self.redis,k,v )
+
+
+  new_sim_settings and prev_sim_settings give me pause. redis is the source of this why have another record here?
+
 """
 
 import serial
@@ -17,6 +30,7 @@ import time
 from redis import Redis, RedisError
 from redistimeseries.client import Client
 import sys
+from picturec.agent import SerialAgent
 
 
 SETTING_KEYS = ['device-settings:sim921:resistance-range',
@@ -32,6 +46,10 @@ SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:output-mode']
 
 
+#TODO seeing this like this I'm leaning towards the convention DEFAULT_KEY='default:'+KEY. Then you can just have a
+# factory and never worry about making changes twice.
+# DEFAULT_KEY_FACTORY = lambda key: f'default:{key}'
+# default = redis.get(DEFAULT_KEY_FACTORY(key))
 DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
                         'default:device-settings:sim921:excitation-value',
                         'default:device-settings:sim921:excitation-mode',
@@ -87,102 +105,23 @@ COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
                 }
 
 
-class SIM921Agent(object):
-    def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True,
-                 scale_units='resistance', mainframe_args=[False, 2, 'xyz']):
-        self.ser = None
-        self.port = port
-        self.baudrate = baudrate
-        self.timeout = timeout
-        self.connect(raise_errors=False)
-        time.sleep(.2)
-        self.redis = redis
-        self.redis_ts = redis_ts
+class SIM921Agent(agent.SerialAgent):
+    def __init__(self, port, baudrate=9600, timeout=0.1,
+                 scale_units='resistance', connect_mainframe=False, mainframe_args=(2, 'xyz')):
+
+        super().__init__super().__init__(port, baudrate, timeout, name='Sim921')
 
         self.scale_units = scale_units
 
         self.prev_sim_settings = {}
         self.new_sim_settings = {}
 
-        if mainframe_args[0]:
-            self.mainframe_connect(mainframe_args)
+        self.connect(raise_errors=False)  # Moveded after initialization of all instance members
 
-        if initialize:
-            self.initialize_sim()
-        else:
-            self.read_default_settings()
+        if connect_mainframe:
+            self.mainframe_connect(*mainframe_args)
 
-    def connect(self, reconnect=False, raise_errors=True):
-        """
-        Create serial connection with the SIM921. In reality, the SIM921 connection is only up to the USB-to-RS232
-        interface, and so disconnects will need to be checked differently from either side of the converter.
-        """
-        if reconnect:
-            self.disconnect()
-
-        try:
-            if self.ser.isOpen():
-                return
-        except Exception:
-            pass
-
-        getLogger(__name__).debug(f"Connecting to {self.port} at {self.baudrate}")
-        try:
-            self.ser = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
-            getLogger(__name__).debug(f"port {self.port} connection established")
-            return True
-        except (SerialException, IOError) as e:
-            self.ser = None
-            getLogger(__name__).error(f"Conntecting to port {self.port} failed: {e}")
-            if raise_errors:
-                raise e
-            else:
-                return False
-
-    def disconnect(self):
-        """
-        Disconnect from the SIM921 serial connection
-        """
-        try:
-            self.ser.close()
-            self.ser = None
-        except Exception as e:
-            getLogger(__name__).info(f"Exception durring disconnect: {e}")
-
-    def send(self, msg: str, connect=True):
-        """
-        Send a message to the SIM921 in its desired format.
-        The typical message is all caps, terminated with a newline character '\n'
-        Commands will be followed by a code, typically a number (e.g. 'RANG 3\n')
-        Queries will be followed by a question mark (e.g. 'TVAL?\n')
-        The identity query (and a number of other 'special' commands) start with a * (e.g. '*IDN?')
-        """
-        if connect:
-            self.connect()
-        msg = msg.strip().upper() + "\n"
-        try:
-            getLogger(__name__).debug(f"Writing message: {msg}")
-            self.ser.write(msg.encode("utf-8"))
-            getLogger(__name__).debug(f"Sent {msg} successfully")
-        except (SerialException, IOError) as e:
-            self.disconnect()
-            getLogger(__name__).error(f"Send failed: {e}")
-            raise e
-
-    def receive(self):
-        """
-        Receiving from the SIM921 consists of reading a line, as some queries may return longer strings than others,
-        and each query has its own parsing needs (for example: '*IDN?' returns a string with model, serial number,
-        firmware, and company, while 'TVAL?' or 'RVAL?' returns the measured temperature/resistance value at the time)
-        """
-        try:
-            data = self.ser.readline().decode("utf-8").strip()
-            getLogger(__name__).debug(f"read {data} from SIM921")
-            return data
-        except (IOError, SerialException) as e:
-            self.disconnect()
-            getLogger(__name__).debug(f"Send failed {e}")
-            raise e
+        #note I deleted the redis initialization stuff, pull that out of the class, at least for now
 
     def reset_sim(self):
         """
@@ -201,6 +140,8 @@ class SIM921Agent(object):
 
     def command(self, command_msg: str):
         """
+
+        TODO I don't see a point in having this function abstracting send().
         A wrapper for the self.send function. This assumes that the command_msg input is a legal command as dictated by
         the manual in picturec/hardware/thermometry/SRS-SIM921-ResistanceBridge-Manual.pdf
         """
@@ -227,8 +168,10 @@ class SIM921Agent(object):
 
     def query_ID(self):
         """
-        Specific function to query the SIM921 identity to get its s/n, firmware, and model. Will be used in
-        conjunction with store_sim921_id_info to ensure we properly log the .
+        Specific function to query the SIM921 identity to get its s/n, firmware, and model.
+
+        #TODO IMO docstrings aren't the best place for commentary on intent when the function can stand alone.
+        Will be used in conjunction with store_sim921_id_info to ensure we properly log the .
         """
         try:
             idn_msg = self.query("*IDN?")
@@ -237,55 +180,95 @@ class SIM921Agent(object):
 
         try:
             idn_info = idn_msg.split(',')
-            model = idn_info[1]
-            sn = idn_info[2]
-            firmware = idn_info[3]
+            model, sn, firmware = idn_info[1:4]
             getLogger(__name__).info(f"SIM921 Identity - model {model}, s/n:{sn}, firmware {firmware}")
         except Exception as e:
             raise ValueError(f"Illegal format. Check communication is working properly: {e}")
 
-        return [model, sn, firmware]
+        return model, sn, firmware
 
     def read_default_settings(self):
         """
         Reads all of the default SIM921 settings that are stored in the redis database and reads them into the
-        dictionaries which the agent will use to command the SIM921 to change settings. Also reads these now current
-        settings into the redis database.
+        dictionaries which the agent will use to command the SIM921 to change settings.
+
+        TODO Isn't this is a violation of the contract with the database? Since this function doesn't actually SET the settings
+         calling it creates the probability of a mismatch between the database and whatever is loaded into the SIM!
+
+        #TODO axe this, at least as a class member
+
+        Also reads these now current settings into the redis database.
         """
         try:
-            for i, j in zip(DEFAULT_SETTING_KEYS, SETTING_KEYS):
-                value = get_redis_value(self.redis, i)
-                self.prev_sim_settings[j] = value
-                self.new_sim_settings[j] = value
-                store_redis_data(self.redis, {j: value})
+            defaults = get_redis_value(self.redis, list(map(DEFAULT_KEY_FACTORY, SETTING_KEYS)))
+            d = {k: v for k, v in zip(SETTING_KEYS, defaults)}
+
+            #self.prev_sim_settings.update(d) # this line isn't actually recording previous settings!
+            #self.new_sim_settings.update(d) #this line may also break the contract with the control system
+            #store_redis_data(self.redis,d)  #This line breaks the contract with the control system
         except RedisError as e:
             raise e
 
-    def initialize_sim(self, load_curve=False):
+    def initialize_sim(self, settings, load_curve=False):
         """
         Sets all of the values that are read in in the self.read_default_settings() function to their default values.
         In this instance, self.prev_sim_settings are the values from the default:* keys in the redis db.
+
+        TODO When we are operating and for some reason something happens that triggers a reinitialization it
+         would probably make for smoother operations to load the current settings (which would have been loaded from
+         defaults at program start).
+         It would also be nicer for you if things are structured so that you've got a more general API to programatically
+         set settings without bespoke code e.g.
+            active_settings = self.get_active_settings()
+            self.reset_sim()  #This might force a hiccup that isn't always needed
+            for k,v in active_settings:
+                self.set_setting(k, v)
+
+        Note that during the execution of this function there is a brief window where multiple settings are out of sync
+        in redis this probably doesn't matter but should be kept in mind as it can create a race condition.
+        I think tt is possible to lock redis such that anyone that is querying the keys you are in the process of modifying will
+        block or otherwise get an indication that things are in flux. Thereby preventing another program from doing
+        something based on a bad inferred state.
+
+        here that might look like
+        lock_redis_keys(defaults.keys())
+        for k,v in defaults.items(): self.set(k,v)
+        update_redis(defaults)
+        self.current_settings.update(defaults)
+        unlock_redis_keys(defaults.keys())
+
+        or
+        self.set_resistance(defaults['resistance'])
+        self.current_settings['resistance'])=defaults['resistance']
+        update_redis('resistance', defaults['resistance'])
+        repeat with next setting.
+
+        The second is much more verbose and makes for more typing.
+
+
         """
         getLogger(__name__).info(f"Initializing SIM921")
 
         try:
-            self.read_default_settings()
+
+            #move the fetching from redis outside the class
+            defaults = settings # get_redis_value(self.redis, list(map(DEFAULT_KEY_FACTORY, SETTING_KEYS)), return_dict=True)
 
             self.reset_sim()
 
-            self.set_resistance_range(self.prev_sim_settings['device-settings:sim921:resistance-range'])
-            self.set_excitation_value(self.prev_sim_settings['device-settings:sim921:excitation-value'])
-            self.set_excitation_mode(self.prev_sim_settings['device-settings:sim921:excitation-mode'])
-            self.set_time_constant_value(self.prev_sim_settings['device-settings:sim921:time-constant'])
+            self.set_resistance_range(defaults['device-settings:sim921:resistance-range'])
+            self.set_excitation_value(defaults['device-settings:sim921:excitation-value'])
+            self.set_excitation_mode(defaults['device-settings:sim921:excitation-mode'])
+            self.set_time_constant_value(defaults['device-settings:sim921:time-constant'])
 
-            self.set_temperature_offset(self.prev_sim_settings['device-settings:sim921:temp-offset'])
-            self.set_temperature_output_scale(self.prev_sim_settings['device-settings:sim921:temp-slope'])
+            self.set_temperature_offset(defaults['device-settings:sim921:temp-offset'])
+            self.set_temperature_output_scale(defaults['device-settings:sim921:temp-slope'])
 
-            self.set_resistance_offset(self.prev_sim_settings['device-settings:sim921:resistance-offset'])
-            self.set_resistance_output_scale(self.prev_sim_settings['device-settings:sim921:resistance-slope'])
+            self.set_resistance_offset(defaults['device-settings:sim921:resistance-offset'])
+            self.set_resistance_output_scale(defaults['device-settings:sim921:resistance-slope'])
 
-            self.set_output_manual_voltage(self.prev_sim_settings['device-settings:sim921:manual-vout'])
-            self.set_output_mode(self.prev_sim_settings['device-settings:sim921:output-mode'])
+            self.set_output_manual_voltage(defaults['device-settings:sim921:manual-vout'])
+            self.set_output_mode(defaults['device-settings:sim921:output-mode'])
             self.set_output_scale_units(self.scale_units)
 
             if load_curve:
@@ -293,9 +276,13 @@ class SIM921Agent(object):
                 # curve we can use and so it is more trouble than it is worth to go through not hardcoding it.
                 self._load_calibration_curve(1, 'linear', 'PICTURE-C', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
 
-            self.choose_calibration_curve(self.prev_sim_settings['device-settings:sim921:curve-number'])
+            self.choose_calibration_curve(defaults['device-settings:sim921:curve-number'])
 
             self.command("DTEM 1")
+
+            self.prev_sim_settings.update(defaults)  # this line isn't actually recording previous settings!
+            self.new_sim_settings.update(defaults) #this line may also break the contract with the control system
+            store_redis_data(self.redis,defaults)  #This line breaks the contract with the control system
 
         except IOError as e:
             getLogger(__name__).debug(f"Initialization failed: {e}")
@@ -310,10 +297,12 @@ class SIM921Agent(object):
         laid out in its manual, pages 2-9 to 2-15 (picturec/hardware/thermometry/SRS-SIM921-ResistanceBridge-Manual.pdf)
 
         For example, to set the resistance range to 20 kOhm: setting='RANG', value='6'
+
+        TODO I'd axe this function, rolling it and set_sim_param into one
         """
         set_string = setting + " " + value
         try:
-            self.command(set_string)
+            self.command(f"{setting} {value}")
         except IOError as e:
             raise e
 
@@ -322,6 +311,8 @@ class SIM921Agent(object):
         Takes a given command from the SIM921 manual (the top level key in the COMMAND_DICT) and uses the keys/vals
         in the dictionary value for that command to determine if legal values are being sent to the SIM921. If all of
         the rules for a given command are properly met, sends that command to the SIM921 for the value to be changed.
+
+
         """
         try:
             dict_for_command = COMMAND_DICT[command]
@@ -330,6 +321,32 @@ class SIM921Agent(object):
 
         command_key = dict_for_command['key'] if 'key' in dict_for_command.keys() else None
         command_vals = dict_for_command['vals']
+
+        #TODO this can be simplified by making the command a small class
+        class SimCommand:
+            def __init__(self, redis_setting, command, mapping=None, range=None):
+                if mapping is None and range is None:
+                    raise ValueError('Mapping dict or range tuple required')
+                self.mapping = mapping
+                self.setting = redis_setting
+                self.simcommand = command
+                self.range = range
+
+            def validValue(self, value):
+                if self.range is not None:
+                    return self.range[0] <=value <=self.range[1]
+                else:
+                    return value in self.mapping
+
+            def translate(self, value):
+                if not self.validValue(value):
+                    raise ValueError(f"'{value}' is not allowed for {self.command}")
+                return value if self.mapping is None else self.mapping[value]
+
+        #then all the below could be simplified to
+        cmd = COMMAND_DICT[command]  #TODO note that youve' indexed this dictionary on the SIM's command format and not the redis setting
+        # while that works it means that all the code in this agent isn't generalizable to other agents without much more editing.
+        self.set_sim_value(cmd.simcommand, cmd.translate(value))
 
         if type(command_vals) is list:
             min_val = command_vals[0]
@@ -355,17 +372,25 @@ class SIM921Agent(object):
 
         try:
             self.set_sim_value(command, cmd_value)
-            if command_key is not None:
+            if command_key is not None:   #TODO doesn't this if imply that the above set_sim_value could be executed on a null command?!
                 store_redis_data(self.redis, {command_key: value})
         except IOError as e:
             raise e
         except RedisError as e:
             raise e
 
+    #TODO in general I would advocate replacing all of these set_blah/get_blah with getters and setters
+    # e.g. @resistance_range.setter & @property or by using __getattr__() __setattr__().
+    # The latter two allow for more compact code but do have implications for extension of this class via subclassing
+    # and attribute resolution order (or the common parts that might be pulled into a parent class)
+
+
     def set_resistance_range(self, value):
         try:
             self.set_sim_param("RANG", float(value))
         except (IOError, RedisError) as e:
+            #TODO since you aren't doing anything with the error there is no need
+            # for the try except block!
             raise e
 
     def set_time_constant_value(self, value):
@@ -375,6 +400,7 @@ class SIM921Agent(object):
             raise e
 
     def set_excitation_value(self, value):
+        #TODO YIKES!
         try:
             if float(value) == 0:
                 self.set_sim_value("EXON", "0")
@@ -440,6 +466,9 @@ class SIM921Agent(object):
         curves into them. When we do, LOADED_CURVES should be changed to reflect that so that curve can be used during
         normal operation.
         """
+        #TODO this should be be a global
+        # this can also be integrated with minor modification into the command class I defined above by just populating
+        # its mapping with the loaded curves
         LOADED_CURVES = [1]  # This parameter should probably be updated in redis/somewhere permanent. But the most we
         # can have is 3 curves on channels 1, 2, or 3. Loaded curves is currently manually set to whichever we have loaded
         if curve in LOADED_CURVES:
@@ -451,7 +480,7 @@ class SIM921Agent(object):
             getLogger(__name__).warning(f"Curve number {curve} has not been loaded into the SIM921. This curve"
                                         f"cannot be used to convert resistance to temperature!")
 
-    def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, path_to_curve="../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl"):
+    def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, file:str=None):
         """
         This is an engineering function for the SIM921 device. In normal operation of the fridge, the user should never
         have to load a curve in. This should only ever be used if (1) a new curve becomes available, (2) the
@@ -462,9 +491,19 @@ class SIM921Agent(object):
         is in a format where resistance[n] < resistance[n+1] for all points n on the curve, it can be loaded into the
         SIM921 instrument.
         """
+        if file is None:
+            #TODO use package resources and a curve to resource name golbal dict to lookup the path do that it works
+            # with pip installation.
+            # e.g. (needs refining)
+            import pkg_resources as pkg
+            CURVE_DICT = {'RX-102A_Mean_Curve':'RX-102A_Mean_Curve.tbl'}
+            path_to_curve = pkg.resource_filename('hardware/thermometry/RX-102A', CURVE_DICT[curve_name])
+        else:
+            path_to_curve = file
+
+        #All three of these things look like globals or things that should be programmatically generated
         CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
         valid_curves = [1, 2, 3]
-
         CURVE_TYPE_DICT = {'linear': '0',
                            'semilogt': '1',
                            'semilogr': '2',
@@ -516,6 +555,8 @@ class SIM921Agent(object):
 
         Returns a dictionary where the keys are the redis keys that correspond to the SIM921 settings and the values are
         the new, desired values to set them to.
+
+        TODO this doesn't really check the settings at all, rather it looks to see if previous and new are
         """
         try:
             for i in self.new_sim_settings.keys():
@@ -537,6 +578,22 @@ class SIM921Agent(object):
 
     def update_sim_settings(self):
         """
+
+        TODO A functions specification is an interface. It should be kept independing of other function. I.E.
+         Takes a dictionary of redis keys and values and uses them to update the SIM is great.
+         Takes the output of X and ... is problematic for many of the programming reasons we've talked about.
+
+        TODO Why is this function implicit? just make it take the settings dict, then you can use it and all its
+         validation everywhere (in the vein of my other comments.
+         def update...(self, d, error=True):
+             self._check_settings(d, error=error)
+             try:
+                 self.set_resistance_range(d['device-settings:sim921:resistance-range'])
+             except KeyError:
+                 pass
+             ...
+
+
         Takes the output of self._check_settings() and sends the appropriate commands to the SIM921 to update the
         desired settings. Leaves the unchanged settings alone and does not send any commands associated with them.
 
@@ -580,6 +637,8 @@ class SIM921Agent(object):
         """
         Query and store the resistance and temperature values at a given time.
         """
+
+        #TODO dont see a good reason for the dual role function here
         try:
             tval = self.query("TVAL?")
             rval = self.query("RVAL?")
@@ -597,6 +656,7 @@ class SIM921Agent(object):
         choose to use). Ultimately, we should be comparing this at some point with what the SIM960 measures at its
         input to confirm that the expected value is what it is reading.
         """
+        #TODO dont see a good reason for the dual role function here
         try:
             output = self.query("AOUT?")
             store_redis_ts_data(self.redis_ts, {OUTPUT_VOLTAGE_KEY: output})
@@ -605,51 +665,14 @@ class SIM921Agent(object):
         except RedisError as e:
             raise e
 
-    def run(self):
-        """
-        For each loop, update the sim settings if they need to, read and store the thermometry data, read and store the
-        SIM921 output voltage, update the status of the program, and handle any potential errors that may come up.
-        """
-        while True:
-            try:
-                self.update_sim_settings()
-                self.read_and_store_thermometry()
-                self.read_and_store_output()
-                store_status(self.redis, "OK")
-            except IOError as e:
-                getLogger(__name__).error(f"IOError occurred in run loop: {e}")
-                store_status(self.redis, f"Error {e}")
-            except RedisError as e:
-                getLogger(__name__).error(f"Error with redis while running: {e}")
-                sys.exit(1)
 
-    def mainframe_connect(self, args):
-        self.send(f'CONN {args[1]}, {args[2]}')
+    def mainframe_connect(self, arg1, arg2):  #TODO make these argument names informative
+        self.send(f'CONN {arg1}, {arg2}')
 
     def mainframe_disconnect(self, args):
         self.send(f'{args[2]}')
 
 
-def setup_redis(host='localhost', port=6379, db=0):
-    redis = Redis(host=host, port=port, db=db)
-    return redis
-
-
-def setup_redis_ts(host='localhost', port=6379, db=0):
-    redis_ts = Client(host=host, port=port, db=db)
-
-    for key in TS_KEYS:
-        try:
-            redis_ts.create(key)
-        except RedisError:
-            getLogger(__name__).debug(f"KEY '{key}' already exists")
-            pass
-
-    return redis_ts
-
-
-def store_status(redis, status):
-    redis.set(STATUS_KEY, status)
 
 
 def get_redis_value(redis, key):
@@ -670,30 +693,23 @@ def store_sim921_id_info(redis, info):
     redis.set(SERIALNO_KEY, info[1])
     redis.set(FIRMWARE_KEY, info[2])
 
-
-def store_redis_data(redis, data):
-    for k, v in data.items():
-        getLogger(__name__).info(f"Setting key:value - {k}:{v}")
-        redis.set(k, v)
-
-
-def store_redis_ts_data(redis_ts, data):
-    for k, v in data.items():
-        getLogger(__name__).info(f"Setting key:value - {k}:{v} at {int(time.time())}")
-        redis_ts.add(key=k, value=v, timestamp='*')
-
+from picturec.redis import PCRedis
 
 if __name__ == "__main__":
-    redis = setup_redis()
-    redis_ts = setup_redis_ts()
 
-    sim921 = SIM921Agent(port='/dev/sim921', redis=redis, redis_ts=redis_ts, baudrate=9600,
-                         timeout=0.1, initialize=True)
+    # TODO Try to make agent's mirror as much as possible. For instance hempttemp does logging, then the class,
+    #  then redis, then runs a main loop. Here the orders are juggled with no obvious reason and the main loop is
+    #  internal to the class. this also means this agent now must have a redis instance whereas the other agent doesn't.
+    #  I think there are merits to both approaches but for now consistency is key.
+
+    redis = PCRedis(host='localhost', port=6379, db=0, create_ts_keys=TS_KEYS)
+
+    sim921 = SIM921Agent(port='/dev/sim921', baudrate=9600, timeout=0.1)
 
     try:
         getLogger(__name__).info(f"Querying SIM921 for identification information.")
         sim_info = sim921.query_ID()
-        store_sim921_id_info(sim_info)
+        store_sim921_id_info(redis, sim_info)  #TODO is this run on every reconnect?
         getLogger(__name__).info(f"Successfully queried {sim_info[0]} (s/n {sim_info[1]}). Firmware is {sim_info[2]}.")
     except IOError as e:
         getLogger(__name__).error(f"Couldn't communicate with SIM921: {e}")
@@ -702,4 +718,24 @@ if __name__ == "__main__":
     except RedisError as e:
         getLogger(__name__).error(f"Couldn't communicate with Redis to store sim ID information: {e}")
 
-    sim921.run()
+    #TODO are any of the above errors critical/fatal? If they occur should we be continuing?
+
+    # """
+    # For each loop, update the sim settings if they need to, read and store the thermometry data, read and store the
+    # SIM921 output voltage, update the status of the program, and handle any potential errors that may come up.
+    # """
+    while True:
+        try:
+
+            #A rought over simplification of what we talked about:
+            settings = redis.read(list_of_all_setting_keys, return_dict=True)
+            sim921.set_settings(settings)
+            redis.store(sim921.read_thermometry(return_setting_dict=True), timeseries=True)
+            redis.store(sim921.read_output(return_setting_dict=True), timeseries=True)
+            redis.store((STATUS_KEY, "OK"), timeseries=False)
+        except IOError as e:
+            getLogger(__name__).error(f"IOError occurred in run loop: {e}")
+            redis.store((STATUS_KEY, f"Error {e}"))
+        except RedisError as e:
+            getLogger(__name__).critical(f"Error with redis while running: {e}")
+            sys.exit(1)
