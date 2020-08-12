@@ -22,9 +22,13 @@ from datetime import datetime
 from redis import RedisError
 from redis import Redis
 from redistimeseries.client import Client
+import threading
+from picturec.redis import PCRedis
+import picturec.agent as agent
 
 REDIS_DB = 0
 QUERY_INTERVAL = 1
+LOOP_INTERVAL = .05
 
 KEYS = ['device-settings:currentduino:highcurrentboard',
         'device-settings:currentduino:heatswitch',
@@ -38,249 +42,123 @@ FIRMWARE_KEY = "status:device:currentduino:firmware"
 HEATSWITCH_STATUS_KEY = 'status:heatswitch'
 HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
 
+#TODO Any possibility these should be in redis defaults or some sort of namespace that indicates static configuration?
+# I don't know enough about how precicely these values are known and how stable they are
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
-logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-class Currentduino(object):
-    def __init__(self, port, redis, redis_ts, baudrate=115200, timeout=0.1):
-        self.ser = None
-        self.port = port
-        self.baudrate = baudrate
-        self.timeout = timeout
-        self.connect(raise_errors=False)
+class Currentduino(agent.SerialAgent):
+    def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
+
+        super().__init__super().__init__(port, baudrate, timeout, name='Currentduino')
+        if connect:
+            self.connect(raise_errors=False)
         time.sleep(1)
-        self.redis = redis
-        self.redis_ts = redis_ts
         self.heat_switch_position = None
 
-    def connect(self, reconnect=False, raise_errors=True):
-        if reconnect:
-            self.disconnect()
-
-        try:
-            if self.ser.isOpen():
-                return
-        except Exception:
-            pass
-
-        getLogger(__name__).debug(f"Connecting to {self.port} at {self.baudrate}")
-        try:
-            self.ser = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
-            time.sleep(.2)
-            getLogger(__name__).debug(f"port {self.port} connection established")
-            return True
-        except (SerialException, IOError) as e:
-            self.ser = None
-            getLogger(__name__).error(f"Connecting to port {self.port} failed: {e}", exc_info=True)
-            if raise_errors:
-                raise e
-            else:
-                return False
-
-    def disconnect(self):
-        try:
-            self.ser.close()
-            self.ser = None
-        except Exception as e:
-            getLogger(__name__).info(f"Exception durring disconnect: {e}")
-
-    def send(self, msg: str, connect=True):
-        if connect:
-            self.connect()
-        try:
-            getLogger(__name__).debug(f"writing message: {msg}")
-            self.ser.write(msg.encode("utf-8"))
-            getLogger(__name__).debug(f"Sent {msg} successfully")
-        except (SerialException, IOError) as e:
-            self.disconnect()
-            getLogger(__name__).error(f"Send failed: {e}")
-            # raise e
-
-    def receive(self):
-        try:
-            data = self.ser.readline().decode("utf-8").strip()
-            getLogger(__name__).debug(f"read {data} from arduino")
-            return data
-        except (SerialException, IOError) as e:
-            self.disconnect()
-            getLogger(__name__).debug(f"Send failed: {e}")
-            # raise e
-
-    def parse(self, response):
-        if response[-1] == '?':
-            readValue = float(response.split(' ')[0])
-        try:
-            current = (readValue * (5.0 / 1023.0) * ((R1 + R2) / R2))
-        except Exception:
-            raise ValueError(f"Couldn't convert {response.split(' ')[0]} to float")
-        return {'status:highcurrentboard:current': current}
-
-    def get_current_data(self):
+    @property
+    def current(self):
         try:
             self.send('?', connect=True)
             response = self.receive()
-            data = self.parse(response)
+
+            try:
+                value = float(response.split(' ')[0])
+                current = (value * (5.0 / 1023.0) * ((R1 + R2) / R2))
+            except ValueError:
+                raise ValueError(f"Couldn't parse '{response}' into a float")
+
         except Exception as e:
             raise IOError(e)
-        return data
+        return current
 
-    def open_heat_switch(self):
+    def move_heat_switch(self, pos):
+        pos = pos.lower()
+        if pos not in ('open', 'close'):
+            raise ValueError(f"'{pos} is not a vaild (open, close) heat switch position")
+
+        # NB it is mighty convenient that the serial command/confirmation and pos start with the same letter
         try:
-            current_position = get_redis_value(self.redis, HEATSWITCH_STATUS_KEY)
-        except RedisError as e:
-            getLogger(__name__).error(f"Redis error: {e}")
-            return {HEATSWITCH_STATUS_KEY: "unknown"}
-        if current_position[HEATSWITCH_STATUS_KEY] == 'open':
-            return current_position
-        else:
-            try:
-                self.send("o")
-                confirm = self.receive()
-                if confirm == "o":
-                    return {HEATSWITCH_STATUS_KEY: "open"}
-                else:
-                    return {HEATSWITCH_STATUS_KEY: "unknown"}
-            except Exception as e:
-                raise IOError(e)
+            getLogger(__name__).info(f"Commanding heat switch  to {pos}")
+            self.send(pos[0])
+            confirm = self.receive()
+            if confirm == pos[0]:
+                getLogger(__name__).info(f"Command accepted")
+            else:
+                getLogger(__name__).info(f"Command failed: '{confirm}'")
+            return pos if confirm == pos[0] else 'unknown'
+        except Exception as e:
+            raise IOError(e)
 
-    def close_heat_switch(self):
+    @property
+    def firmware(self):
+        """TODO return firmware"""
+        return 'TODO'
+
+
+def poll_current():
+    while True:
         try:
-            current_position = get_redis_value(self.redis, HEATSWITCH_STATUS_KEY)
+            redis.store(('status:highcurrentboard:current', currentduino.current), timeseries=True)
+            redis.set('status:highcurrentboard:powered', "True")  #NB changed from ok to true
         except RedisError as e:
-            getLogger(__name__).error(f"Redis error: {e}")
-            return {HEATSWITCH_STATUS_KEY: "unknown"}
-        if current_position[HEATSWITCH_STATUS_KEY] == 'close':
-            return current_position
-        else:
-            try:
-                self.send("c")
-                confirm = self.receive()
-                if confirm == "c":
-                    return {HEATSWITCH_STATUS_KEY: "close"}
-                else:
-                    return {HEATSWITCH_STATUS_KEY: "unknown"}
-            except Exception as e:
-                raise IOError(e)
-
-    def initialize_heat_switch(self):
-        try:
-            desired_position = get_redis_value(self.redis, 'device-settings:currentduino:heatswitch')
-            current_position = get_redis_value(self.redis, 'status:heatswitch')
-        except RedisError as e:
-            raise RedisError(e)
-
-        getLogger(__name__).debug(f"Desired position is {desired_position} and currently the heat switch is {current_position}")
-
-        if desired_position[HEATSWITCH_MOVE_KEY] == current_position[HEATSWITCH_STATUS_KEY]:
-            getLogger(__name__).info(f"Initial heat switch position is: {current_position}")
-            self.heat_switch_position = current_position
-        else:
-            if desired_position[HEATSWITCH_MOVE_KEY] == 'open':
-                getLogger(__name__).info("Opening heat switch")
-                self.heat_switch_position = self.open_heat_switch()
-                getLogger(__name__).info(f"Heat switch set to {self.heat_switch_position}")
-            elif desired_position[HEATSWITCH_MOVE_KEY] == 'close':
-                getLogger(__name__).info("Closing heat switch")
-                self.heat_switch_position = self.close_heat_switch()
-                getLogger(__name__).info(f"Heat switch set to {self.heat_switch_position}")
-
-        try:
-            getLogger(__name__).debug(f"Storing heat switch position to redis: {self.heat_switch_position}")
-            store_redis_data(self.redis, self.heat_switch_position)
-        except RedisError as e:
-            raise RedisError(e)
-
-    def run(self):
-        while True:
-            try:
-                data = self.get_current_data()
-                store_redis_ts_data(self.redis_ts, data)
-                store_high_current_board_status(self.redis, "OK")
-            except RedisError as e:
-                log.error(f"Redis error{e}")
-                sys.exit(1)
-            except IOError as e:
-                log.error(f"Error {e}")
-                store_status(self.redis, f"Error {e}")
-
-            try:
-                switch_pos = get_redis_value(self.redis, HEATSWITCH_MOVE_KEY)
-                if switch_pos[HEATSWITCH_MOVE_KEY] == 'open':
-                    store_redis_data(self.redis, self.open_heat_switch())
-                elif switch_pos[HEATSWITCH_MOVE_KEY] == 'close':
-                    store_redis_data(self.redis, self.close_heat_switch())
-            except RedisError as e:
-                log.error(f"Redis error{e}")
-                sys.exit(1)
-            except IOError as e:
-                log.error(f"Error {e}")
-                store_status(self.redis, f"Error {e}")
-
-            time.sleep(QUERY_INTERVAL)
-
-
-def setup_redis(host='localhost', port=6379, db=0):
-    redis = Redis(host=host, port=port, db=db)
-    return redis
-
-
-def setup_redis_ts(host='localhost', port=6379, db=0):
-    redis_ts = Client(host=host, port=port, db=db)
-
-    try:
-        redis_ts.create('status:highcurrentboard:current')
-    except RedisError:
-        log.debug(f"KEY 'status:highcurrentboard:current' already exists")
-        pass
-    return redis_ts
-
-
-def store_status(redis, status):
-    redis.set(STATUS_KEY, status)
-
-
-def store_firmware(redis, currentduino_version):
-    redis.set(FIRMWARE_KEY, currentduino_version)
-
-
-def get_redis_value(redis, key):
-    try:
-        val = redis.get(key).decode("utf-8")
-    except:
-        return None
-    return val
-
-
-def store_high_current_board_status(redis, status:str):
-    redis.set('status:highcurrentboard:powered', status)
-
-
-def store_redis_data(redis, data):
-    for k, v in data.items():
-        log.info(f"Setting key:value - {k}:{v}")
-        redis.set(k, v)
-
-
-def store_redis_ts_data(redis_ts, data):
-    for k, v in data.items():
-        log.info(f"Setting key:value - {k}:{v} at {int(time.time())}")
-        redis_ts.add(key=k, value=v, timestamp='*')
-
+            log.critical(f"Redis error{e}")
+            sys.exit(1)
+        except IOError as e:
+            log.error(f"Error {e}")
+            redis.store((STATUS_KEY, f"Error {e}"))
+        time.sleep(QUERY_INTERVAL)
 
 if __name__ == "__main__":
 
-    redis_ts = setup_redis_ts(host='localhost', port=6379, db=REDIS_DB)
-    redis = setup_redis(host='localhost', port=6379, db=REDIS_DB)
-    currentduino = Currentduino(port='/dev/currentduino', redis=redis, redis_ts=redis_ts, baudrate=115200, timeout=0.1)
+    logging.basicConfig(level=logging.DEBUG)  #Note that ultimately this is going to need to change. As written I suspect
+    # all log messages will appear from "__main__" instead of showing up from "picturec.currentduinoAgent.Currentduino"
 
-    # Add grabbing firmware value here (or in connect function whenever we connect?)
+    redis = PCRedis(host='localhost', port=6379, db=REDIS_DB, create_ts_keys=['status:highcurrentboard:current'])
+    currentduino = Currentduino(port='/dev/currentduino', baudrate=115200, timeout=0.1)
 
-    store_firmware(redis)
-    time.sleep(1)
+    try:
+        firmware=currentduino.firmware
+        if firmware not in VALID_FIRMWARES:
+            raise IOError(f"Unsupported firmware '{firmware}'. Supported FW: {VALID_FIRMWARES}")
+        redis.store((FIRMWARE_KEY, firmware))
+    except IOError:
+        redis.store((FIRMWARE_KEY, ''))
+        redis.store((STATUS_KEY, 'FAILURE to poll firmware'))
+        sys.exit(1)
 
-    currentduino.initialize_heat_switch()
-    currentduino.run()
+    pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
+    pollthread.daemon = True
+    pollthread.start()
+
+    while True:
+
+        try:
+            switch_pos = redis.read(HEATSWITCH_MOVE_KEY, return_dict=False)
+            if switch_pos in ('open', 'close'):
+                hs_pos = currentduino.move_heat_switch(switch_pos)
+                redis.store((HEATSWITCH_STATUS_KEY, hs_pos))
+            else:
+                log.info('Ignoring invalid requested HS position')
+                redis.store(HEATSWITCH_MOVE_KEY, '')  #TODO change to the current value, error?
+        except RedisError as e:
+            log.critical(f"Redis error{e}")
+            sys.exit(1)
+        except IOError as e:
+            log.error(f"Error {e}")
+
+            # TODO Note that as implemented this is similar to a race condition. The polling thread can have a
+            #  error and report it in the status key. Which then gets overwritten here milliseconds later.
+            #  One fix around this is for the redis class (or probably more appropriately) an eventual Agent program
+            #  class to have an update_status method whihc first reads the redis status and only updates the part that
+            #  is changing. In essence this program here doesn't have a single status, it has at least 3 bits: current
+            #  polling, hs operation, and general program function. Access to all of those parts has to be passed
+            #  through an inflection point so that the update to the status from the hs doesn't need to know about the
+            #  current and vice versa.
+
+            redis.store((STATUS_KEY, f"Error {e}"))
+
+        time.sleep(LOOP_INTERVAL)
