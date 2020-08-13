@@ -6,7 +6,9 @@ before settling on the most appropriate one.
 
 TODO: - Run/ramp functions
  - Make PID tuning easier and more coherent
- - Coherent checks on lower/upper output limits
+ - In manual mode, potentially implement a check on the discrepancy between MOUT and OMON
+ - Implement something where if a value is out of range (say P, I, or D) in the default settings list, the agent can
+  set it properly and also read that into the redis db for better accuracy
 """
 
 import serial
@@ -55,7 +57,7 @@ MAGNET_CURRENT_KEY = 'status:magnet:current'  # To get the current from the sim9
 MAGNET_STATE_KEY = 'status:magnet:state'  # OFF | RAMPING | SOAKING | QUENCH (DON'T QUENCH!)
 HEATSWITCH_STATUS_KEY = 'status:heatswitch'  # Needs to be read to determine its status, and set by the sim960agent during
 # normal operation so it's possible to run the ramp appropriately
-HC_BOARD_CURRENT = 'status:highcurrentboard:current'  #
+HC_BOARD_CURRENT = 'status:highcurrentboard:current'  # Current as measured/conditioned by currentduino
 
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY,
            MAGNET_STATE_KEY, HEATSWITCH_STATUS_KEY, HC_BOARD_CURRENT]
@@ -97,10 +99,11 @@ COMMAND_DICT = {'AMAN': {'key': 'device-settings:sim960:mode',
                          'vals': [1e-3, 1e4]}}
 
 class SIM960Agent(object):
-    def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True, sim_polarity='negative'):
+    def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True, sim_polarity='negative', flow_control='none'):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
+        self.flow_control = flow_control
         self.timeout = timeout
         self.connect(raise_errors=False)
         time.sleep(.5)
@@ -273,20 +276,28 @@ class SIM960Agent(object):
 
             self.reset_sim()
 
-            self.set_output_mode("manual")
-            self.set_manual_output_voltage(0)
-            self.set_flow_control("none")
-            self.set_output_lower_limit(-0.100)
-            self.set_output_upper_limit(10)
-            self.set_setpoint_mode("internal")
-            self.enable_setpoint_ramping("on")
-            self.set_setpoint_ramping_rate(5e-3)
-            self.set_internal_setpoint_value(0.0)
+            self.set_output_mode(self.prev_sim_settings['device-settings:sim960:mode'])
+            self.set_manual_output_voltage(self.prev_sim_settings['device-settings:sim960:vout-value'])
 
-            self.set_pid_polarity("negative")
-            self.set_pid_p_value("pi", -1.6e1)
-            self.set_pid_i_value("pi", 0.2)
-            self.set_pid_d_value("pi", 0.0)
+            self.set_flow_control(self.flow_control)
+
+            self.set_output_lower_limit(self.prev_sim_settings['device-settings:sim960:vout-min-limit'],
+                                        self.prev_sim_settings['device-settings:sim960:vout-max-limit'])
+            self.set_output_upper_limit(self.prev_sim_settings['device-settings:sim960:vout-max-limit'],
+                                        self.prev_sim_settings['device-settings:sim960:vout-min-limit'])
+
+            self.set_setpoint_mode(self.prev_sim_settings['device-settings:sim960:setpoint-mode'])
+            self.enable_setpoint_ramping(self.prev_sim_settings['device-settings:sim960:setpoint-ramp-enable'])
+            self.set_setpoint_ramping_rate(self.prev_sim_settings['device-settings:sim960:setpoint-ramp-rate'])
+            self.set_internal_setpoint_value(self.prev_sim_settings['device-settings:sim960:pid-control-vin-setpoint'])
+
+            self.set_pid_polarity(self.sim_polarity)
+            self.set_pid_p_value(self.prev_sim_settings['device-settings:sim960:pid'],
+                                 self.prev_sim_settings['device-settings:sim960:pid-p'])
+            self.set_pid_i_value(self.prev_sim_settings['device-settings:sim960:pid'],
+                                 self.prev_sim_settings['device-settings:sim960:pid-i'])
+            self.set_pid_d_value(self.prev_sim_settings['device-settings:sim960:pid'],
+                                 self.prev_sim_settings['device-settings:sim960:pid-d'])
 
         except IOError as e:
             getLogger(__name__).debug(f"Initialization failed: {e}")
@@ -369,20 +380,18 @@ class SIM960Agent(object):
         except (IOError, RedisError) as e:
             raise e
 
-    def set_output_lower_limit(self, value):
+    def set_output_lower_limit(self, value, ulim_value):
         try:
-            ulim = self.query("ULIM?")
-            if float(ulim) > float(value):
+            if float(ulim_value) > float(value):
                 self.set_sim_param("LLIM", float(value))
             else:
                 getLogger(__name__).warning(f"Trying to set an lower voltage limit above the upper voltage limit!")
         except (IOError, RedisError) as e:
             raise e
 
-    def set_output_upper_limit(self, value):
+    def set_output_upper_limit(self, value, llim_value):
         try:
-            llim = self.query("LLIM?")
-            if float(llim) < float(value):
+            if float(llim_value) < float(value):
                 self.set_sim_param("ULIM", float(value))
             else:
                 getLogger(__name__).warning(f"Trying to set an upper voltage limit below the lower voltage limit!")
@@ -401,23 +410,38 @@ class SIM960Agent(object):
         except (IOError, RedisError) as e:
             raise e
 
-    def set_pid_p_value(self, p_on, p_value):
+    def enable_pid_p(self, on_off):
         try:
-            self.set_sim_param("PCTL", str(p_on))
+            self.set_sim_param("PCTL", str(on_off))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_pid_p_value(self, p_value):
+        try:
             self.set_sim_param("GAIN", float(p_value))
         except (IOError, RedisError) as e:
             raise e
 
-    def set_pid_i_value(self, i_on, i_value):
+    def enable_pid_i(self, on_off):
         try:
-            self.set_sim_param("ICTL", str(i_on))
+            self.set_sim_param("ICTL", str(on_off))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_pid_i_value(self, i_value):
+        try:
             self.set_sim_param("INTG", float(i_value))
         except (IOError, RedisError) as e:
             raise e
 
-    def set_pid_d_value(self, d_on, d_value):
+    def enable_pid_d(self, on_off):
         try:
-            self.set_sim_param("DCTL", str(d_on))
+            self.set_sim_param("DCTL", str(on_off))
+        except (IOError, RedisError) as e:
+            raise e
+
+    def set_pid_d_value(self, d_value):
+        try:
             self.set_sim_param("DERV", float(d_value))
         except (IOError, RedisError) as e:
             raise e
@@ -483,25 +507,21 @@ class SIM960Agent(object):
             if 'device-settings:sim960:mode' in keys:
                 self.set_setpoint_mode(key_val_dict['device-settings:sim960:mode'])
             if 'device-settings:sim960:vout-min-limit' in keys:
-                self.set_output_lower_limit(key_val_dict['device-settings:sim960:vout-min-limit'])
+                self.set_output_lower_limit(key_val_dict['device-settings:sim960:vout-min-limit'],
+                                            self.new_sim_settings['device-settings:sim960:vout-max-limit'])
             if 'device-settings:sim960:vout-max-limit' in keys:
-                self.set_output_upper_limit(key_val_dict['device-settings:sim960:vout-max-limit'])
+                self.set_output_upper_limit(key_val_dict['device-settings:sim960:vout-max-limit'],
+                                            self.new_sim_settings['device-settings:sim960:vout-min-limit'])
             if 'device-settings:sim960:pid' in keys:
-                self.set_pid_p_value(key_val_dict['device-settings:sim960:pid'],
-                                     self.new_sim_settings['device-settings:sim960:pid-p'])
-                self.set_pid_i_value(key_val_dict['device-settings:sim960:pid'],
-                                     self.new_sim_settings['device-settings:sim960:pid-i'])
-                self.set_pid_d_value(key_val_dict['device-settings:sim960:pid'],
-                                     self.new_sim_settings['device-settings:sim960:pid-d'])
+                self.enable_pid_p(key_val_dict['device-settings:sim960:pid'])
+                self.enable_pid_i(key_val_dict['device-settings:sim960:pid'])
+                self.enable_pid_d(key_val_dict['device-settings:sim960:pid'])
             if 'device-settings:sim960:pid-p' in keys:
-                self.set_pid_p_value(self.new_sim_settings['device-settings:sim960:pid'],
-                                     key_val_dict['device-settings:sim960:pid-p'])
+                self.set_pid_p_value(key_val_dict['device-settings:sim960:pid-p'])
             if 'device-settings:sim960:pid-i' in keys:
-                self.set_pid_i_value(self.new_sim_settings['device-settings:sim960:pid'],
-                                     key_val_dict['device-settings:sim960:pid-i'])
+                self.set_pid_i_value(key_val_dict['device-settings:sim960:pid-i'])
             if 'device-settings:sim960:pid-d' in keys:
-                self.set_pid_d_value(self.new_sim_settings['device-settings:sim960:pid'],
-                                     key_val_dict['device-settings:sim960:pid-d'])
+                self.set_pid_d_value(key_val_dict['device-settings:sim960:pid-d'])
             if 'device-settings:sim960:setpoint-mode' in keys:
                 self.set_setpoint_mode(key_val_dict['device-settings:sim960:setpoint-mode'])
             if 'device-settings:sim960:pid-control-vin-setpoint' in keys:
@@ -517,6 +537,32 @@ class SIM960Agent(object):
 
         for i in self.prev_sim_settings.keys():
             self.prev_sim_settings[i] = self.new_sim_settings[i]
+
+    def query_and_store_output_voltage(self):
+        try:
+            voltage = self.query("OMON?")
+            store_redis_ts_data(self.redis_ts, {OUTPUT_VOLTAGE_KEY: voltage})
+        except (IOError, RedisError) as e:
+            raise e
+
+    def run(self):
+        '''
+        Add ramp start
+        Add querying of values that are necessary to be stored on each loop
+        '''
+        while True:
+            try:
+                self.update_sim_settings()
+                store_status(self.redis, "OK")
+            except IOError as e:
+                getLogger(__name__).error(f"IOError occurred in run loop: {e}")
+                store_status(self.redis, f"Error: {e}")
+            except RedisError:
+                getLogger(__name__).error(f"Error with redis while running: {e}")
+                sys.exit(1)
+
+    def ramp(self):
+        pass
 
 
 def setup_redis(host='localhost', port=6379, db=0):
