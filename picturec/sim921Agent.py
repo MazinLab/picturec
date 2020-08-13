@@ -6,7 +6,11 @@ is monitoring the temperature of the thermometer on the MKID device stage in the
 responsible for properly conditioning its output signal so that the SIM960 (PID Controller) can properly regulate
 the device temperature.
 
+Move from prev/new_setting dictionary method to redis pub/sub
+Don't worry about not sending
+
 TODO: Make sure that when done in mainframe mode, the exit string is sent to the SIM921
+ - Add logging to measurement queries
 """
 
 import serial
@@ -618,7 +622,7 @@ class SIM921Agent(object):
                 store_status(self.redis, "OK")
             except IOError as e:
                 getLogger(__name__).error(f"IOError occurred in run loop: {e}")
-                store_status(self.redis, f"Error {e}")
+                store_status(self.redis, f"Error: {e}")
             except RedisError as e:
                 getLogger(__name__).error(f"Error with redis while running: {e}")
                 sys.exit(1)
