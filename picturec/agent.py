@@ -54,6 +54,7 @@ class SerialAgent:
             getLogger(__name__).info(f"Exception during disconnect: {e}")
 
     def send(self, msg: str, connect=True, terminator='\n'):
+    def send(self, msg: str, instrument_name: str, connect=True, terminator='\n'):
         """
         Send a message to the SIM921 in its desired format.
         The typical message is all caps, terminated with a newline character '\n'
