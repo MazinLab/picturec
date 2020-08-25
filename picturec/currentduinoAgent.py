@@ -9,7 +9,7 @@ for the currentduino to work.
 
 TODO: - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
  of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
- - Test the heat switch touch signals to have an open/closed monitor.
+ - Test the heat switch touch signals to have an open/closed monitor (in lab)
 """
 
 import serial
@@ -29,6 +29,7 @@ import picturec.agent as agent
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 LOOP_INTERVAL = .05
+VALID_FIRMWARES = ['0.0', '0.1', '0.2']  # TODO: Configuration file?
 
 KEYS = ['device-settings:currentduino:highcurrentboard',
         'device-settings:currentduino:heatswitch',
@@ -42,8 +43,11 @@ FIRMWARE_KEY = "status:device:currentduino:firmware"
 HEATSWITCH_STATUS_KEY = 'status:heatswitch'
 HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
 
-#TODO Any possibility these should be in redis defaults or some sort of namespace that indicates static configuration?
-# I don't know enough about how precicely these values are known and how stable they are
+# TODO Any possibility these should be in redis defaults or some sort of namespace that indicates static configuration?
+#  I don't know enough about how precicely these values are known and how stable they are
+#     Response - These could be defaults, this is a voltage divider made up of 2 resistors I have measured in lab. They
+#     could definitely go in a configuration file and are static. The only change would be in creating a new voltage
+#     divider or if one of the resistors happened to blow (in which case we'd need to build/buy a new one anyway).
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
@@ -116,6 +120,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)  #Note that ultimately this is going to need to change. As written I suspect
     # all log messages will appear from "__main__" instead of showing up from "picturec.currentduinoAgent.Currentduino"
+    # TODO: Logging for a package is something that's been on my to-do list for a while. Now is probably the time
 
     redis = PCRedis(host='localhost', port=6379, db=REDIS_DB, create_ts_keys=['status:highcurrentboard:current'])
     currentduino = Currentduino(port='/dev/currentduino', baudrate=115200, timeout=0.1)
