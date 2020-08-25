@@ -8,7 +8,16 @@ the device temperature.
 
 TODO: Make sure that when done in mainframe mode, the exit string is sent to the SIM921
 
-TODO describe the different mods of operation of this program and what they are. "Mainframe?!"
+TODO: describe the different mods of operation of this program and what they are. "Mainframe?!" -> Using the
+ SIM900 mainframe, this is really just for development and will NEVER get used in real operation
+
+TODO: For updating settings, we need to make sure that we're not in violation of the contract we're setting with redis.
+ Basically, the new_settings / old_settings should come directly from redis and we can/should not have a software record
+ of what those settings are, but rather get them from the instrument itself
+ (e.g. ask redis what the desired excitation is, then query the sim921 to see what the excitation is set to, then update
+ if they dont match (if changing it automatically would be a pain) or ask redis what the desired excitation is and then
+  just send the command. The choice between if we need to ask the sim921 what the value is set to basically boils down
+  to how much a pain in the butt it is if you change that setting.)
 
 TODO:
  Why not
@@ -298,7 +307,7 @@ class SIM921Agent(agent.SerialAgent):
 
         For example, to set the resistance range to 20 kOhm: setting='RANG', value='6'
 
-        TODO I'd axe this function, rolling it and set_sim_param into one
+        TODO I'd axe this function, rolling it and set_sim_param into one - yes
         """
         set_string = setting + " " + value
         try:
