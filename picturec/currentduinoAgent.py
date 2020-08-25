@@ -101,15 +101,25 @@ class Currentduino(agent.SerialAgent):
 
     @property
     def firmware(self):
-        """TODO return firmware"""
-        return 'TODO'
+        try:
+            getLogger(__name__).info(f"Querying currentduino firmware")
+            self.send("v", instrument_name=self.name, connect=True)
+            version_response = self.receive().split(" ")
+            if version_response[1] == "v":
+                getLogger(__name__).info(f"Query successful. Firmware version {version_response[1]}")
+            else:
+                getLogger(__name__).info(f"Query unsuccessful. Check error logs for response from arduino")
+            return version_response[0]
+        except Exception as e:
+            raise Exception
 
 
 def poll_current():
     while True:
         try:
             redis.store(('status:highcurrentboard:current', currentduino.current), timeseries=True)
-            redis.set('status:highcurrentboard:powered', "True")  #NB changed from ok to true
+            redis.store(('status:highcurrentboard:powered', "True"))  # NB changed from ok to true
+            # redis.redis.set('status:highcurrentboard:powered', "True") - Replaced with the line above
         except RedisError as e:
             log.critical(f"Redis error{e}")
             sys.exit(1)
@@ -150,7 +160,7 @@ if __name__ == "__main__":
                 redis.store((HEATSWITCH_STATUS_KEY, hs_pos))
             else:
                 log.info('Ignoring invalid requested HS position')
-                redis.store(HEATSWITCH_MOVE_KEY, '')  #TODO change to the current value, error?
+                redis.store(HEATSWITCH_MOVE_KEY, '')  #TODO change to the current value, error? -> Not sure what this means
         except RedisError as e:
             log.critical(f"Redis error{e}")
             sys.exit(1)
