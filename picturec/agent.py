@@ -65,7 +65,13 @@ class SerialAgent:
         """
         if connect:
             self.connect()
-        msg = msg.strip().upper() + terminator
+
+        # TODO: Make these lists something imported from a config file
+        if instrument_name.lower() in ('sim921', 'sim960', 'ls240'):
+            msg = msg.strip().upper() + terminator
+        elif instrument_name.lower() in ('hemtduino', 'currentduino'):
+            msg = msg.strip().lower()
+
         try:
             getLogger(__name__).debug(f"Sending '{msg}'")  # Not the '' allow clearly logging empty sends
             self.ser.write(msg.encode("utf-8"))
@@ -80,6 +86,7 @@ class SerialAgent:
         Receiving from the SIM921 consists of reading a line, as some queries may return longer strings than others,
         and each query has its own parsing needs (for example: '*IDN?' returns a string with model, serial number,
         firmware, and company, while 'TVAL?' or 'RVAL?' returns the measured temperature/resistance value at the time)
+        TODO: Confirm that the syntax for receiving is the same for all devices (it should be)
         """
         try:
             data = self.ser.readline().decode("utf-8").strip()
