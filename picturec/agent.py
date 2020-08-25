@@ -20,6 +20,8 @@ class SerialAgent:
         interface, and so disconnects will need to be checked differently from either side of the converter.
 
         #TODO What do you mean "only up to...so disconnects will ..."?
+             - Response -> The udev rules for the sim921/960 are for the usb-to-rs232 cable, not the sim921/960 itself,
+               so it checks the cable is plugged in on the USB end, not the rs232 end
         """
         if reconnect:
             self.disconnect()
@@ -53,7 +55,6 @@ class SerialAgent:
         except Exception as e:
             getLogger(__name__).info(f"Exception during disconnect: {e}")
 
-    def send(self, msg: str, connect=True, terminator='\n'):
     def send(self, msg: str, instrument_name: str, connect=True, terminator='\n'):
         """
         Send a message to the SIM921 in its desired format.
