@@ -39,7 +39,7 @@ import time
 from redis import Redis, RedisError
 from redistimeseries.client import Client
 import sys
-from picturec.agent import SerialAgent
+import picturec.agent as agent
 
 
 SETTING_KEYS = ['device-settings:sim921:resistance-range',
@@ -118,14 +118,14 @@ class SIM921Agent(agent.SerialAgent):
     def __init__(self, port, baudrate=9600, timeout=0.1,
                  scale_units='resistance', connect_mainframe=False, mainframe_args=(2, 'xyz')):
 
-        super().__init__super().__init__(port, baudrate, timeout, name='Sim921')
+        super().__init__(port, baudrate, timeout, name='sim921')
 
         self.scale_units = scale_units
 
         self.prev_sim_settings = {}
         self.new_sim_settings = {}
 
-        self.connect(raise_errors=False)  # Moveded after initialization of all instance members
+        self.connect(raise_errors=False)  # Moved after initialization of all instance members
 
         if connect_mainframe:
             self.mainframe_connect(*mainframe_args)
