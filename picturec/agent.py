@@ -2,6 +2,10 @@ from logging import getLogger
 import serial
 import time
 
+"""
+TODO: Add query function?
+"""
+
 class SerialAgent:
     def __init__(self, port, baudrate=9600, timeout=0.1, name=''):
         self.ser = None
