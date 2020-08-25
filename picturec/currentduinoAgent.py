@@ -68,7 +68,7 @@ class Currentduino(agent.SerialAgent):
     @property
     def current(self):
         try:
-            self.send('?', connect=True)
+            self.send('?', instrument_name=self.name, connect=True)
             response = self.receive()
 
             try:
@@ -89,7 +89,7 @@ class Currentduino(agent.SerialAgent):
         # NB it is mighty convenient that the serial command/confirmation and pos start with the same letter
         try:
             getLogger(__name__).info(f"Commanding heat switch  to {pos}")
-            self.send(pos[0])
+            self.send(pos[0], instrument_name=self.name)
             confirm = self.receive()
             if confirm == pos[0]:
                 getLogger(__name__).info(f"Command accepted")
