@@ -126,6 +126,44 @@ def poll_current():
             redis.store((STATUS_KEY, f"Error {e}"))
         time.sleep(QUERY_INTERVAL)
 
+
+def redis_listen(keys_to_register):
+    ps = redis.redis.pubsub()
+    [ps.subscribe(key) for key in keys_to_register]
+    while True:
+        try:
+            msg = ps.get_message()
+            if msg:
+                log.info(f"Redis client received a message {msg}")
+                handle_redis_message(msg)
+            else:
+                pass
+        except RedisError as e:
+            log.critical(f"Redis error{e}")
+            sys.exit(1)
+        except IOError as e:
+            log.error(f"Error {e}")
+            redis.store((STATUS_KEY, f"Error {e}"))
+        except Exception as e:
+            log.warning(f" Exception in PubSub operation has occurred: {e}")
+            ps = None
+            time.sleep(.1)
+            ps = redis.redis.pubsub()
+            [ps.subscribe(key) for key in keys_to_register]
+        time.sleep(LOOP_INTERVAL)
+
+
+def handle_redis_message(message):
+    if message['type'] == 'subscribe':
+        if message['channel'].decode() == HEATSWITCH_MOVE_KEY:
+            try:
+                currentduino.move_heat_switch(message['data'].decode().lower())
+                redis.store({HEATSWITCH_STATUS_KEY: message['data'].decode().lower()})
+            except RedisError as e:
+                raise e
+            except IOError as e:
+                raise e
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)  #Note that ultimately this is going to need to change. As written I suspect
