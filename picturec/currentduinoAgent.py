@@ -187,31 +187,35 @@ if __name__ == "__main__":
     pollthread.daemon = True
     pollthread.start()
 
-    while True:
+    heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=HEATSWITCH_STATUS_KEY)
+    heatswitchthread.daemon = True
+    heatswitchthread.start()
 
-        try:
-            switch_pos = redis.read(HEATSWITCH_MOVE_KEY, return_dict=False)
-            if switch_pos in ('open', 'close'):
-                hs_pos = currentduino.move_heat_switch(switch_pos)
-                redis.store((HEATSWITCH_STATUS_KEY, hs_pos))
-            else:
-                log.info('Ignoring invalid requested HS position')
-                redis.store(HEATSWITCH_MOVE_KEY, '')  #TODO change to the current value, error? -> Not sure what this means
-        except RedisError as e:
-            log.critical(f"Redis error{e}")
-            sys.exit(1)
-        except IOError as e:
-            log.error(f"Error {e}")
-
-            # TODO Note that as implemented this is similar to a race condition. The polling thread can have a
-            #  error and report it in the status key. Which then gets overwritten here milliseconds later.
-            #  One fix around this is for the redis class (or probably more appropriately) an eventual Agent program
-            #  class to have an update_status method whihc first reads the redis status and only updates the part that
-            #  is changing. In essence this program here doesn't have a single status, it has at least 3 bits: current
-            #  polling, hs operation, and general program function. Access to all of those parts has to be passed
-            #  through an inflection point so that the update to the status from the hs doesn't need to know about the
-            #  current and vice versa.
-
-            redis.store((STATUS_KEY, f"Error {e}"))
-
-        time.sleep(LOOP_INTERVAL)
+    # while True:
+    #
+    #     try:
+    #         switch_pos = redis.read(HEATSWITCH_MOVE_KEY, return_dict=False)
+    #         if switch_pos in ('open', 'close'):
+    #             hs_pos = currentduino.move_heat_switch(switch_pos)
+    #             redis.store((HEATSWITCH_STATUS_KEY, hs_pos))
+    #         else:
+    #             log.info('Ignoring invalid requested HS position')
+    #             redis.store(HEATSWITCH_MOVE_KEY, '')  #TODO change to the current value, error? -> Not sure what this means
+    #     except RedisError as e:
+    #         log.critical(f"Redis error{e}")
+    #         sys.exit(1)
+    #     except IOError as e:
+    #         log.error(f"Error {e}")
+    #
+    #         # TODO Note that as implemented this is similar to a race condition. The polling thread can have a
+    #         #  error and report it in the status key. Which then gets overwritten here milliseconds later.
+    #         #  One fix around this is for the redis class (or probably more appropriately) an eventual Agent program
+    #         #  class to have an update_status method whihc first reads the redis status and only updates the part that
+    #         #  is changing. In essence this program here doesn't have a single status, it has at least 3 bits: current
+    #         #  polling, hs operation, and general program function. Access to all of those parts has to be passed
+    #         #  through an inflection point so that the update to the status from the hs doesn't need to know about the
+    #         #  current and vice versa.
+    #
+    #         redis.store((STATUS_KEY, f"Error {e}"))
+    #
+    #     time.sleep(LOOP_INTERVAL)
