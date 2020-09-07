@@ -174,7 +174,7 @@ if __name__ == "__main__":
     currentduino = Currentduino(port='/dev/currentduino', baudrate=115200, timeout=0.1)
 
     try:
-        firmware=currentduino.firmware
+        firmware = currentduino.firmware
         if firmware not in VALID_FIRMWARES:
             raise IOError(f"Unsupported firmware '{firmware}'. Supported FW: {VALID_FIRMWARES}")
         redis.store((FIRMWARE_KEY, firmware))
