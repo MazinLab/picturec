@@ -57,8 +57,6 @@ log = logging.getLogger(__name__)
 class Currentduino(agent.SerialAgent):
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
 
-        # super().__init__super().__init__(port, baudrate, timeout, name='Currentduino')
-        # TODO: Question - super.__init__super().__init() vs super.__init__() ?
         super().__init__(port, baudrate, timeout, name='currentduino')
         if connect:
             self.connect(raise_errors=False)
