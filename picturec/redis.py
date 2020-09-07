@@ -55,6 +55,10 @@ class PCRedis(object):
         """"""
         pass
 
+    def publish(self, *keys):
+        """"""
+        pass
+
     def read(self, keys, return_dict=True):
         """
         Given a iterable of keys read them from redis. Returns a dict of k,v pairs unless return_dict is false,
