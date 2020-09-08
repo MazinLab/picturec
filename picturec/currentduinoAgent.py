@@ -23,7 +23,7 @@ from redis import RedisError
 # from redis import Redis
 # from redistimeseries.client import Client
 import threading
-from picturec.redis import PCRedis
+from picturec.pc_redis import PCRedis
 import picturec.agent as agent
 
 REDIS_DB = 0
