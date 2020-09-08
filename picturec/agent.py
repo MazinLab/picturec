@@ -7,12 +7,12 @@ TODO: Add query function?
 """
 
 class SerialAgent:
-    def __init__(self, port, baudrate=9600, timeout=0.1, name=''):
+    def __init__(self, port, baudrate=9600, timeout=0.1, name=None):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
-        self.name = name if self.name else self.port
+        self.name = name if name else self.port
 
     def connect(self, reconnect=False, raise_errors=True, post_connect_sleep=0.2):
         """
