@@ -20,8 +20,8 @@ import logging
 from logging import getLogger
 from datetime import datetime
 from redis import RedisError
-from redis import Redis
-from redistimeseries.client import Client
+# from redis import Redis
+# from redistimeseries.client import Client
 import threading
 from picturec.redis import PCRedis
 import picturec.agent as agent
@@ -163,6 +163,7 @@ def handle_redis_message(message):
                 raise e
             except IOError as e:
                 raise e
+
 
 if __name__ == "__main__":
 
