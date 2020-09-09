@@ -116,14 +116,14 @@ class Currentduino(agent.SerialAgent):
 def poll_current():
     while True:
         try:
-            redis.store(('status:highcurrentboard:current', currentduino.current), timeseries=True)
-            redis.store(('status:highcurrentboard:powered', "True"))  # NB changed from ok to true
+            redis.store({'status:highcurrentboard:current': currentduino.current}, timeseries=True)
+            redis.store({'status:highcurrentboard:powered': "True"})  # NB changed from ok to true
         except RedisError as e:
             log.critical(f"Redis error{e}")
             sys.exit(1)
         except IOError as e:
             log.error(f"Error {e}")
-            redis.store((STATUS_KEY, f"Error {e}"))
+            redis.store({STATUS_KEY: f"Error {e}"})
         time.sleep(QUERY_INTERVAL)
 
 
@@ -143,7 +143,7 @@ def redis_listen(keys_to_register):
             sys.exit(1)
         except IOError as e:
             log.error(f"Error {e}")
-            redis.store((STATUS_KEY, f"Error {e}"))
+            redis.store({STATUS_KEY: f"Error {e}"})
         except Exception as e:
             log.warning(f" Exception in PubSub operation has occurred: {e}")
             ps = None
@@ -179,15 +179,15 @@ if __name__ == "__main__":
             firmware = currentduino.firmware
             if firmware not in VALID_FIRMWARES:
                 raise IOError(f"Unsupported firmware '{firmware}'. Supported FW: {VALID_FIRMWARES}")
-            redis.store((FIRMWARE_KEY, firmware))
+            redis.store({FIRMWARE_KEY: firmware})
             break
         except IOError:
-            redis.store((FIRMWARE_KEY, ''))
-            redis.store((STATUS_KEY, 'FAILURE to poll firmware'))
+            redis.store({FIRMWARE_KEY: ''})
+            redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
             sys.exit(1)
         except IndexError:
-            redis.store((FIRMWARE_KEY, ''))
-            redis.store((STATUS_KEY, 'FAILURE to poll firmware'))
+            redis.store({FIRMWARE_KEY: ''})
+            redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
             log.warning('FAILURE to poll firmware, trying again...')
             time.sleep(0.5)
 
