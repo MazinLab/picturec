@@ -39,6 +39,9 @@ class PCRedis(object):
     def store(self, data, timeseries=False):
         """ Given a dictionary or iterable of key value pairs store them into redis. Store into timeseries if
         timeseries is set
+        If only given 1 key:value pair, must be a dictionary.
+        If given multiple key:value pairs, it should be a dictionary {'key1':'val1', 'key2':'val2', ...} but can also
+        be a list of lists (('key1','val1'),('key2',val2')). Using a non-dictionary is not preferred
         """
         generator = data.items() if isinstance(data, dict) else iter(data)
         if timeseries:
