@@ -86,13 +86,13 @@ class Currentduino(agent.SerialAgent):
 
         # NB it is mighty convenient that the serial command/confirmation and pos start with the same letter
         try:
-            getLogger(__name__).info(f"Commanding heat switch  to {pos}")
+            log.info(f"Commanding heat switch  to {pos}")
             self.send(pos[0], instrument_name=self.name)
             confirm = self.receive()
             if confirm == pos[0]:
-                getLogger(__name__).info(f"Command accepted")
+                log.info(f"Command accepted")
             else:
-                getLogger(__name__).info(f"Command failed: '{confirm}'")
+                log.info(f"Command failed: '{confirm}'")
             return pos if confirm == pos[0] else 'unknown'
         except Exception as e:
             raise IOError(e)
@@ -100,15 +100,16 @@ class Currentduino(agent.SerialAgent):
     @property
     def firmware(self):
         try:
-            getLogger(__name__).info(f"Querying currentduino firmware")
+            log.info(f"Querying currentduino firmware")
             self.send("v", instrument_name=self.name, connect=True)
             version_response = self.receive().split(" ")
             if version_response[1] == "v":
-                getLogger(__name__).info(f"Query successful. Firmware version {version_response[1]}")
+                log.info(f"Query successful. Firmware version {version_response[0]}")
             else:
-                getLogger(__name__).info(f"Query unsuccessful. Check error logs for response from arduino")
-            return version_response[0]
+                log.info(f"Query unsuccessful. Check error logs for response from arduino")
+            return float(version_response[0])
         except Exception as e:
+            log.info(f"Query unsuccessful. Check error logs: {e}")
             raise Exception
 
 
