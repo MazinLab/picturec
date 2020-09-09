@@ -157,6 +157,7 @@ def redis_listen(keys_to_register: list):
             time.sleep(.1)
             ps = redis.redis.pubsub()
             [ps.subscribe(key) for key in keys_to_register]
+            log.debug(f"Resubscribed to {ps.channels}")
         time.sleep(LOOP_INTERVAL)
 
 
