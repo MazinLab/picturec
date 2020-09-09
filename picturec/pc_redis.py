@@ -11,6 +11,7 @@ from redis import Redis as _Redis
 from redis import RedisError
 from redistimeseries.client import Client as _Client
 import logging
+import time
 
 class PCRedis(object):
     def __init__(self, host='localhost', port=6379, db=0, timeseries=True, create_ts_keys=tuple()):
