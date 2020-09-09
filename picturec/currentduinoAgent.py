@@ -131,7 +131,10 @@ def poll_current():
 def redis_listen(keys_to_register):
     log.info(f"Subscribing redis to {keys_to_register}")
     ps = redis.redis.pubsub()
-    [ps.subscribe(key) for key in keys_to_register]
+    if len(keys_to_register) == 1:
+        ps.subscribe(keys_to_register)
+    else:
+        [ps.subscribe(key) for key in keys_to_register]
 
     while True:
         try:
