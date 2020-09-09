@@ -187,7 +187,8 @@ if __name__ == "__main__":
             sys.exit(1)
         except IndexError:
             redis.store((FIRMWARE_KEY, ''))
-            redis.store((STATUS_KEY, 'FAILURE to poll firmware, trying again...'))
+            redis.store((STATUS_KEY, 'FAILURE to poll firmware'))
+            log.warning('FAILURE to poll firmware, trying again...')
             time.sleep(0.5)
 
     pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
