@@ -106,10 +106,10 @@ class Currentduino(agent.SerialAgent):
             if version_response[1] == "v":
                 log.info(f"Query successful. Firmware version {version_response[0]}")
             else:
-                log.info(f"Query unsuccessful. Check error logs for response from arduino")
+                log.warning(f"Query unsuccessful. Check error logs for response from arduino")
             return float(version_response[0])
         except (IOError, IndentationError) as e:
-            log.info(f"Query unsuccessful. Check error logs: {e}")
+            log.warning(f"Query unsuccessful. Check error logs: {e}")
             raise e
 
 
@@ -190,6 +190,8 @@ if __name__ == "__main__":
             redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
             log.warning('FAILURE to poll firmware, trying again...')
             time.sleep(0.5)
+
+    print('start monitoring')
 
     pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
     pollthread.daemon = True
