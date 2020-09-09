@@ -29,7 +29,7 @@ import picturec.agent as agent
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 LOOP_INTERVAL = .05
-VALID_FIRMWARES = ['0.0', '0.1', '0.2']  # TODO: Configuration file?
+VALID_FIRMWARES = [0.0, 0.1, 0.2]  # TODO: Configuration file?
 
 KEYS = ['device-settings:currentduino:highcurrentboard',
         'device-settings:currentduino:heatswitch',
