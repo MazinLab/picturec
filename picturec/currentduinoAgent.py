@@ -135,7 +135,7 @@ def redis_listen(keys_to_register: list):
         ps.subscribe(keys_to_register)
     else:
         [ps.subscribe(key) for key in keys_to_register]
-    log.debug(f"Channels are {ps.channels.decode()}")
+    log.debug(f"Channels are {ps.channels}")
 
     while True:
         try:
