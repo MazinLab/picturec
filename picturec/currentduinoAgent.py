@@ -197,9 +197,13 @@ if __name__ == "__main__":
     pollthread.daemon = True
     pollthread.start()
 
+    print('start listening')
+
     heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=HEATSWITCH_STATUS_KEY)
     heatswitchthread.daemon = True
     heatswitchthread.start()
+
+    print('here now')
 
     # while True:
     #
