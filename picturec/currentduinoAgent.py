@@ -129,7 +129,7 @@ def poll_current():
 
 
 def redis_listen(keys_to_register):
-    log.info(f"Subscribing redis to {HEATSWITCH_MOVE_KEY}")
+    log.info(f"Subscribing redis to {keys_to_register}")
     ps = redis.redis.pubsub()
     [ps.subscribe(key) for key in keys_to_register]
 
