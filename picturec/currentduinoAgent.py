@@ -134,7 +134,6 @@ def redis_listen(keys_to_register):
     [ps.subscribe(key) for key in keys_to_register]
 
     while True:
-        log.debug(' ')
         try:
             msg = ps.get_message()
             if msg:
