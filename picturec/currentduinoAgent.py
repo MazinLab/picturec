@@ -109,7 +109,7 @@ class Currentduino(agent.SerialAgent):
             else:
                 log.warning(f"Query unsuccessful. Check error logs for response from arduino")
             return float(version_response[0])
-        except (IOError, IndentationError) as e:
+        except (IOError, IndexError) as e:
             log.warning(f"Query unsuccessful. Check error logs: {e}")
             raise e
 
@@ -135,6 +135,7 @@ def redis_listen(keys_to_register: list):
         ps.subscribe(keys_to_register)
     else:
         [ps.subscribe(key) for key in keys_to_register]
+    log.debug(f"Channels are {ps.channels.decode()}")
 
     while True:
         try:
