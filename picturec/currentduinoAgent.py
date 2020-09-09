@@ -198,10 +198,13 @@ if __name__ == "__main__":
     pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
     pollthread.daemon = True
     pollthread.start()
+    pollthread.join()
 
+    print('this thread!')
     heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=HEATSWITCH_STATUS_KEY)
     heatswitchthread.daemon = True
     heatswitchthread.start()
+    heatswitchthread.join()
 
     loop = asyncio.get_event_loop()
     try:
