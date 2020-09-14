@@ -142,9 +142,10 @@ def redis_listen(keys_to_register: list):
     while True:
         try:
             msg = ps.get_message()
-            if msg:
+            if msg and msg['type'] == 'message':
                 log.info(f"Redis client received a message {msg}")
-                handle_redis_message(msg)
+            elif msg['type'] == 'subscribe':
+                log.debug(f"Redis subscribed to {msg['channel']}")
             else:
                 pass
         except RedisError as e:
@@ -164,15 +165,14 @@ def redis_listen(keys_to_register: list):
 
 
 def handle_redis_message(message):
-    if message['type'] == 'message':
-        if message['channel'].decode() == HEATSWITCH_MOVE_KEY:
-            try:
-                currentduino.move_heat_switch(message['data'].decode().lower())
-                redis.store({HEATSWITCH_STATUS_KEY: message['data'].decode().lower()})
-            except RedisError as e:
-                raise e
-            except IOError as e:
-                raise e
+    if message['channel'].decode() == HEATSWITCH_MOVE_KEY:
+        try:
+            currentduino.move_heat_switch(message['data'].decode().lower())
+            redis.store({HEATSWITCH_STATUS_KEY: message['data'].decode().lower()})
+        except RedisError as e:
+            raise e
+        except IOError as e:
+            raise e
 
 
 if __name__ == "__main__":
