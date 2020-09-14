@@ -130,10 +130,9 @@ def poll_current():
         time.sleep(QUERY_INTERVAL)
 
 
-def redis_listen(keys_to_register: list, redis_obj):
-    pc_redis = redis_obj
+def redis_listen(keys_to_register: list):
     log.info(f"Subscribing redis to {keys_to_register}")
-    ps = pc_redis.redis.pubsub()
+    ps = redis.redis.pubsub()
     if len(keys_to_register) == 1:
         ps.subscribe(keys_to_register)
     else:
@@ -202,11 +201,11 @@ if __name__ == "__main__":
             log.warning('FAILURE to poll firmware, trying again...')
             time.sleep(0.5)
 
-    pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
-    pollthread.daemon = True
-    pollthread.start()
+    # pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
+    # pollthread.daemon = True
+    # pollthread.start()
 
-    heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=([HEATSWITCH_STATUS_KEY], redis))
+    heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=([HEATSWITCH_MOVE_KEY], ))
     heatswitchthread.daemon = True
     heatswitchthread.start()
 
