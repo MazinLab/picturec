@@ -165,7 +165,7 @@ def redis_listen(keys_to_register: list, redis_obj):
 
 
 def handle_redis_message(message):
-    if message['type'] == 'subscribe':
+    if message['type'] == 'message':
         if message['channel'].decode() == HEATSWITCH_MOVE_KEY:
             try:
                 currentduino.move_heat_switch(message['data'].decode().lower())
@@ -206,7 +206,7 @@ if __name__ == "__main__":
     pollthread.daemon = True
     pollthread.start()
 
-    heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=([HEATSWITCH_STATUS_KEY],))
+    heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=([HEATSWITCH_STATUS_KEY], redis))
     heatswitchthread.daemon = True
     heatswitchthread.start()
 
