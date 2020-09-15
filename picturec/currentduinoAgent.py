@@ -130,41 +130,6 @@ def poll_current():
         time.sleep(QUERY_INTERVAL)
 
 
-def redis_listen(keys_to_register: list, handler):
-    log.info(f"Subscribing redis to {keys_to_register}")
-    ps = redis.redis.pubsub()
-    if len(keys_to_register) == 1:
-        ps.subscribe(keys_to_register)
-    else:
-        [ps.subscribe(key) for key in keys_to_register]
-    log.debug(f"Channels are {ps.channels}")
-
-    while True:
-        try:
-            msg = ps.get_message()
-            if msg and msg['type'] == 'message':
-                log.info(f"Redis client received a message {msg}")
-                handler(msg)
-            elif msg['type'] == 'subscribe':
-                log.debug(f"Redis subscribed to {msg['channel']}")
-            else:
-                pass
-        except RedisError as e:
-            log.critical(f"Redis error{e}")
-            sys.exit(1)
-        except IOError as e:
-            log.error(f"Error {e}")
-            redis.store({STATUS_KEY: f"Error {e}"})
-        except Exception as e:
-            log.warning(f" Exception in PubSub operation has occurred: {e}")
-            ps = None
-            time.sleep(.1)
-            ps = redis.redis.pubsub()
-            [ps.subscribe(key) for key in keys_to_register]
-            log.debug(f"Resubscribed to {ps.channels}")
-        time.sleep(LOOP_INTERVAL)
-
-
 def handle_redis_message(message):
     if message['channel'].decode() == HEATSWITCH_MOVE_KEY:
         try:

@@ -12,6 +12,7 @@ from redis import RedisError
 from redistimeseries.client import Client as _Client
 import logging
 import time
+import sys
 
 class PCRedis(object):
     def __init__(self, host='localhost', port=6379, db=0, timeseries=True, create_ts_keys=tuple()):
@@ -72,3 +73,45 @@ class PCRedis(object):
         """
         vals = [self.redis.get(k).decode("utf-8") for k in keys]
         return vals if not return_dict else {k: v for k, v in zip(keys, vals)}
+
+    def pubsub_listen(self, keys: list, message_handler, status_key=None, loop_interval=0.01):
+        logging.getLogger(__name__).info(f"Subscribing redis to {keys}")
+        ps = self.redis.pubsub()
+        if len(keys) == 1:
+            ps.subscribe(keys)
+        else:
+            [ps.subscribe(key) for key in keys]
+        logging.getLogger(__name__).info(f"Channels are {ps.channels}")
+
+        while True:
+            try:
+                msg = ps.get_message()
+                if msg and msg['type'] == 'message':
+                    logging.getLogger(__name__).info(f"Redis pubsub client received a message: {msg}")
+                    message_handler(msg)
+                elif msg['type'] == 'subscribe':
+                    logging.getLogger(__name__).debug(f"Redis subscribed to {msg['channel']}")
+                else:
+                    pass
+            except RedisError as e:
+                logging.getLogger(__name__).critical(f"Redis error {e}")
+                sys.exit(1)
+            except IOError as e:
+                logging.getLogger(__name__).error(f"Error{e}")
+                if status_key:
+                    self.store({status_key: f"Error{e}"})
+            except Exception as e:
+                logging.getLogger(__name__).warning(f"Exception in pubsub operation has occurred: {e}")
+                ps = None
+                time.sleep(.1)
+                ps = self.redis.pubsub()
+                [ps.subscribe(key) for key in keys]
+                logging.getLogger(__name__).debug(f"Resubscribed to {ps.channels}")
+            time.sleep(loop_interval)
+
+    def handler(self, message):
+        """
+        Default pubsub message handler. Just prints the message received by the redis pubsub object. Will be overwritten
+        in each of the agents, so that command messages can be handled however they need to be.
+        """
+        print(f"Default message handler: {message}")
