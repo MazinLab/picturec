@@ -130,7 +130,7 @@ def poll_current():
         time.sleep(QUERY_INTERVAL)
 
 
-def redis_listen(keys_to_register: list):
+def redis_listen(keys_to_register: list, handler):
     log.info(f"Subscribing redis to {keys_to_register}")
     ps = redis.redis.pubsub()
     if len(keys_to_register) == 1:
@@ -144,6 +144,7 @@ def redis_listen(keys_to_register: list):
             msg = ps.get_message()
             if msg and msg['type'] == 'message':
                 log.info(f"Redis client received a message {msg}")
+                handler(msg)
             elif msg['type'] == 'subscribe':
                 log.debug(f"Redis subscribed to {msg['channel']}")
             else:
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     pollthread.daemon = True
     pollthread.start()
 
-    heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=([HEATSWITCH_STATUS_KEY],))
+    heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=([HEATSWITCH_STATUS_KEY], handle_redis_message()))
     heatswitchthread.daemon = True
     heatswitchthread.start()
 
