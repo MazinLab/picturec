@@ -5,6 +5,7 @@ A wrapper class to make using redis with PICTURE-C easier.
 
 TODO: Add getting/setting function for key:value pairs
  Add function to create keys (and their rules if necessary) in redistimeseries
+ Figure out why programs will import PCRedis  but not all of its member functions
 """
 
 from redis import Redis as _Redis
@@ -13,6 +14,7 @@ from redistimeseries.client import Client as _Client
 import logging
 import time
 import sys
+
 
 class PCRedis(object):
     def __init__(self, host='localhost', port=6379, db=0, timeseries=True, create_ts_keys=tuple()):
@@ -94,12 +96,12 @@ class PCRedis(object):
                 else:
                     pass
             except RedisError as e:
-                logging.getLogger(__name__).critical(f"Redis error {e}")
+                logging.getLogger(__name__).critical(f"Redis error: {e}")
                 sys.exit(1)
             except IOError as e:
-                logging.getLogger(__name__).error(f"Error{e}")
+                logging.getLogger(__name__).error(f"Error: {e}")
                 if status_key:
-                    self.store({status_key: f"Error{e}"})
+                    self.store({status_key: f"Error: {e}"})
             except Exception as e:
                 logging.getLogger(__name__).warning(f"Exception in pubsub operation has occurred: {e}")
                 ps = None
