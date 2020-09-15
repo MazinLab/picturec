@@ -8,4 +8,4 @@ WantedBy=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/home/kids/anaconda3/bin/python /home/kids/Documents/repositories/picturec/picturec/currentduinoAgent.py
+ExecStart=/home/kids/anaconda3/bin/python /picturec/picturec/currentduinoAgent.py
