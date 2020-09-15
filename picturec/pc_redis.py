@@ -76,25 +76,26 @@ class PCRedis(object):
         vals = [self.redis.get(k).decode("utf-8") for k in keys]
         return vals if not return_dict else {k: v for k, v in zip(keys, vals)}
 
-    def pubsub_listen(self, keys: list, message_handler, status_key=None, loop_interval=0.01):
+    def pubsub_listen(self, ps_keys: list, message_handler, status_key=None, loop_interval=0.01):
         logging.getLogger(__name__).info(f"Subscribing redis to {keys}")
         ps = self.redis.pubsub()
-        if len(keys) == 1:
-            ps.subscribe(keys)
+        if len(ps_keys) == 1:
+            ps.subscribe(ps_keys)
         else:
-            [ps.subscribe(key) for key in keys]
+            [ps.subscribe(key) for key in ps_keys]
         logging.getLogger(__name__).info(f"Channels are {ps.channels}")
 
         while True:
             try:
                 msg = ps.get_message()
-                if msg and msg['type'] == 'message':
-                    logging.getLogger(__name__).info(f"Redis pubsub client received a message: {msg}")
-                    message_handler(msg)
-                elif msg['type'] == 'subscribe':
-                    logging.getLogger(__name__).debug(f"Redis subscribed to {msg['channel']}")
-                else:
-                    pass
+                if msg:
+                    if msg['type'] == 'message':
+                        logging.getLogger(__name__).info(f"Redis pubsub client received a message: {msg}")
+                        message_handler(msg)
+                    elif msg['type'] == 'subscribe':
+                        logging.getLogger(__name__).debug(f"Redis subscribed to {msg['channel']}")
+                    else:
+                        logging.getLogger(__name__).debug(f"Redis received a message of unknown type: {msg}")
             except RedisError as e:
                 logging.getLogger(__name__).critical(f"Redis error: {e}")
                 sys.exit(1)
@@ -107,7 +108,7 @@ class PCRedis(object):
                 ps = None
                 time.sleep(.1)
                 ps = self.redis.pubsub()
-                [ps.subscribe(key) for key in keys]
+                [ps.subscribe(key) for key in ps_keys]
                 logging.getLogger(__name__).debug(f"Resubscribed to {ps.channels}")
             time.sleep(loop_interval)
 
