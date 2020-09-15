@@ -171,7 +171,8 @@ if __name__ == "__main__":
     pollthread.daemon = True
     pollthread.start()
 
-    heatswitchthread = threading.Thread(target=redis_listen, name='Command Monitoring Thread', args=([HEATSWITCH_STATUS_KEY], handle_redis_message()))
+    heatswitchthread = threading.Thread(target=redis.pubsub_listen, name='Command Monitoring Thread',
+                                        args=([HEATSWITCH_STATUS_KEY], handle_redis_message, STATUS_KEY, LOOP_INTERVAL))
     heatswitchthread.daemon = True
     heatswitchthread.start()
 
