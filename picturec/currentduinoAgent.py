@@ -167,9 +167,9 @@ if __name__ == "__main__":
             log.warning('FAILURE to poll firmware, trying again...')
             time.sleep(0.5)
 
-    pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
-    pollthread.daemon = True
-    pollthread.start()
+    # pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
+    # pollthread.daemon = True
+    # pollthread.start()
 
     heatswitchthread = threading.Thread(target=redis.pubsub_listen, name='Command Monitoring Thread',
                                         args=([HEATSWITCH_STATUS_KEY], handle_redis_message, STATUS_KEY, LOOP_INTERVAL))
