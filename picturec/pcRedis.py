@@ -77,7 +77,7 @@ class PCRedis(object):
         return vals if not return_dict else {k: v for k, v in zip(keys, vals)}
 
     def pubsub_listen(self, ps_keys: list, message_handler, status_key=None, loop_interval=0.01):
-        logging.getLogger(__name__).info(f"Subscribing redis to {keys}")
+        logging.getLogger(__name__).info(f"Subscribing redis to {ps_keys}")
         ps = self.redis.pubsub()
         if len(ps_keys) == 1:
             ps.subscribe(ps_keys)
