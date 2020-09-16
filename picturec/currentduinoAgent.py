@@ -25,7 +25,7 @@ from redis import RedisError
 # from redis import Redis
 # from redistimeseries.client import Client
 import threading
-from picturec.pc_redis import PCRedis
+from picturec.pcRedis import PCRedis
 import picturec.agent as agent
 import asyncio
 
