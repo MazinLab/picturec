@@ -9,3 +9,5 @@ WantedBy=multi-user.target
 [Service]
 Type=simple
 ExecStart=/home/kids/anaconda3/bin/python /picturec/picturec/currentduinoAgent.py
+
+# Use usr/bin/env/ python to get the right environment
