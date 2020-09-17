@@ -3,9 +3,8 @@ Author: Noah Swimmer 29 June 2020
 
 A wrapper class to make using redis with PICTURE-C easier.
 
-TODO: Add getting/setting function for key:value pairs
- Add function to create keys (and their rules if necessary) in redistimeseries
- Figure out why programs will import PCRedis  but not all of its member functions
+TODO: - Add function to create keys (and their rules if necessary) in redistimeseries
+ - Figure out how to handle redis connection errors
 """
 
 from redis import Redis as _Redis
@@ -79,10 +78,7 @@ class PCRedis(object):
     def pubsub_listen(self, ps_keys: list, message_handler, status_key=None, loop_interval=0.01):
         logging.getLogger(__name__).info(f"Subscribing redis to {ps_keys}")
         ps = self.redis.pubsub()
-        if len(ps_keys) == 1:
-            ps.subscribe(ps_keys)
-        else:
-            [ps.subscribe(key) for key in ps_keys]
+        [ps.subscribe(key) for key in ps_keys]
         logging.getLogger(__name__).info(f"Channels are {ps.channels}")
 
         while True:
@@ -96,16 +92,16 @@ class PCRedis(object):
                         logging.getLogger(__name__).debug(f"Redis subscribed to {msg['channel']}")
                     else:
                         logging.getLogger(__name__).debug(f"Redis received a message of unknown type: {msg}")
-            except ConnectionError as e:
+            except (RedisError, ConnectionError) as e:  # TODO: There's not a lot of documentation on why this occurs,
+                # but sometimes redis just kicks you out. so figure out how to either disable timeouts or reconnect well
                 logging.getLogger(__name__).warning(f"Exception in pubsub operation has occurred: {e}")
                 ps = None
                 time.sleep(.1)
                 ps = self.redis.pubsub()
                 [ps.subscribe(key) for key in ps_keys]
                 logging.getLogger(__name__).debug(f"Resubscribed to {ps.channels}")
-            except RedisError as e:
-                logging.getLogger(__name__).critical(f"Redis error: {e}")
-                sys.exit(1)
+                # logging.getLogger(__name__).critical(f"Redis error: {e}")
+                # sys.exit(1)
             except IOError as e:
                 logging.getLogger(__name__).error(f"Error: {e}")
                 if status_key:
