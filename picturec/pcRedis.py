@@ -96,6 +96,13 @@ class PCRedis(object):
                         logging.getLogger(__name__).debug(f"Redis subscribed to {msg['channel']}")
                     else:
                         logging.getLogger(__name__).debug(f"Redis received a message of unknown type: {msg}")
+            except ConnectionError as e:
+                logging.getLogger(__name__).warning(f"Exception in pubsub operation has occurred: {e}")
+                ps = None
+                time.sleep(.1)
+                ps = self.redis.pubsub()
+                [ps.subscribe(key) for key in ps_keys]
+                logging.getLogger(__name__).debug(f"Resubscribed to {ps.channels}")
             except RedisError as e:
                 logging.getLogger(__name__).critical(f"Redis error: {e}")
                 sys.exit(1)
@@ -103,13 +110,6 @@ class PCRedis(object):
                 logging.getLogger(__name__).error(f"Error: {e}")
                 if status_key:
                     self.store({status_key: f"Error: {e}"})
-            except Exception as e:
-                logging.getLogger(__name__).warning(f"Exception in pubsub operation has occurred: {e}")
-                ps = None
-                time.sleep(.1)
-                ps = self.redis.pubsub()
-                [ps.subscribe(key) for key in ps_keys]
-                logging.getLogger(__name__).debug(f"Resubscribed to {ps.channels}")
             time.sleep(loop_interval)
 
     def handler(self, message):
