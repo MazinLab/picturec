@@ -17,7 +17,7 @@ pip install redistimeseries
 
 # TODO: Decide where the picturec repository will live and what user will be running the programs (probably kids)
 #  this will be important because it tells us what commands we will need to run as(/not as) sudo and what ownership the
-#  repo needs
+#  repo needs (chown -R kids /picturec or something like that)
 
 # Install the picturec repository
 cd /
