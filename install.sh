@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# Before anything: (1) make sure anaconda is installed and (2) an environment is created
+# TODO: Before anything: (1) make sure anaconda is installed and (2) an environment is created
 
 # Install dependencies and get computer ready for use
 sudo apt update
 sudo apt full-upgrade
-# Consider installing python/anaconda?
+# TODO: Consider installing python/anaconda? Should we assume it's already installed?
 conda install python  # Decide if there's a specific version we want to use (or need to use). Also figure out what is just there from the .yml file
 conda install ipython
 conda install redis
