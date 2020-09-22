@@ -18,8 +18,8 @@ import sys
 
 class PCRedis(object):
     def __init__(self, host='localhost', port=6379, db=0, timeseries=True, create_ts_keys=tuple()):
-        self.redis = _Redis(host, port, db)
-        self.redis_ts = _Client(host, port, db) if timeseries else None
+        self.redis = _Redis(host, port, db, socket_keepalive=True)
+        self.redis_ts = _Client(host, port, db, socket_keepalive=True) if timeseries else None
         self.create_keys(create_ts_keys, timeseries=True)
 
     def create_keys(self, keys, timeseries=True):
