@@ -4,7 +4,8 @@ Author: Noah Swimmer 29 June 2020
 A wrapper class to make using redis with PICTURE-C easier.
 
 TODO: - Add function to create keys (and their rules if necessary) in redistimeseries
- - Figure out how to handle redis connection errors
+ - Figure out how to handle redis connection errors (specifically 'server closed connection')
+ - Consider making pubsub object a PCRedis class attribute (may be convenient)
 """
 
 from redis import Redis as _Redis
