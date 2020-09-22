@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # all log messages will appear from "__main__" instead of showing up from "picturec.currentduinoAgent.Currentduino"
     # TODO: Logging for a package is something that's been on my to-do list for a while. Now is probably the time
 
-    redis = PCRedis(host='localhost', port=6379, db=REDIS_DB, create_ts_keys=['status:highcurrentboard:current'])
+    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=['status:highcurrentboard:current'])
     currentduino = Currentduino(port='/dev/currentduino', baudrate=115200, timeout=0.1)
 
     while True:
