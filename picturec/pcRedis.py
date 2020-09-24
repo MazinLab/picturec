@@ -16,6 +16,7 @@ import time
 import sys
 
 
+
 class PCRedis(object):
     def __init__(self, host='localhost', port=6379, db=0, timeseries=True, create_ts_keys=tuple()):
         self.redis = _Redis(host, port, db, socket_keepalive=True)
@@ -121,16 +122,10 @@ class PCRedis(object):
                 if msg:
                     logging.getLogger(__name__).debug(f"Pubsub client received a message!")
                     message_handler(msg)
-            except RedisError as e:
-                logging.getLogger(__name__).critical(f"Redis Error in listening: {e}")
-                ps = self.pubsub_unsubscribe(ps)
-                subbed = False
             except ConnectionError as e:
                 logging.getLogger(__name__).critical(f"Connection Error while listening: {e}")
                 ps = self.pubsub_unsubscribe(ps)
                 subbed = False
-            except IOError as e:
-                logging.getLogger(__name__).error(f"Error: {e}")
             time.sleep(loop_interval)
 
         # logging.getLogger(__name__).info(f"Subscribing redis to {ps_keys}")
