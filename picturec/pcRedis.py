@@ -114,8 +114,8 @@ class PCRedis(object):
                         logging.getLogger(__name__).debug(f"Redis pubsub received subscribe message:\n {msg}")
                     else:
                         logging.getLogger(__name__).info(f"New type of message received! You're on your own now:\n {msg}")
-                if status_key:
-                    self.store({status_key: 'okay'})
+                    if status_key:
+                        self.store({status_key: 'okay'})
             except RedisError as e:
                 logging.getLogger(__name__).warning(f"Exception in pubsub operation has occurred! Check to make sure "
                                                     f"redis is still running! {e}")
