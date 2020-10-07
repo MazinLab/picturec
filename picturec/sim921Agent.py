@@ -702,7 +702,7 @@ def store_sim921_id_info(redis, info):
     redis.set(SERIALNO_KEY, info[1])
     redis.set(FIRMWARE_KEY, info[2])
 
-from picturec.pcRedis import PCRedis
+from picturec.pcredis import PCRedis
 
 if __name__ == "__main__":
 
