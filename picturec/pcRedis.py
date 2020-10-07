@@ -34,13 +34,6 @@ class PCRedis(object):
             except RedisError:
                 logging.getLogger(__name__).debug(f"'{k}' already exists")
 
-    def create_ts_keys(self, keys):
-        """
-        If they do not exist, create keys that are needed
-        TODO: Think about if this should be in the instantiation of the PCRedis class so all timeseries keys will
-         be guaranteed to exist if the picturec redis wrapper class is in use
-        """
-
     def store(self, data, timeseries=False):
         """ Given a dictionary or iterable of key value pairs store them into redis. Store into timeseries if
         timeseries is set
