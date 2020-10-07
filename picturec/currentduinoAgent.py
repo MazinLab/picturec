@@ -7,9 +7,7 @@ for circuit drawing). Will log values to redis, will also act as a safeguard to 
 control that the current is operating out of normal bounds. NOTE: Redis/redistimeseries MUST be set up
 for the currentduino to work.
 
-TODO: - Threading is currently working, but for some reason, putting redis pub/sub in a thread isn't receiving any
- messages
- - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
+TODO: - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
  of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
  - Test the heat switch touch signals to have an open/closed monitor (in lab)
 """
