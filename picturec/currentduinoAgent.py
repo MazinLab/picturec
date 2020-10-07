@@ -137,6 +137,8 @@ def handle_redis_message(message):
             raise e
         except IOError as e:
             raise e
+    else:
+        log.debug(f"Got a message from an unexpected channel: {message}")
 
 
 if __name__ == "__main__":
