@@ -60,7 +60,7 @@ class Currentduino(agent.SerialAgent):
 
         super().__init__(port, baudrate, timeout, name='currentduino')
         if connect:
-            self.connect(raise_errors=False, post_connect_sleep=1)
+            self.connect(raise_errors=False, post_connect_sleep=2)
         self.heat_switch_position = None
 
     @property
@@ -167,14 +167,23 @@ if __name__ == "__main__":
     pollthread.daemon = True
     pollthread.start()
 
-    heatswitchthread = threading.Thread(target=redis.ps_listen, name='Command Monitoring Thread',
-                                        args=([HEATSWITCH_MOVE_KEY], handle_redis_message, STATUS_KEY, LOOP_INTERVAL))
-    heatswitchthread.daemon = True
-    heatswitchthread.start()
-
-    # The below event loop is a current placeholder to allow the program to run indefinitely
-    loop = asyncio.get_event_loop()
     try:
-        loop.run_forever()
-    finally:
-        loop.close()
+        pubsub = redis.redis.pubsub()
+        pubsub.subscribe([HEATSWITCH_MOVE_KEY])
+    except RedisError as e:
+        log.critical(f"Redis error while subscribing to redis pubsub!! {e}")
+        raise e
+
+    for msg in pubsub.listen():
+        log.info(f"Pubsub received {msg}")
+        if (msg['channel'].decode() == HEATSWITCH_MOVE_KEY) and (msg['type'] != 'subscribe'):
+            try:
+                currentduino.move_heat_switch(msg['data'].decode().lower())
+                redis.store({HEATSWITCH_STATUS_KEY: msg['data'].decode().lower()})
+            except RedisError as e:
+                log.critical(f"Redis server may have closed! {e}")
+                sys.exit()
+            except IOError as e:
+                log.critical(f"Some error communicating with the arduino! {e}")
+        else:
+            log.debug(f"Received {msg}")
