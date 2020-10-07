@@ -22,6 +22,7 @@ class PCRedis(object):
         self.redis = _Redis(host, port, db, socket_keepalive=True)
         self.redis_ts = _Client(host, port, db, socket_keepalive=True) if timeseries else None
         self.create_keys(create_ts_keys, timeseries=True)
+        self.ps = None  # Will be used for PubSub connections
 
     def create_keys(self, keys, timeseries=True):
         for k in keys:
