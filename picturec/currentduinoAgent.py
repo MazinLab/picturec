@@ -29,7 +29,7 @@ import asyncio
 
 REDIS_DB = 0
 QUERY_INTERVAL = 1
-LOOP_INTERVAL = .05
+LOOP_INTERVAL = .001
 VALID_FIRMWARES = [0.0, 0.1, 0.2]  # TODO: Configuration file?
 
 KEYS = ['device-settings:currentduino:highcurrentboard',
@@ -60,8 +60,7 @@ class Currentduino(agent.SerialAgent):
 
         super().__init__(port, baudrate, timeout, name='currentduino')
         if connect:
-            self.connect(raise_errors=False)
-        time.sleep(1)
+            self.connect(raise_errors=False, post_connect_sleep=1)
         self.heat_switch_position = None
 
     @property
@@ -150,22 +149,19 @@ if __name__ == "__main__":
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=['status:highcurrentboard:current'])
     currentduino = Currentduino(port='/dev/currentduino', baudrate=115200, timeout=0.1)
 
-    while True:
-        try:
-            firmware = currentduino.firmware
-            if firmware not in VALID_FIRMWARES:
-                raise IOError(f"Unsupported firmware '{firmware}'. Supported FW: {VALID_FIRMWARES}")
-            redis.store({FIRMWARE_KEY: firmware})
-            break
-        except IOError:
-            redis.store({FIRMWARE_KEY: ''})
-            redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
-            sys.exit(1)
-        except IndexError:
-            redis.store({FIRMWARE_KEY: ''})
-            redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
-            log.warning('FAILURE to poll firmware, trying again...')
-            time.sleep(0.5)
+    try:
+        firmware = currentduino.firmware
+        if firmware not in VALID_FIRMWARES:
+            raise IOError(f"Unsupported firmware '{firmware}'. Supported FW: {VALID_FIRMWARES}")
+        redis.store({FIRMWARE_KEY: firmware})
+    except IOError:
+        redis.store({FIRMWARE_KEY: ''})
+        redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
+        sys.exit(1)
+    except IndexError:
+        redis.store({FIRMWARE_KEY: ''})
+        redis.store({STATUS_KEY: 'Firmware poll returned nonsense'})
+        sys.exit(1)
 
     pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
     pollthread.daemon = True
