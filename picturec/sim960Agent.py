@@ -94,7 +94,8 @@ COMMAND_DICT = {'AMAN': {'key': 'device-settings:sim960:mode',
                 'RAMP': {'key': 'device-settings:sim960:setpoint-ramp-enable',
                          'vals': {'off': '0', 'on': '1'}},
                 'RATE': {'key': 'device-settings:sim960:setpoint-ramp-rate',
-                         'vals': [1e-3, 1e4]}}
+                         'vals': [1e-3, 1e4]}
+                }
 
 class SIM960Agent(object):
     def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True, sim_polarity='negative'):
