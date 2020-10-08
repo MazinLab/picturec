@@ -56,6 +56,9 @@ class Currentduino(agent.SerialAgent):
         if connect:
             self.connect(raise_errors=False, post_connect_sleep=2)
         self.heat_switch_position = None
+        self._monitor_thread = None
+        self.monitor_state = 'Not Started'
+        self.last_current = None
 
     def read_current(self):
         """Read and return the current, may raise ValueError (unparseable response) or IOError (something else)"""
@@ -108,32 +111,23 @@ class Currentduino(agent.SerialAgent):
             log.error(f"Bad firmware format: '{response}'")
             raise IOError(f'Bad firmware response: "{response}"')
 
+    def monitor_current(self, interval):
 
-def poll_current():
-    while True:
-        try:
-            redis.store({'status:highcurrentboard:current': currentduino.current}, timeseries=True)
-            redis.store({'status:highcurrentboard:powered': "True"})  # NB changed from ok to true
-        except RedisError as e:
-            log.critical(f"Redis error{e}")
-            sys.exit(1)
-        except IOError as e:
-            log.error(f"Error {e}")
-            redis.store({STATUS_KEY: f"Error {e}"})
-        time.sleep(QUERY_INTERVAL)
+        def f():
+            try:
+                self.last_current = currentduino.read_current()
+                self.monitor_state = 'OK'
+            except RedisError as e:
+                log.error(f"Unable to store current due to redis error: {e}")
+                self.monitor_state = 'Redis Error'
+            except IOError as e:
+                log.error(f"Error {e}")
+                self.monitor_state = 'IOError'
+            time.sleep(interval)
 
-
-def handle_redis_message(message):
-    if message['channel'].decode() == HEATSWITCH_MOVE_KEY:
-        try:
-            currentduino.move_heat_switch(message['data'].decode().lower())
-            redis.store({HEATSWITCH_STATUS_KEY: message['data'].decode().lower()})
-        except RedisError as e:
-            raise e
-        except IOError as e:
-            raise e
-    else:
-        log.debug(f"Got a message from an unexpected channel: {message}")
+        self._monitor_thread = threading.Thread(target=f, name='Current Monitoring Thread')
+        self._monitor_thread.daemon = True
+        self._monitor_thread.start()
 
 
 if __name__ == "__main__":
@@ -161,12 +155,18 @@ if __name__ == "__main__":
         redis.store({STATUS_KEY: 'Comm failure'})
         sys.exit(1)
 
-    pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
-    pollthread.daemon = True
-    pollthread.start()
+    currentduino.monitor_current(QUERY_INTERVAL)
 
     while True:
         try:
+            if currentduino.monitor_state == 'OK':
+                redis.store({'status:highcurrentboard:current': currentduino.last_current}, timeseries=True)
+                # TODO what is the point of this key if it is always true and doesn't actually reflect any actual power?
+                redis.store({'status:highcurrentboard:powered': "True"})  # NB changed from ok to true
+                redis.store({STATUS_KEY: 'OK'})
+            else:
+                redis.store({STATUS_KEY: 'Current monitoring error'})
+
             for key, val in redis.listen([HEATSWITCH_MOVE_KEY]):
                 hspos = val.lower()
                 try:
