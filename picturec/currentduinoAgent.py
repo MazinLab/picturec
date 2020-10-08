@@ -23,7 +23,7 @@ import picturec.agent as agent
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 LOOP_INTERVAL = .001
-VALID_FIRMWARES = [0.0, 0.1, 0.2] 
+
 
 KEYS = ['device-settings:currentduino:highcurrentboard',
         'device-settings:currentduino:heatswitch',
@@ -49,8 +49,9 @@ log = logging.getLogger(__name__)
 
 
 class Currentduino(agent.SerialAgent):
-    def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
+    VALID_FIRMWARES = [0.0, 0.1, 0.2]
 
+    def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='currentduino')
         if connect:
             self.connect(raise_errors=False, post_connect_sleep=2)
@@ -90,20 +91,27 @@ class Currentduino(agent.SerialAgent):
         except Exception as e:
             raise IOError(e)
 
+    def firmware_ok(self):
+        return self.firmware in self.VALID_FIRMWARES
+
     @property
     def firmware(self):
+        """ Return the firmware string or raise IOError"""
         try:
-            log.info(f"Querying currentduino firmware")
+            log.debug(f"Querying currentduino firmware")
             self.send("v", instrument_name=self.name, connect=True)
-            version_response = self.receive().split(" ")
-            if version_response[1] == "v":
-                log.info(f"Query successful. Firmware version {version_response[0]}")
-            else:
-                log.warning(f"Query unsuccessful. Check error logs for response from arduino")
-            return float(version_response[0])
-        except (IOError, IndexError) as e:
-            log.warning(f"Query unsuccessful. Check error logs: {e}")
+            response = self.receive()
+            v, _, version = response.partition(" ")
+            version = float(version)
+            if v != "v":
+                raise ValueError('Bad format')
+            return version
+        except IOError as e:
+            log.error(f"Serial error: {e}")
             raise e
+        except ValueError:
+            log.error(f"Bad firmware format: '{response}'")
+            raise IOError(f'Bad firmware response: "{response}"')
 
 
 def poll_current():
@@ -144,39 +152,39 @@ if __name__ == "__main__":
 
     try:
         firmware = currentduino.firmware
-        if firmware not in VALID_FIRMWARES:
-            raise IOError(f"Unsupported firmware '{firmware}'. Supported FW: {VALID_FIRMWARES}")
         redis.store({FIRMWARE_KEY: firmware})
     except IOError:
         redis.store({FIRMWARE_KEY: ''})
         redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
         sys.exit(1)
-    except IndexError:
-        redis.store({FIRMWARE_KEY: ''})
-        redis.store({STATUS_KEY: 'Firmware poll returned nonsense'})
+
+    try:
+        if not currentduino.firmware_ok():
+            redis.store({STATUS_KEY: 'Unsupported firmware'})
+            sys.exit(1)
+    except IOError:
+        redis.store({STATUS_KEY: 'Comm failure'})
         sys.exit(1)
 
     pollthread = threading.Thread(target=poll_current, name='Current Monitoring Thread')
     pollthread.daemon = True
     pollthread.start()
 
-    try:
-        pubsub = redis.redis.pubsub()
-        pubsub.subscribe([HEATSWITCH_MOVE_KEY])
-    except RedisError as e:
-        log.critical(f"Redis error while subscribing to redis pubsub!! {e}")
-        raise e
+    while True:
+        try:
+            for key, val in redis.listen([HEATSWITCH_MOVE_KEY]):
+                hspos = val.lower()
+                try:
+                    currentduino.move_heat_switch(hspos)
+                    redis.store({HEATSWITCH_STATUS_KEY: hspos})
+                    redis.store({STATUS_KEY: 'OK'})
+                except IOError as e:
+                    log.info(f"Some error communicating with the arduino! {e}")
+                    redis.store({STATUS_KEY: 'Arduino Com error'})
+        except RedisError as e:
+            redis.store({STATUS_KEY: 'Redis Error'})
+            log.critical(f"Redis server error! {e}")
+            sys.exit(1)
+        except StopIteration:
+            pass
 
-    for msg in pubsub.listen():
-        log.info(f"Pubsub received {msg}")
-        if (msg['channel'].decode() == HEATSWITCH_MOVE_KEY) and (msg['type'] != 'subscribe'):
-            try:
-                currentduino.move_heat_switch(msg['data'].decode().lower())
-                redis.store({HEATSWITCH_STATUS_KEY: msg['data'].decode().lower()})
-            except RedisError as e:
-                log.critical(f"Redis server may have closed! {e}")
-                sys.exit()
-            except IOError as e:
-                log.critical(f"Some error communicating with the arduino! {e}")
-        else:
-            log.debug(f"Received {msg}")
