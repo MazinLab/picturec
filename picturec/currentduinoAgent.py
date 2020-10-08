@@ -56,6 +56,7 @@ class Currentduino(agent.SerialAgent):
         self._monitor_thread = None
         self.monitor_state = 'Not Started'
         self.last_current = None
+        self.terminator = ''
 
     def read_current(self):
         """Read and return the current, may raise ValueError (unparseable response) or IOError (something else)"""
@@ -68,7 +69,7 @@ class Currentduino(agent.SerialAgent):
         return current
 
     def format_msg(self, msg: str):
-        return f"{msg.strip().lower()}{self.terminator}"
+        return f"{msg.strip().lower()}"
 
     def move_heat_switch(self, pos):
         pos = pos.lower()
