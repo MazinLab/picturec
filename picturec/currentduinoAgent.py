@@ -5,12 +5,12 @@ Program to control ArduinoUNO that will measure the current through the ADR magn
 current-sensing resistor on the PIPER-designed HighCurrent Boost board (see picturec reference folder
 for circuit drawing). Will log values to redis, will also act as a safeguard to tell the magnet current
 control that the current is operating out of normal bounds.
-NOTE: Redis/redistimeseries MUST be set up
-for the currentduino to work.
+NOTE: Redis/redistimeseries MUST be set up for the currentduino to work.
 
-TODO: - Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
+TODO: Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
  of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
- - Test the heat switch touch signals to have an open/closed monitor (in lab)
+
+TODO: Test the heat switch touch signals to have an open/closed monitor (in lab)
 """
 
 import sys
@@ -32,16 +32,13 @@ KEYS = ['device-settings:currentduino:highcurrentboard',
         'status:highcurrentboard:powered',
         'status:highcurrentboard:current']
 
+
 STATUS_KEY = "status:device:currentduino:status"
 FIRMWARE_KEY = "status:device:currentduino:firmware"
 HEATSWITCH_STATUS_KEY = 'status:heatswitch'
 HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
 
-# TODO Any possibility these should be in redis defaults or some sort of namespace that indicates static configuration?
-#  I don't know enough about how precicely these values are known and how stable they are
-#     Response - These could be defaults, this is a voltage divider made up of 2 resistors I have measured in lab. They
-#     could definitely go in a configuration file and are static. The only change would be in creating a new voltage
-#     divider or if one of the resistors happened to blow (in which case we'd need to build/buy a new one anyway).
+
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
@@ -161,8 +158,8 @@ if __name__ == "__main__":
         try:
             if currentduino.monitor_state == 'OK':
                 redis.store({'status:highcurrentboard:current': currentduino.last_current}, timeseries=True)
-                # TODO what is the point of this key if it is always true and doesn't actually reflect any actual power?
-                redis.store({'status:highcurrentboard:powered': "True"})  # NB changed from ok to true
+                # TODO: status:highcurrentboard:powered should be a key that currentduino reads. Implement when power switches are introduced
+                # redis.store({'status:highcurrentboard:powered': "True"})
                 redis.store({STATUS_KEY: 'OK'})
             else:
                 redis.store({STATUS_KEY: 'Current monitoring error'})
@@ -182,4 +179,3 @@ if __name__ == "__main__":
             sys.exit(1)
         except StopIteration:
             pass
-
