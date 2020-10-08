@@ -160,6 +160,9 @@ class SIM921Agent(agent.SerialAgent):
         except IOError as e:
             raise e
 
+    def format_msg(self, msg:str):
+        return f"{msg.strip().upper()}{self.terminator}"
+
     def query(self, query_msg: str):
         """
         A wrapper to both send and receive in one holistic block so that we ensure if a query is sent, and answer is

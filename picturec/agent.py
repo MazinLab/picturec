@@ -1,18 +1,21 @@
 from logging import getLogger
 import serial
 import time
+import threading
 
 """
 TODO: Add query function?
 """
 
 class SerialAgent:
-    def __init__(self, port, baudrate=9600, timeout=0.1, name=None):
+    def __init__(self, port, baudrate=9600, timeout=0.1, name=None, terminator='\n'):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.name = name if name else self.port
+        self.terminator = terminator
+        self._rlock = threading.RLock()
 
     def connect(self, reconnect=False, raise_errors=True, post_connect_sleep=0.2):
         """
@@ -55,7 +58,11 @@ class SerialAgent:
         except Exception as e:
             getLogger(__name__).info(f"Exception during disconnect: {e}")
 
-    def send(self, msg: str, instrument_name: str, connect=True, terminator='\n'):
+    def format_msg(self, msg:str):
+        """Subclass may implement to apply hardware specific formatting"""
+        return f"{msg}{self.terminator}"
+
+    def send(self, msg: str, connect=True):
         """
         Send a message to the SIM921 in its desired format.
         The typical message is all caps, terminated with a newline character '\n'
@@ -66,11 +73,7 @@ class SerialAgent:
         if connect:
             self.connect()
 
-        # TODO: Make these lists something imported from a config file
-        if instrument_name.lower() in ('sim921', 'sim960', 'ls240'):
-            msg = msg.strip().upper() + terminator
-        elif instrument_name.lower() in ('hemtduino', 'currentduino'):
-            msg = msg.strip().lower()
+        msg = self.format_msg(msg)
 
         try:
             getLogger(__name__).debug(f"Sending '{msg}'")  # Not the '' allow clearly logging empty sends
@@ -96,3 +99,12 @@ class SerialAgent:
             self.disconnect()
             getLogger(__name__).debug(f"Send failed {e}")
             raise e
+
+    def query(self, cmd: str, **kwargs):
+        """Send cmd and wair for a response, kwargs passed to send, raises only IOError"""
+        with self._rlock:
+            try:
+                self.send(cmd, **kwargs)
+                return self.receive()
+            except Exception as e:
+                raise IOError(e)

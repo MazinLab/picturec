@@ -57,21 +57,18 @@ class Currentduino(agent.SerialAgent):
             self.connect(raise_errors=False, post_connect_sleep=2)
         self.heat_switch_position = None
 
-    @property
-    def current(self):
+    def read_current(self):
+        """Read and return the current, may raise ValueError (unparseable response) or IOError (something else)"""
+        response = self.query('?', connect=True)
         try:
-            self.send('?', instrument_name=self.name, connect=True)
-            response = self.receive()
-
-            try:
-                value = float(response.split(' ')[0])
-                current = (value * (5.0 / 1023.0) * ((R1 + R2) / R2))
-            except ValueError:
-                raise ValueError(f"Couldn't parse '{response}' into a float")
-
-        except Exception as e:
-            raise IOError(e)
+            value = float(response.split(' ')[0])
+            current = (value * (5.0 / 1023.0) * ((R1 + R2) / R2))
+        except ValueError:
+            raise ValueError(f"Couldn't parse '{response}' into a float")
         return current
+
+    def format_msg(self, msg: str):
+        return f"{msg.strip().lower()}{self.terminator}"
 
     def move_heat_switch(self, pos):
         pos = pos.lower()
@@ -81,8 +78,7 @@ class Currentduino(agent.SerialAgent):
         # NB it is mighty convenient that the serial command/confirmation and pos start with the same letter
         try:
             log.info(f"Commanding heat switch to {pos}")
-            self.send(pos[0], instrument_name=self.name)
-            confirm = self.receive()
+            confirm = self.query(pos[0], connect=True)
             if confirm == pos[0]:
                 log.info(f"Command accepted")
             else:
@@ -99,8 +95,7 @@ class Currentduino(agent.SerialAgent):
         """ Return the firmware string or raise IOError"""
         try:
             log.debug(f"Querying currentduino firmware")
-            self.send("v", instrument_name=self.name, connect=True)
-            response = self.receive()
+            response = self.query("v", connect=True)
             v, _, version = response.partition(" ")
             version = float(version)
             if v != "v":
