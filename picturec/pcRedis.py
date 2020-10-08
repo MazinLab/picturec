@@ -146,11 +146,28 @@ class PCRedis(object):
             logging.getLogger(__name__).warning(f"Some new error with redis. Check the logs and try restaring! {e}")
             raise e
 
-    def ps_listen(self, keys: list, message_handler, status_key=None, loop_interval=0.001, ignore_sub_msg=False):
+    def ps_listen(self, channels: list, message_handler, status_key=None, loop_interval=0.001, ignore_sub_msg=False):
+        """
+        This is the heart of redis pubsub communication between programs. The ps_listen() function is designed to
+        incorporate (un)subscribing, message handling, and error handling.
+        Tries first to subscribe to the channels passed to the function.
+        If able to successfully subscribe, wait for messages to be published and then handle them accordingly. As a
+        first pass this means determining message type and logging it properly, then passing it to the message handler.
+        The default message handler ( PCRedis.handler() ) simply prints the message. Each agent will overwrite this
+        default handler to best suit its own needs.
+        :param channels: List of channels to subscribe to
+        :param message_handler: Function which properly handles the data in the message and manipulates it accordingly.
+        :param status_key: Any status_key required by the program/agent to write to the redis db to record that it is
+        working as expected (e.g. "status:device:currentduino:status":"error: could not send message to currentduino")
+        :param loop_interval: Float. Time between message queries. This should not be longer than the fastest publishing
+        rate in the system
+        :param ignore_sub_msg: Bool. See PCRedis._pc_subscribe() for details.
+        :return: None. Raises errors in the case of inability to communicate with redis or with a serial port.
+        """
         try:
-            self.ps_subscribe(keys=keys, ignore_sub_msg=ignore_sub_msg)
+            self._ps_subscribe(channels=channels, ignore_sub_msg=ignore_sub_msg)
         except RedisError as e:
-            logging.getLogger(__name__).warning(f"Redis can't subscribe to {keys}. Check to make sure redis is running")
+            logging.getLogger(__name__).warning(f"Redis can't subscribe to {channels}. Check to make sure redis is running")
             raise e
 
         while True:
@@ -179,7 +196,9 @@ class PCRedis(object):
 
     def handler(self, message):
         """
-        Default pubsub message handler. Just prints the message received by the redis pubsub object. Will be overwritten
-        in each of the agents, so that command messages can be handled however they need to be.
+        Default pubsub message handler. Prints received message and nothing else.
+        Should be overwritten in agent programs.
+        :param message: Pubsub message (dict)
+        :return: None.
         """
         print(f"Default message handler: {message}")
