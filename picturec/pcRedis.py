@@ -193,6 +193,28 @@ class PCRedis(object):
                     self.store({status_key: f"Error: {e}"})
             time.sleep(loop_interval)
 
+    def listen(self, keys):
+        """
+        Sets up a subscription for the iterable keys, yielding decoded messages as (k,v) strings.
+        Passes up any redis errors that are raised
+        """
+        log = logging.getLogger(__name__)
+        try:
+            ps = self.redis.pubsub()
+            ps.subscribe(list(keys))
+        except RedisError as e:
+            log.error(f"Redis error while subscribing to redis pubsub!! {e}")
+            raise e
+
+        for msg in ps.listen():
+            log.debug(f"Pubsub received {msg}")
+            if msg['type'] == 'subscribe':
+                continue
+            key = msg['channel'].decode()
+            value = msg['data'].decode()
+
+            yield key, value
+
 
     def handler(self, message):
         """
