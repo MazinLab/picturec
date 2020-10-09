@@ -110,19 +110,20 @@ class Currentduino(agent.SerialAgent):
 
     def monitor_current(self, interval, value_callback=None):
         def f():
-            current = None
-            try:
-                self.last_current = currentduino.read_current()
-                current = self.last_current
-            except RedisError as e:
-                log.error(f"Unable to store current due to redis error: {e}")
-            except IOError as e:
-                log.error(f"Error {e}")
+            while True:
+                current = None
+                try:
+                    self.last_current = currentduino.read_current()
+                    current = self.last_current
+                except RedisError as e:
+                    log.error(f"Unable to store current due to redis error: {e}")
+                except IOError as e:
+                    log.error(f"Error {e}")
 
-            if value_callback is not None and current is not None:
-                value_callback(self.last_current)
+                if value_callback is not None and current is not None:
+                    value_callback(self.last_current)
 
-            time.sleep(interval)
+                time.sleep(interval)
 
         self._monitor_thread = threading.Thread(target=f, name='Current Monitoring Thread')
         self._monitor_thread.daemon = True
