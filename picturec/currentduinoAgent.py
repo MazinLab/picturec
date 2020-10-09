@@ -54,7 +54,6 @@ class Currentduino(agent.SerialAgent):
             self.connect(raise_errors=False, post_connect_sleep=2)
         self.heat_switch_position = None
         self._monitor_thread = None
-        self.monitor_state = 'Not Started'
         self.last_current = None
         self.terminator = ''
 
@@ -69,7 +68,7 @@ class Currentduino(agent.SerialAgent):
         return current
 
     def format_msg(self, msg: str):
-        return f"{msg.strip().lower()}"
+        return f"{msg.strip().lower()}{self.terminator}"
 
     def move_heat_switch(self, pos):
         pos = pos.lower()
@@ -109,18 +108,20 @@ class Currentduino(agent.SerialAgent):
             log.error(f"Bad firmware format: '{response}'")
             raise IOError(f'Bad firmware response: "{response}"')
 
-    def monitor_current(self, interval):
-
+    def monitor_current(self, interval, value_callback=None):
         def f():
+            current = None
             try:
                 self.last_current = currentduino.read_current()
-                self.monitor_state = 'OK'
+                current = self.last_current
             except RedisError as e:
                 log.error(f"Unable to store current due to redis error: {e}")
-                self.monitor_state = 'Redis Error'
             except IOError as e:
                 log.error(f"Error {e}")
-                self.monitor_state = 'IOError'
+
+            if value_callback is not None and current is not None:
+                value_callback(self.last_current)
+
             time.sleep(interval)
 
         self._monitor_thread = threading.Thread(target=f, name='Current Monitoring Thread')
@@ -130,7 +131,7 @@ class Currentduino(agent.SerialAgent):
 
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.DEBUG)  #Note that ultimately this is going to need to change. As written I suspect
+    logging.basicConfig(level=logging.DEBUG)  # Note that ultimately this is going to need to change. As written I suspect
     # all log messages will appear from "__main__" instead of showing up from "picturec.currentduinoAgent.Currentduino"
     # TODO: Logging for a package is something that's been on my to-do list for a while. Now is probably the time
 
@@ -140,43 +141,27 @@ if __name__ == "__main__":
     try:
         firmware = currentduino.firmware
         redis.store({FIRMWARE_KEY: firmware})
+        if not currentduino.firmware_ok():
+            redis.store({STATUS_KEY: 'Unsupported firmware'})
+            sys.exit(1)
     except IOError:
         redis.store({FIRMWARE_KEY: ''})
         redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
         sys.exit(1)
 
-    try:
-        if not currentduino.firmware_ok():
-            redis.store({STATUS_KEY: 'Unsupported firmware'})
-            sys.exit(1)
-    except IOError:
-        redis.store({STATUS_KEY: 'Comm failure'})
-        sys.exit(1)
-
-    currentduino.monitor_current(QUERY_INTERVAL)
+    store_func = lambda x: redis.store({'status:highcurrentboard:current': x}, timeseries=True)
+    currentduino.monitor_current(QUERY_INTERVAL, value_callback=store_func)
 
     while True:
         try:
-            if currentduino.monitor_state == 'OK':
-                redis.store({'status:highcurrentboard:current': currentduino.last_current}, timeseries=True)
-                # TODO: status:highcurrentboard:powered should be a key that currentduino reads. Implement when power switches are introduced
-                # redis.store({'status:highcurrentboard:powered': "True"})
-                redis.store({STATUS_KEY: 'OK'})
-            else:
-                redis.store({STATUS_KEY: 'Current monitoring error'})
-
             for key, val in redis.listen([HEATSWITCH_MOVE_KEY]):
                 hspos = val.lower()
                 try:
                     currentduino.move_heat_switch(hspos)
                     redis.store({HEATSWITCH_STATUS_KEY: hspos})
-                    redis.store({STATUS_KEY: 'OK'})
                 except IOError as e:
                     log.info(f"Some error communicating with the arduino! {e}")
-                    redis.store({STATUS_KEY: 'Arduino Com error'})
         except RedisError as e:
-            redis.store({STATUS_KEY: 'Redis Error'})
             log.critical(f"Redis server error! {e}")
-            sys.exit(1)
-        except StopIteration:
-            pass
+            break
+
