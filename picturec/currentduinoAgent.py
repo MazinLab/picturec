@@ -59,6 +59,7 @@ class Currentduino(agent.SerialAgent):
 
     def read_current(self):
         """Read and return the current, may raise ValueError (unparseable response) or IOError (something else)"""
+        # TODO: Match response parsing with self.move_heat_switch()?
         response = self.query('?', connect=True)
         try:
             value = float(response.split(' ')[0])
