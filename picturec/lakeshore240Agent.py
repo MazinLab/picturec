@@ -17,6 +17,8 @@ TODO: Consider using the INNAME (Sensor Input Name) Command. This can allow us t
  channel is for the LN2 tank and which is for LHe
 
 TODO: Make UDEV rule for LakeShore240
+
+TODO: Incorporate redis storage (this program does not need pubsub in any obvious places)
 """
 
 import sys
@@ -65,7 +67,7 @@ class LakeShore240(agent.SerialAgent):
                 log.error(f"Serial Error: {e}")
                 raise IOError(f"Serial Error: {e}")
         return readings
-    
+
     def id_query(self):
         """
         Queries the LakeShore240 for its ID information.
@@ -129,3 +131,6 @@ if __name__ == "__main__":
                     create_ts_keys=['status:temps:lhetank', 'status:temps:ln2tank'])
     lakeshore = LakeShore240(port='/dev/lakeshore240', baudrate=115200, timeout=0.1)
 
+    # TODO: Properly query ID, model, and enabled channels once to ensure they're properly set up
+
+    # TODO: Infinitely query the temperatures for LHe and LN2
