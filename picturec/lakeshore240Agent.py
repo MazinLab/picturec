@@ -13,7 +13,8 @@ Again, the calibration process can be done manually using the LakeShore GUI if s
 See manual in hardware/thermometry/LakeShore240_temperatureMonitor_manual.pdf
 TODO: More Docstrings
 
-TODO: Everything
+TODO: Consider using the INNAME (Sensor Input Name) Command. This can allow us to unambiguously determine which
+ channel is for the LN2 tank and which is for LHe
 
 TODO: Make UDEV rule for LakeShore240
 """
@@ -53,18 +54,24 @@ class LakeShore240(agent.SerialAgent):
         self.last_ln2_temp = None
         self.terminator = '\n'
 
+        self.model = None
+
     def read_temperatures(self):
-        pass
-
-    def format_msg(self, msg):
-        pass
-
+        readings = []
+        for channel in self.enabled_channels:
+            try:
+                readings.append(float(self.query("KRDG? " + channel)))
+            except IOError as e:
+                log.error(f"Serial Error: {e}")
+                raise IOError(f"Serial Error: {e}")
+        return readings
+    
     def id_query(self):
         """
         Queries the LakeShore240 for its ID information.
         Raise IOError if serial connection isn't working or if invalid values (from an unexpected module) are received
         ID return string is "<manufacturer>,<model>,<instrument serial>,<firmware version>\n"
-        Format of return string is "s[4],s[11],s[7],#.#"
+        Format of return string is "s[4],s[11],s[7],float(#.#)"
         :return: Dict
         """
         try:
@@ -75,20 +82,45 @@ class LakeShore240(agent.SerialAgent):
                 raise NotImplementedError(f"Manufacturer {manufacturer} is has no supported devices!")
             if model[-2] not in ["2", "8"]:
                 raise NotImplementedError(f"Model {model} has not been implemented!")
+            self.model = float(model[-2])
             return {'manufacturer': manufacturer,
                     'model': model,
+                    'model-no': self.model,
                     'sn': sn,
                     'firmware': firmware}
         except IOError as e:
             log.error(f"Serial error: {e}")
             raise e
+        except ValueError as e:
+            log.error(f"Firmware {firmware} could not be converted to a float")
         except NotImplementedError:
             log.error(f"Bad ID Query format: '{id_string}'")
             raise IOError(f"Bad ID Query format: '{id_string}'")
 
-
+    @property
     def enabled_channels(self):
-        pass
+        """
+        'INTYPE? <channel>' query returns channel configuration info with
+        returns '<sensor type>,<autorange>,<range>,<current reversal>,<units>\n'
+        with format '#,#,#,#,#\n'
+        """
+        enabled = []
+        if self.model:
+            for channel in range(1, self.model + 1):
+                try:
+                    _, _, _, _, enabled_status = self.query("INTYPE? "+str(channel)).split(",")
+                    if enabled_status == "1":
+                        enabled.append(channel)
+                except IOError as e:
+                    log.error(f"Serial error: {e}")
+                    raise IOError(f"Serial error: {e}")
+                # except ValueError:
+                #     log.critical(f"Channel {channel} returned and unknown value from channel information query")
+                #     raise IOError(f"Channel {channel} returned and unknown value from channel information query")
+            return enabled
+        else:
+            log.critical("Cannot determine enabled channels! Model number has not been determined")
+            return None
 
 if __name__ == "__main__":
 
