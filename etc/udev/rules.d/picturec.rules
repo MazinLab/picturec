@@ -5,3 +5,5 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0043", ATTRS{seria
 
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AM00IHUS", SYMLINK+="sim921"
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AM00NUCK", SYMLINK+="sim960"
+
+SUBSYSTEMS=="", ATTRS{idVendor}=="", ATTRS={idProduct}=="6001", ATTRS{serial}=="", SYMLINK+="lakeshore240"
