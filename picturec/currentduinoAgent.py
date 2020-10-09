@@ -96,7 +96,7 @@ class Currentduino(agent.SerialAgent):
         try:
             log.debug(f"Querying currentduino firmware")
             response = self.query("v", connect=True)
-            v, _, version = response.partition(" ")
+            version, _, v = response.partition(" ")  # Arduino resonse format is "{response} {query char}"
             version = float(version)
             if v != "v":
                 raise ValueError('Bad format')
