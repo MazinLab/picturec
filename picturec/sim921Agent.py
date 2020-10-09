@@ -31,16 +31,14 @@ TODO:
 
 """
 
-import serial
 import numpy as np
-from logging import getLogger
-from serial import SerialException
+import logging
 import time
-from redis import Redis, RedisError
-from redistimeseries.client import Client
 import sys
 import picturec.agent as agent
+from picturec.pcredis import PCRedis, RedisError
 
+REDIS_DB = 0
 
 SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:excitation-value',
@@ -113,6 +111,7 @@ COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
                          'vals': {1: '1', 2: '2', 3: '3'}}
                 }
 
+log = logging.getLogger(__name__)
 
 class SIM921Agent(agent.SerialAgent):
     def __init__(self, port, baudrate=9600, timeout=0.1,
@@ -122,15 +121,10 @@ class SIM921Agent(agent.SerialAgent):
 
         self.scale_units = scale_units
 
-        self.prev_sim_settings = {}
-        self.new_sim_settings = {}
-
         self.connect(raise_errors=False)  # Moved after initialization of all instance members
 
         if connect_mainframe:
             self.mainframe_connect(*mainframe_args)
-
-        #note I deleted the redis initialization stuff, pull that out of the class, at least for now
 
     def reset_sim(self):
         """
@@ -705,7 +699,6 @@ def store_sim921_id_info(redis, info):
     redis.set(SERIALNO_KEY, info[1])
     redis.set(FIRMWARE_KEY, info[2])
 
-from picturec.pcredis import PCRedis
 
 if __name__ == "__main__":
 
@@ -714,9 +707,14 @@ if __name__ == "__main__":
     #  internal to the class. this also means this agent now must have a redis instance whereas the other agent doesn't.
     #  I think there are merits to both approaches but for now consistency is key.
 
-    redis = PCRedis(host='localhost', port=6379, db=0, create_ts_keys=TS_KEYS)
+    logging.basicConfig(level=logging.DEBUG)
 
+    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
     sim921 = SIM921Agent(port='/dev/sim921', baudrate=9600, timeout=0.1)
+
+
+
+
 
     try:
         getLogger(__name__).info(f"Querying SIM921 for identification information.")
