@@ -149,6 +149,7 @@ class LakeShore240(agent.SerialAgent):
             log.critical("Cannot determine enabled channels! Model number has not been determined")
             return None
 
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
