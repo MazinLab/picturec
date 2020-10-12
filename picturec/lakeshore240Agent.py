@@ -45,6 +45,8 @@ FIRMWARE_KEY = "status:device:ls240:firmware"
 MODEL_KEY = 'status:device:ls240:model'
 SN_KEY = 'status:device:ls240:sn'
 
+QUERY_INTERVAL = 1
+
 log = logging.getLogger()
 
 class LakeShore240(agent.SerialAgent):
@@ -184,3 +186,4 @@ if __name__ == "__main__":
             log.critical(f"Redis server error! {e}")
             break
             # sys.exit(1)
+        time.sleep(QUERY_INTERVAL)
