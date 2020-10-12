@@ -59,17 +59,32 @@ class LakeShore240(agent.SerialAgent):
 
         self.model = None
 
+    def format_msg(self, msg:str):
+        """
+        Overrides agent.SerialAgent format_message() function. Commands to the LakeShore 240 are all upper-case.
+        The exception to this is when setting names (for the Module or Individual channels, e.g.
+        'INNAME1,"LHe Thermometer"\n' to set the name of the input channel)
+        """
+        return f"{msg.strip()}{self.terminator}"
+
     def read_temperatures(self):
+        """Queries the temperature of all enabled channels on the LakeShore 240. LakeShore reports values of temperature
+        in Kelvin. May raise IOError in the case of serial communication not working."""
+
+        # TODO: Set and confirm the mapping of channel -> cryogen tank. (Ch1=?, Ch2=?). Could also query curvename here
         readings = []
+        tanks = ['ln2', 'lhe']
         for channel in self.enabled_channels:
             try:
                 readings.append(float(self.query("KRDG? " + channel)))
             except IOError as e:
                 log.error(f"Serial Error: {e}")
                 raise IOError(f"Serial Error: {e}")
-        return readings
+        temps = {tanks[i]: readings[i] for i in range(len(self.enabled_channels))}
+        return temps
 
-    def id_query(self):
+    @property
+    def idn(self):
         """
         Queries the LakeShore240 for its ID information.
         Raise IOError if serial connection isn't working or if invalid values (from an unexpected module) are received
