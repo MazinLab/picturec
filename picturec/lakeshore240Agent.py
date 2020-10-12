@@ -96,10 +96,6 @@ class LakeShore240(agent.SerialAgent):
             id_string = self.query("*IDN?")
             manufacturer, model, sn, firmware = id_string.split(",")  # See manual p.43
             firmware = float(firmware)
-            if manufacturer != "LSCI":
-                raise NotImplementedError(f"Manufacturer {manufacturer} is has no supported devices!")
-            if model[-2] not in ["2", "8"]:
-                raise NotImplementedError(f"Model {model} has not been implemented!")
             self.model = float(model[-2])
             return {'manufacturer': manufacturer,
                     'model': model,
@@ -110,10 +106,23 @@ class LakeShore240(agent.SerialAgent):
             log.error(f"Serial error: {e}")
             raise e
         except ValueError as e:
-            log.error(f"Firmware {firmware} could not be converted to a float")
-        except NotImplementedError:
-            log.error(f"Bad ID Query format: '{id_string}'")
-            raise IOError(f"Bad ID Query format: '{id_string}'")
+            log.error(f"Bad firmware format: {firmware}")
+
+    def manufacturer_ok(self):
+        return self.idn['manufacturer'] == "LSCI"
+
+    def model_ok(self):
+        return self.idn['model-no'] in ["2", "8"]
+
+    def _set_curve_name(self, channel: int, name: str):
+        """Engineering function to set the name of a curve on the LakeShore240. Convenient since both thermometers are
+        DT-670A-CU style, and so this can clear any ambiguity. Does not need to be used in normal operation
+        """
+        try:
+            self.send(f'INNAME{str(channel)},"{name}"')
+        except IOError as e:
+            log.error(f"Unable to set channel {channel}'s name to '{name}'. "
+                      f"Check to make sure the LakeShore USB is connected!")
 
     @property
     def enabled_channels(self):
