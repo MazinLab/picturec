@@ -157,6 +157,30 @@ if __name__ == "__main__":
                     create_ts_keys=['status:temps:lhetank', 'status:temps:ln2tank'])
     lakeshore = LakeShore240(port='/dev/lakeshore240', baudrate=115200, timeout=0.1)
 
-    # TODO: Properly query ID, model, and enabled channels once to ensure they're properly set up
+    try:
+        lakeshore_info = lakeshore.idn
+        redis.store({FIRMWARE_KEY: lakeshore_info['firmware'],
+                     MODEL_KEY: lakeshore_info['model'],
+                     SN_KEY: lakeshore_info['firmware']})
+        if not lakeshore.manufacturer_ok():
+            redis.store({STATUS_KEY: f'Unsupported manufacturer: {lakeshore_info["manufacturer"]}'})
+            sys.exit(1)
+        if not lakeshore.model_ok():
+            redis.store({STATUS_KEY: f'Unsupported model: {lakeshore_info["model"]}'})
+    except IOError as e:
+        log.error(f"Serial error in querying LakeShore identification information: {e}")
+        redis.store({FIRMWARE_KEY: '',
+                     MODEL_KEY: '',
+                     SN_KEY: ''})
 
-    # TODO: Infinitely query the temperatures for LHe and LN2
+    while True:
+        try:
+            temps = lakeshore.read_temperatures()
+            redis.store({'status:temps:ln2tank': temps['ln2'],
+                         'status:temps:lhetank': temps['lhe']}, timeseries=True)
+        except IOError as e:
+            log.info(f"Some error communicating with the LakeShore 240 temperature monitor!")
+        except RedisError as e:
+            log.critical(f"Redis server error! {e}")
+            break
+            # sys.exit(1)
