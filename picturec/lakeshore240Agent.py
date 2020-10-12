@@ -40,9 +40,10 @@ KEYS = ['device-settings:ls240:lhe-profile',
         'status:device:ls240:sn']
 
 STATUS_KEY = "status:device:ls240:status"
-# TODO: Consider validity of status key, but also a thought... Should the status key be reserved for essentially when
-#  the program exits with an error? Which would mean status is probably the wrong key. Maybe 'last_error'?
+
 FIRMWARE_KEY = "status:device:ls240:firmware"
+MODEL_KEY = 'status:device:ls240:model'
+SN_KEY = 'status:device:ls240:sn'
 
 log = logging.getLogger()
 
