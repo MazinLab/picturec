@@ -66,8 +66,10 @@ class LakeShore240(agent.SerialAgent):
         Overrides agent.SerialAgent format_message() function. Commands to the LakeShore 240 are all upper-case.
         The exception to this is when setting names (for the Module or Individual channels, e.g.
         'INNAME1,"LHe Thermometer"\n' to set the name of the input channel)
+
+        *NOTE: By choice, using .upper(), if we manually store a name of a curve/module, it will be in all caps.
         """
-        return f"{msg.strip()}{self.terminator}"
+        return f"{msg.strip().upper()}{self.terminator}"
 
     def read_temperatures(self):
         """Queries the temperature of all enabled channels on the LakeShore 240. LakeShore reports values of temperature
@@ -93,6 +95,7 @@ class LakeShore240(agent.SerialAgent):
         ID return string is "<manufacturer>,<model>,<instrument serial>,<firmware version>\n"
         Format of return string is "s[4],s[11],s[7],float(#.#)"
         :return: Dict
+        TODO: Return None in the case of errors?
         """
         try:
             id_string = self.query("*IDN?")
@@ -108,7 +111,8 @@ class LakeShore240(agent.SerialAgent):
             log.error(f"Serial error: {e}")
             raise e
         except ValueError as e:
-            log.error(f"Bad firmware format: {firmware}")
+            log.error(f"Bad firmware format: {firmware}. Error: {e}")
+            raise IOError(f"Bad firmware format: {firmware}. Error: {e}")
 
     def manufacturer_ok(self):
         return self.idn['manufacturer'] == "LSCI"
@@ -169,11 +173,13 @@ if __name__ == "__main__":
             sys.exit(1)
         if not lakeshore.model_ok():
             redis.store({STATUS_KEY: f'Unsupported model: {lakeshore_info["model"]}'})
+            sys.exit(1)
     except IOError as e:
         log.error(f"Serial error in querying LakeShore identification information: {e}")
         redis.store({FIRMWARE_KEY: '',
                      MODEL_KEY: '',
                      SN_KEY: ''})
+        sys.exit(1)
 
     while True:
         try:
