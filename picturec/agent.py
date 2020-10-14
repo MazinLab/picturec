@@ -1,11 +1,13 @@
+"""
+Author: Jeb Bailey
+
+TODO: Add escaping for \n, \r, \t characters in logging statements
+"""
+
 from logging import getLogger
 import serial
 import time
 import threading
-
-"""
-TODO: Add query function?
-"""
 
 class SerialAgent:
     def __init__(self, port, baudrate=9600, timeout=0.1, name=None, terminator='\n'):
