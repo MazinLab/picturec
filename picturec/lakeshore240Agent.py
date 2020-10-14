@@ -13,10 +13,7 @@ Again, the calibration process can be done manually using the LakeShore GUI if s
 See manual in hardware/thermometry/LakeShore240_temperatureMonitor_manual.pdf
 TODO: More Docstrings
 
-TODO: Consider using the INNAME (Sensor Input Name) Command. This can allow us to unambiguously determine which
- channel is for the LN2 tank and which is for LHe
-
-TODO: Make UDEV rule for LakeShore240
+TODO: Double check that the curves have the appropriate names!
 
 TODO: Incorporate redis storage (this program does not need pubsub in any obvious places)
 """
@@ -80,7 +77,7 @@ class LakeShore240(agent.SerialAgent):
         tanks = ['ln2', 'lhe']
         for channel in self.enabled_channels:
             try:
-                readings.append(float(self.query("KRDG? " + channel)))
+                readings.append(float(self.query(f"KRDG? {channel}")))
             except IOError as e:
                 log.error(f"Serial Error: {e}")
                 raise IOError(f"Serial Error: {e}")
@@ -101,7 +98,7 @@ class LakeShore240(agent.SerialAgent):
             id_string = self.query("*IDN?")
             manufacturer, model, sn, firmware = id_string.split(",")  # See manual p.43
             firmware = float(firmware)
-            self.model = float(model[-2])
+            self.model = int(model[-2])
             return {'manufacturer': manufacturer,
                     'model': model,
                     'model-no': self.model,
@@ -118,7 +115,7 @@ class LakeShore240(agent.SerialAgent):
         return self.idn['manufacturer'] == "LSCI"
 
     def model_ok(self):
-        return self.idn['model-no'] in ["2", "8"]
+        return self.idn['model-no'] in [2, 8]
 
     def _set_curve_name(self, channel: int, name: str):
         """Engineering function to set the name of a curve on the LakeShore240. Convenient since both thermometers are
@@ -141,7 +138,7 @@ class LakeShore240(agent.SerialAgent):
         if self.model:
             for channel in range(1, self.model + 1):
                 try:
-                    _, _, _, _, enabled_status = self.query("INTYPE? "+str(channel)).split(",")
+                    _, _, _, _, _, enabled_status = self.query("INTYPE? "+str(channel)).split(",")
                     if enabled_status == "1":
                         enabled.append(channel)
                 except IOError as e:
@@ -161,7 +158,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB,
                     create_ts_keys=['status:temps:lhetank', 'status:temps:ln2tank'])
-    lakeshore = LakeShore240(port='/dev/lakeshore240', baudrate=115200, timeout=0.1)
+    lakeshore = LakeShore240(port='/dev/lakeshore', baudrate=115200, timeout=0.1)
 
     try:
         lakeshore_info = lakeshore.idn
