@@ -30,6 +30,7 @@ pip install -e /picturec
 sudo cp etc/redis/redis.conf /etc/redis/
 sudo cp etc/systemd/system/* /etc/systemd/system/
 sudo cp etc/udev/rules.d/* /etc/udev/rules.d/
+sudo cp etc/modules /etc/
 
 # Load the udev rules
 sudo udevadm control --reload-rules
