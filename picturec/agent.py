@@ -9,6 +9,9 @@ import serial
 import time
 import threading
 
+def escapeString(string):
+    return string.replace('\n','\\n').replace('\r','\\r')
+
 class SerialAgent:
     def __init__(self, port, baudrate=9600, timeout=0.1, name=None, terminator='\n'):
         self.ser = None
@@ -78,9 +81,9 @@ class SerialAgent:
         msg = self.format_msg(msg)
 
         try:
-            getLogger(__name__).debug(f"Sending '{msg}'")  # Not the '' allow clearly logging empty sends
+            getLogger(__name__).debug(f"Sending '{escapeString(msg)}'")  # Not the '' allow clearly logging empty sends
             self.ser.write(msg.encode("utf-8"))
-            getLogger(__name__).debug(f"Sent '{msg}' successfully")
+            getLogger(__name__).debug(f"Sent '{escapeString(msg)}' successfully")  # TODO: Delete?
         except (serial.SerialException, IOError) as e:
             self.disconnect()
             getLogger(__name__).error(f"Send failed: {e}")
@@ -95,7 +98,7 @@ class SerialAgent:
         """
         try:
             data = self.ser.readline().decode("utf-8").strip()
-            getLogger(__name__).debug(f"read {data} from {self.name}")
+            getLogger(__name__).debug(f"read {escapeString(data)} from {self.name}")
             return data
         except (IOError, serial.SerialException) as e:
             self.disconnect()
