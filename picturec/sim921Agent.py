@@ -42,9 +42,7 @@ SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:output-mode']
 
 
-#TODO seeing this like this I'm leaning towards the convention DEFAULT_KEY='default:'+KEY. Then you can just have a
-# factory and never worry about making changes twice.
-# DEFAULT_KEY_FACTORY = lambda key: f'default:{key}'
+#TODO DEFAULT_KEY_FACTORY = lambda key: f'default:{key}'
 # default = redis.get(DEFAULT_KEY_FACTORY(key))
 DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
                         'default:device-settings:sim921:excitation-value',
