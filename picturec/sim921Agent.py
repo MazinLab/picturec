@@ -70,7 +70,7 @@ MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SN_KEY = 'status:device:sim921:sn'
 
-DEFAULT_MAINFRAME_KWARGS = {'slot': 2, 'exit_string': 'xyz'}
+DEFAULT_MAINFRAME_KWARGS = {'mf_slot': 2, 'mf_exit_string': 'xyz'}
 
 COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
                          'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4',
@@ -102,6 +102,22 @@ COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
 log = logging.getLogger(__name__)
 
 
+class SimCommand(object):
+    def __init__(self, redis_setting, command, mapping=None, range=None):
+        if mapping is None and range is None:
+            raise ValueError('Mapping dict or range tuple required')
+        self.mapping = mapping
+        self.setting = redis_setting
+        self.simcommand = command
+        self.range = range
+
+    def validValue(self, value):
+        if self.range is not None:
+            return self.range[0] <= value <= self.range[1]
+        else:
+            return value in self.mapping
+
+
 class SIM921Agent(agent.SerialAgent):
     def __init__(self, port, baudrate=9600, timeout=0.1,
                  scale_units='resistance', connect_mainframe=False, **kwargs):
@@ -112,9 +128,11 @@ class SIM921Agent(agent.SerialAgent):
 
         self.connect(raise_errors=False)  # Moved after initialization of all instance members
 
+        self.kwargs = kwargs
+
         if connect_mainframe:
-            if int(kwargs['slot']) in (np.arange(7)+1):
-                self.mainframe_connect(kwargs['slot'], kwargs['exit_string'])
+            if (int(self.kwargs['mf_slot']) in (np.arange(7)+1)) and self.kwargs['mf_exit_string']:
+                self.mainframe_connect()
             else:
                 raise IOError(f"Invalid slot number for SIM900 mainframe!")
 
@@ -166,11 +184,17 @@ class SIM921Agent(agent.SerialAgent):
     def model_ok(self):
         return self.idn['model'] == "SIM921"
 
-    def mainframe_connect(self, slot_number, disconnect_string):
-        self.send(f"CONN {slot_number}, '{disconnect_string}'")
+    def mainframe_connect(self, mf_port=None, mf_exit_string=None):
+        if mf_port and mf_exit_string:
+            self.send(f"CONN {mf_port}, '{mf_exit_string}'")
+        elif self.kwargs['mf_port'] and self.kwargs['mf_exit_string']:
+            self.send(f"CONN {self.kwargs['mf_port']}, '{self.kwargs['mf_exit_string']}'")
 
-    def mainframe_disconnect(self, disconnect_string):
-        self.send(f"{disconnect_string[2]}\n")  # This can be done with or without a newline character.
+    def mainframe_disconnect(self, mf_exit_string=None):
+        if mf_exit_string:
+            self.send(f"{mf_exit_string}\n")
+        elif self.kwargs['mf_exit_string']:
+            self.send(f"{self.kwargs['mf_exit_string']}\n")
 
 
     # def read_default_settings(self):
@@ -308,21 +332,7 @@ class SIM921Agent(agent.SerialAgent):
 #         command_key = dict_for_command['key'] if 'key' in dict_for_command.keys() else None
 #         command_vals = dict_for_command['vals']
 #
-#         #TODO this can be simplified by making the command a small class
-#         class SimCommand:
-#             def __init__(self, redis_setting, command, mapping=None, range=None):
-#                 if mapping is None and range is None:
-#                     raise ValueError('Mapping dict or range tuple required')
-#                 self.mapping = mapping
-#                 self.setting = redis_setting
-#                 self.simcommand = command
-#                 self.range = range
-#
-#             def validValue(self, value):
-#                 if self.range is not None:
-#                     return self.range[0] <=value <=self.range[1]
-#                 else:
-#                     return value in self.mapping
+
 #
 #             def translate(self, value):
 #                 if not self.validValue(value):
