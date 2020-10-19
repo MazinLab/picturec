@@ -8,8 +8,8 @@ the device temperature.
 
 TODO: Make sure that when done in mainframe mode, the exit string is sent to the SIM921
 
-TODO: describe the different mods of operation of this program and what they are. "Mainframe?!" -> Using the
- SIM900 mainframe, this is really just for development and will NEVER get used in real operation
+TODO: Include the SIM900 mainframe mode (SIM921 is in SIM900 mainframe and we want to connect to it directly. This is
+ for development only!! This will not be used on the actual instrument)
 
 TODO: For updating settings, we need to make sure that we're not in violation of the contract we're setting with redis.
  Basically, the new_settings / old_settings should come directly from redis and we can/should not have a software record
@@ -42,19 +42,8 @@ SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:output-mode']
 
 
-#TODO DEFAULT_KEY_FACTORY = lambda key: f'default:{key}'
-# default = redis.get(DEFAULT_KEY_FACTORY(key))
-DEFAULT_SETTING_KEYS = ['default:device-settings:sim921:resistance-range',
-                        'default:device-settings:sim921:excitation-value',
-                        'default:device-settings:sim921:excitation-mode',
-                        'default:device-settings:sim921:time-constant',
-                        'default:device-settings:sim921:temp-offset',
-                        'default:device-settings:sim921:temp-slope',
-                        'default:device-settings:sim921:resistance-offset',
-                        'default:device-settings:sim921:resistance-slope',
-                        'default:device-settings:sim921:curve-number',
-                        'default:device-settings:sim921:manual-vout',
-                        'default:device-settings:sim921:output-mode']
+default_key_factory = lambda key: f"default:{key}"
+DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
 
 
 TEMP_KEY = 'status:temps:mkidarray:temp'
