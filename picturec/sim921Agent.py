@@ -64,11 +64,13 @@ OUTPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'
 
 TS_KEYS = [TEMP_KEY, RES_KEY, OUTPUT_VOLTAGE_KEY]
 
+
 STATUS_KEY = 'status:device:sim921:status'
 MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SN_KEY = 'status:device:sim921:sn'
 
+DEFAULT_MAINFRAME_KWARGS = {'slot': 2, 'exit_string': 'xyz'}
 
 COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
                          'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4',
@@ -102,7 +104,7 @@ log = logging.getLogger(__name__)
 
 class SIM921Agent(agent.SerialAgent):
     def __init__(self, port, baudrate=9600, timeout=0.1,
-                 scale_units='resistance', connect_mainframe=False, mainframe_args=(2, 'xyz')):
+                 scale_units='resistance', connect_mainframe=False, **kwargs):
 
         super().__init__(port, baudrate, timeout, name='sim921')
 
@@ -111,7 +113,10 @@ class SIM921Agent(agent.SerialAgent):
         self.connect(raise_errors=False)  # Moved after initialization of all instance members
 
         if connect_mainframe:
-            self.mainframe_connect(*mainframe_args)
+            if int(kwargs['slot']) in (np.arange(7)+1):
+                self.mainframe_connect(kwargs['slot'], kwargs['exit_string'])
+            else:
+                raise IOError(f"Invalid slot number for SIM900 mainframe!")
 
     def reset_sim(self):
         """
@@ -160,6 +165,13 @@ class SIM921Agent(agent.SerialAgent):
 
     def model_ok(self):
         return self.idn['model'] == "SIM921"
+
+    def mainframe_connect(self, slot_number, disconnect_string):
+        self.send(f"CONN {slot_number}, '{disconnect_string}'")
+
+    def mainframe_disconnect(self, disconnect_string):
+        self.send(f"{disconnect_string[2]}\n")  # This can be done with or without a newline character.
+
 
     # def read_default_settings(self):
     #     """
@@ -638,15 +650,7 @@ class SIM921Agent(agent.SerialAgent):
 #             raise e
 #         except RedisError as e:
 #             raise e
-#
-#     def mainframe_connect(self, arg1, arg2):  #TODO make these argument names informative
-#         self.send(f'CONN {arg1}, {arg2}')
-#
-#     def mainframe_disconnect(self, args):
-#         self.send(f'{args[2]}')
-#
-#
-#
+
 #
 # def get_redis_value(redis, key):
 #     try:
