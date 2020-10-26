@@ -77,7 +77,6 @@ class Currentduino(agent.SerialAgent):
         if pos not in ('open', 'close'):
             raise ValueError(f"'{pos} is not a vaild (open, close) heat switch position")
 
-        # NB it is mighty convenient that the serial command/confirmation and pos start with the same letter
         try:
             log.info(f"Commanding heat switch to {pos}")
             confirm = self.query(pos[0], connect=True)
@@ -115,15 +114,16 @@ class Currentduino(agent.SerialAgent):
             while True:
                 current = None
                 try:
-                    self.last_current = currentduino.read_current()
+                    self.last_current = self.read_current()
                     current = self.last_current
-                except RedisError as e:
-                    log.error(f"Unable to store current due to redis error: {e}")
                 except IOError as e:
-                    log.error(f"Error {e}")
+                    log.error(f"Error: {e}")
 
                 if value_callback is not None and current is not None:
-                    value_callback(self.last_current)
+                    try:
+                        value_callback(self.last_current)
+                    except RedisError as e:
+                        log.error(f"Unable to store current due to redis error: {e}")
 
                 time.sleep(interval)
 
