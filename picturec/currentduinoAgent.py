@@ -37,6 +37,7 @@ STATUS_KEY = "status:device:currentduino:status"
 FIRMWARE_KEY = "status:device:currentduino:firmware"
 HEATSWITCH_STATUS_KEY = 'status:heatswitch'
 HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
+CURRENT_VALUE_KEY = 'status:highcurrentboard:current'
 
 
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
@@ -151,7 +152,7 @@ if __name__ == "__main__":
         redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
         sys.exit(1)
 
-    store_func = lambda x: redis.store({'status:highcurrentboard:current': x}, timeseries=True)
+    store_func = lambda x: redis.store({CURRENT_VALUE_KEY: x}, timeseries=True)
     currentduino.monitor_current(QUERY_INTERVAL, value_callback=store_func)
 
     while True:
