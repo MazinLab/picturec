@@ -776,9 +776,17 @@ if __name__ == "__main__":
     # For each loop, update the sim settings if they need to, read and store the thermometry data, read and store the
     # SIM921 output voltage, update the status of the program, and handle any potential errors that may come up.
     # """
+
+    redis.listen(SETTING_KEYS)
+
+    store_temp_res_func = lambda x: redis.store({TEMP_KEY: x['temperature'], RES_KEY: x['resistance']}, timeseries=True)
+    sim921.monitor_temp(QUERY_INTERVAL, value_callback=store_temp_res_func)
+
+    store_voltage_func = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x}, timeseries=True)
+    sim921.monitor_output_voltage(QUERY_INTERVAL, value_callback=store_voltage_func)
+
     while True:
         try:
-
             #A rought over simplification of what we talked about:
             settings = redis.read(list_of_all_setting_keys, return_dict=True)
             sim921.set_settings(settings)
