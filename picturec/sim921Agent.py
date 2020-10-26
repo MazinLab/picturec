@@ -178,11 +178,13 @@ class SIM921Agent(agent.SerialAgent):
     def model_ok(self):
         return self.idn['model'] == "SIM921"
 
-    def mainframe_connect(self, mf_port=None, mf_exit_string=None):
-        if mf_port and mf_exit_string:
-            self.send(f"CONN {mf_port}, '{mf_exit_string}'")
-        elif self.kwargs['mf_port'] and self.kwargs['mf_exit_string']:
-            self.send(f"CONN {self.kwargs['mf_port']}, '{self.kwargs['mf_exit_string']}'")
+    def mainframe_connect(self, mf_slot=None, mf_exit_string=None):
+        if mf_slot and mf_exit_string:
+            self.send(f"CONN {mf_slot}, '{mf_exit_string}'")
+        elif self.kwargs['mf_slot'] and self.kwargs['mf_exit_string']:
+            self.send(f"CONN {self.kwargs['mf_slot']}, '{self.kwargs['mf_exit_string']}'")
+        else:
+            log.critical("You've messed up a keyword for mainframe connection! Not connecting for your safety")
 
     def mainframe_disconnect(self, mf_exit_string=None):
         if mf_exit_string:
