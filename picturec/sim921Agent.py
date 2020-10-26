@@ -198,6 +198,19 @@ class SIM921Agent(agent.SerialAgent):
         elif self.kwargs['mf_exit_string']:
             self.send(f"{self.kwargs['mf_exit_string']}\n")
 
+    def read_temp_and_resistance(self):
+        temp = self.query("TVAL?")
+        res = self.query("RVAL?")
+
+        values = {'temperature': temp, 'resistance':res}
+
+        return values
+
+    def read_output_voltage(self):
+        voltage = self.query("AOUT?")
+
+        return voltage
+
 
     # def read_default_settings(self):
     #     """
