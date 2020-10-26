@@ -113,6 +113,23 @@ class SimCommand(object):
 
 
 class SIM921Agent(agent.SerialAgent):
+
+    def __init__(self, port, baudrate=9600, timeout=0.1, scale_units='resistance', connect_mainframe=False, **kwargs):
+        super().__init__(port, baudrate, timeout, name='sim921')
+
+        self.scale_units = scale_units
+
+        self.connect(raise_errors=False)
+
+        self.kwargs = kwargs
+
+        if connect_mainframe:
+            if (int(self.kwargs['mf_slot']) in (np.arange(7)+1)) and self.kwargs['mf_exit_string']:
+                self.mainframe_connect()
+            else:
+                raise IOError(f"Invalid configuration of slot ({self.kwargs['mf_slot']}) "
+                              f"and exit string {self.kwargs['mf-exit-string']} for SIM900 mainframe!")
+
     def reset_sim(self):
         """
         Send a reset command to the SIM device. This should not be used in regular operation, but if the device is not
