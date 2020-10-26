@@ -97,15 +97,21 @@ class SimCommand(object):
             raise ValueError('Mapping dict or range tuple required')
 
         self.setting = redis_setting
+        setting_vals = COMMAND_DICT[self.setting]['vals']
 
-        if isinstance(COMMAND_DICT[self.setting]['vals'], dict):
-            self.mapping = COMMAND_DICT[redis_setting]['vals']
+        if isinstance(setting_vals, dict):
+            self.mapping = setting_vals
             self.range = None
-        elif isinstance(COMMAND_DICT[self.setting]['vals'], list):
-            self.range = COMMAND_DICT[redis_setting]['vals']
+        elif isinstance(setting_vals, list):
+            self.range = setting_vals
             self.mapping = None
 
     def validValue(self, value):
+        """
+        TODO For the range parameter, you can either just not set the range (return false) or you could instead set
+         it to the end of that range. My inclination is to just return false and let the user know they wanted to set an
+         invalid value.
+        """
         if self.range is not None:
             return self.range[0] <= value <= self.range[1]
         else:
