@@ -211,6 +211,51 @@ class SIM921Agent(agent.SerialAgent):
 
         return voltage
 
+    def monitor_temp(self, interval, value_callback=None):
+        def f():
+            while True:
+                last_monitored_values = None
+                try:
+                    self.last_monitored_values = self.read_temp_and_resistance()
+                    last_monitored_values = self.last_monitored_values
+                except IOError as e:
+                    log.error(f"Error: {e}")
+
+                if value_callback is not None and last_monitored_values is not None:
+                    try:
+                        value_callback(self.last_monitored_values)
+                    except RedisError as e:
+                        log.error(f"Unable to store temperature and resistance due to redis error: {e}")
+
+                time.sleep(interval)
+
+        self._monitor_thread = threading.Thread(target=f, name='Temperature and Resistance Monitoring Thread')
+        self._monitor_thread.daemon = True
+        self._monitor_thread.start()
+
+    def monitor_output_voltage(self, interval, value_callback=None):
+        def f():
+            while True:
+                last_voltage = None
+                try:
+                    self.last_voltage = self.read_output_voltage()
+                    last_voltage = self.last_voltage
+                except IOError as e:
+                    log.error(f"Error: {e}")
+
+                if value_callback is not None and last_voltage is not None:
+                    try:
+                        value_callback(self.last_voltage)
+                    except RedisError as e:
+                        log.error(f"Unable to store temperature and resistance due to redis error: {e}")
+
+                time.sleep(interval)
+
+        self._voltage_monitor_thread = threading.Thread(target=f, name='Voltage Monitoring Thread')
+        self._voltage_monitor_thread.daemon = True
+        self._voltage_monitor_thread.start()
+
+
 
     # def read_default_settings(self):
     #     """
