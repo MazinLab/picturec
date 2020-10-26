@@ -41,7 +41,9 @@ SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:manual-vout',
                 'device-settings:sim921:output-mode']
 
-
+# TODO: Consider if default keys are even necessary
+# A note -> in any case, the only time default keys are necessary are for when settings must be initialized on the
+# device that's being controlled
 default_key_factory = lambda key: f"default:{key}"
 DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
 
@@ -61,70 +63,54 @@ SN_KEY = 'status:device:sim921:sn'
 
 DEFAULT_MAINFRAME_KWARGS = {'mf_slot': 2, 'mf_exit_string': 'xyz'}
 
-COMMAND_DICT = {'RANG': {'key': 'device-settings:sim921:resistance-range',
-                         'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4',
-                                  2e3: '5', 20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'}},
-                'EXCI': {'key': 'device-settings:sim921:excitation-value',
-                         'vals': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3',
-                                  300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'}},
-                'MODE': {'key': 'device-settings:sim921:excitation-mode',
-                         'vals': {'passive': '0', 'current': '1', 'voltage': '2', 'power': '3'}},
-                'EXON': {'key': 'device-settings:sim921:excitation-value',
-                         'vals': {'off': '0', 'on': '1'}},
-                'TSET': {'key': 'device-settings:sim921:temp-offset',
-                         'vals': [0.050, 40]},
-                'RSET': {'key': 'device-settings:sim921:resistance-offset',
-                         'vals': [1049.08, 63765.1]},
-                'VKEL': {'key': 'device-settings:sim921:temp-slope',
-                         'vals': [0, 1e-2]},
-                'VOHM': {'key': 'device-settings:sim921:resistance-slope',
-                         'vals': [0, 1e-5]},
-                'AMAN': {'key': 'device-settings:sim921:output-mode',
-                         'vals': {'scaled': '1', 'manual': '0'}},
-                'AOUT': {'key': 'device-settings:sim921:manual-vout',
-                         'vals': [-10, 10]},
-                'ATEM': {'vals': {'resistance': '0', 'temperature': '1'}},
-                'CURV': {'key': 'device-settings:sim921:curve-number',
-                         'vals': {1: '1', 2: '2', 3: '3'}}
+COMMAND_DICT = {'device-settings:sim921:resistance-range': {'cmd': 'RANG', 'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4', 2e3: '5', 20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'}},
+                'device-settings:sim921:excitation-value': {'cmd': 'EXCI', 'vals': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3', 300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'}},
+                'device-settings:sim921:excitation-mode': {'cmd': 'MODE', 'vals': {'passive': '0', 'current': '1', 'voltage': '2', 'power': '3'}},
+                'device-settings:sim921:temp-offset': {'cmd': 'TSET', 'vals': [0.050, 40]},
+                'device-settings:sim921:resistance-offset': {'cmd': 'RSET', 'vals': [1049.08, 63765.1]},
+                'device-settings:sim921:temp-slope': {'cmd': 'VKEL', 'vals': [0, 1e-2]},
+                'device-settings:sim921:resistance-slope': {'cmd': 'VOHM', 'vals': [0, 1e-5]},
+                'device-settings:sim921:output-mode': {'cmd': 'AMAN', 'vals': {'scaled': '1', 'manual': '0'}},
+                'device-settings:sim921:manual-vout': {'cmd': 'AOUT', 'vals': [-10, 10]},
+                'device-settings:sim921:curve-number': {'cmd': 'CURV', 'vals': {1: '1', 2: '2', 3: '3'}},
+                # Not sure what to do with EXON and ATEM. These are important/necessary but don't need explicit changing
+                # during normal operations.
+                # EXON probably can always be on so might be able to be axed.
+                # ATEM should NEVER be changed without deep consideration/mid-operation.
+                # TODO: (1) <- decide (2) consider making them 'special' commands. by all accounts these are
+                #  two settings that should never be changed, can be set at startup.
+                'device-settings:sim921:excitation-value-modified': {'cmd': 'EXON', 'vals': {'off': '0', 'on': '1'}},
+                'special-key': {'cmd': 'ATEM', 'vals': {'resistance': '0', 'temperature': '1'}},
                 }
+
 
 log = logging.getLogger(__name__)
 
 
 class SimCommand(object):
-    def __init__(self, redis_setting, command, mapping=None, range=None):
-        if mapping is None and range is None:
+    def __init__(self, redis_setting, value):
+        self.command_value = value
+
+        if redis_setting not in COMMAND_DICT.keys():
             raise ValueError('Mapping dict or range tuple required')
-        self.mapping = mapping
+
         self.setting = redis_setting
-        self.simcommand = command
-        self.range = range
+
+        if isinstance(COMMAND_DICT[self.setting]['vals'], dict):
+            self.mapping = COMMAND_DICT[redis_setting]['vals']
+            self.range = None
+        elif isinstance(COMMAND_DICT[self.setting]['vals'], list):
+            self.range = COMMAND_DICT[redis_setting]['vals']
+            self.mapping = None
 
     def validValue(self, value):
         if self.range is not None:
             return self.range[0] <= value <= self.range[1]
         else:
-            return value in self.mapping
+            return value in self.mapping.keys()
 
 
 class SIM921Agent(agent.SerialAgent):
-    def __init__(self, port, baudrate=9600, timeout=0.1,
-                 scale_units='resistance', connect_mainframe=False, **kwargs):
-
-        super().__init__(port, baudrate, timeout, name='sim921')
-
-        self.scale_units = scale_units
-
-        self.connect(raise_errors=False)  # Moved after initialization of all instance members
-
-        self.kwargs = kwargs
-
-        if connect_mainframe:
-            if (int(self.kwargs['mf_slot']) in (np.arange(7)+1)) and self.kwargs['mf_exit_string']:
-                self.mainframe_connect()
-            else:
-                raise IOError(f"Invalid slot number for SIM900 mainframe!")
-
     def reset_sim(self):
         """
         Send a reset command to the SIM device. This should not be used in regular operation, but if the device is not
