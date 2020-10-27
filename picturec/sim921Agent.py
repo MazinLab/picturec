@@ -89,34 +89,39 @@ class SimCommand(object):
             raise ValueError('Mapping dict or range tuple required')
 
         self.setting = redis_setting
-        self.cmd = COMMAND_DICT[self.setting]['cmd']
+        self.command = COMMAND_DICT[self.setting]['command']
         setting_vals = COMMAND_DICT[self.setting]['vals']
 
         if isinstance(setting_vals, dict):
             self.mapping = setting_vals
             self.range = None
             mapping_type = type(list(self.mapping.keys())[0])
-            if mapping_type == str:
-                self.value = str(self.value)
-            elif mapping_type == float:
-                self.value = float(self.value)
-            elif mapping_type == int:
-                self.value = int(self.value)
+            try:
+                if mapping_type == str:
+                    self.value = str(self.value)
+                elif (mapping_type == float) or (mapping_type == int):
+                    self.value = float(self.value)
+            except ValueError as e:
+                log.warning(f"The value sent was not the correct type! {e}")
         elif isinstance(setting_vals, list):
             self.range = setting_vals
             self.mapping = None
             self.value = float(self.value)
 
     def validValue(self):
-        """
-        TODO For the range parameter, you can either just not set the range (return false) or you could instead set
-         it to the end of that range. My inclination is to just return false and let the user know they wanted to set an
-         invalid value.
-        """
         if self.range is not None:
             return self.range[0] <= self.value <= self.range[1]
         else:
             return self.value in self.mapping.keys()
+
+    def format_command(self):
+        if self.validValue():
+            if self.range is not None:
+                return f"{self.command} {self.value}"
+            else:
+                return f"{self.command} {self.mapping[self.value]}"
+        else:
+            log.info(f"Trying to set the SIM921 to an invalid value! Setting {self.setting} to {self.value}")
 
 
 class SIM921Agent(agent.SerialAgent):
