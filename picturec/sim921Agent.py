@@ -91,31 +91,40 @@ log = logging.getLogger(__name__)
 
 class SimCommand(object):
     def __init__(self, redis_setting, value):
-        self.command_value = value
+        self.value = value
 
         if redis_setting not in COMMAND_DICT.keys():
             raise ValueError('Mapping dict or range tuple required')
 
         self.setting = redis_setting
+        self.cmd = COMMAND_DICT[self.setting]['cmd']
         setting_vals = COMMAND_DICT[self.setting]['vals']
 
         if isinstance(setting_vals, dict):
             self.mapping = setting_vals
             self.range = None
+            mapping_type = type(list(self.mapping.keys())[0])
+            if mapping_type == str:
+                self.value = str(self.value)
+            elif mapping_type == float:
+                self.value = float(self.value)
+            elif mapping_type == int:
+                self.value = int(self.value)
         elif isinstance(setting_vals, list):
             self.range = setting_vals
             self.mapping = None
+            self.value = float(self.value)
 
-    def validValue(self, value):
+    def validValue(self):
         """
         TODO For the range parameter, you can either just not set the range (return false) or you could instead set
          it to the end of that range. My inclination is to just return false and let the user know they wanted to set an
          invalid value.
         """
         if self.range is not None:
-            return self.range[0] <= value <= self.range[1]
+            return self.range[0] <= self.value <= self.range[1]
         else:
-            return value in self.mapping.keys()
+            return self.value in self.mapping.keys()
 
 
 class SIM921Agent(agent.SerialAgent):
@@ -131,7 +140,14 @@ class SIM921Agent(agent.SerialAgent):
 
         if connect_mainframe:
             if (int(self.kwargs['mf_slot']) in (np.arange(7)+1)) and self.kwargs['mf_exit_string']:
+                self.mainframe_disconnect()
+                log.info(f"Connected to {self.idn}, going down the chain to connect to SIM921")
+                time.sleep(1)
                 self.mainframe_connect()
+                time.sleep(1)
+                log.info(f"Now connected to {self.idn}")
+                # self.mainframe_connect()
+                # time.sleep(1)
             else:
                 raise IOError(f"Invalid configuration of slot ({self.kwargs['mf_slot']}) "
                               f"and exit string {self.kwargs['mf-exit-string']} for SIM900 mainframe!")
@@ -172,9 +188,13 @@ class SIM921Agent(agent.SerialAgent):
                     'sn': sn,
                     'firmware': firmware}
         except IOError as e:
+            if 'mf_disconnect_string' in self.kwargs.keys():
+                self.mainframe_disconnect()
             log.error(f"Serial error: {e}")
             raise e
         except ValueError as e:
+            if 'mf_disconnect_string' in self.kwargs.keys():
+                self.mainframe_disconnect()
             log.error(f"Bad firmware format: {firmware}. Error: {e}")
             raise IOError(f"Bad firmware format: {firmware}. Error: {e}")
 
@@ -590,27 +610,22 @@ class SIM921Agent(agent.SerialAgent):
 
 if __name__ == "__main__":
 
-    # TODO Try to make agent's mirror as much as possible. For instance hempttemp does logging, then the class,
-    #  then redis, then runs a main loop. Here the orders are juggled with no obvious reason and the main loop is
-    #  internal to the class. this also means this agent now must have a redis instance whereas the other agent doesn't.
-    #  I think there are merits to both approaches but for now consistency is key.
-
     logging.basicConfig(level=logging.DEBUG)
 
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
-    sim921 = SIM921Agent(port='/dev/sim921', baudrate=9600, timeout=0.1)
+    sim921 = SIM921Agent(port='/dev/sim921', baudrate=9600, timeout=0.1, connect_mainframe=True, **DEFAULT_MAINFRAME_KWARGS)
 
     try:
         sim921_info = sim921.idn
-        redis.store({FIRMWARE_KEY: sim921_info['firmware'],
-                     MODEL_KEY: sim921_info['model'],
-                     SN_KEY: sim921_info['firmware']})
         if not sim921.manufacturer_ok():
             redis.store({STATUS_KEY: f'Unsupported manufacturer: {sim921_info["manufacturer"]}'})
             sys.exit(1)
         if not sim921.model_ok():
             redis.store({STATUS_KEY: f'Unsupported model: {sim921_info["model"]}'})
             sys.exit(1)
+        redis.store({FIRMWARE_KEY: sim921_info['firmware'],
+                     MODEL_KEY: sim921_info['model'],
+                     SN_KEY: sim921_info['firmware']})
     except IOError as e:
         log.error(f"Serial error in querying SIM921 identification information: {e}")
         redis.store({FIRMWARE_KEY: '',
