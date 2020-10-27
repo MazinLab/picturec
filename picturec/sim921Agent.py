@@ -6,18 +6,9 @@ is monitoring the temperature of the thermometer on the MKID device stage in the
 responsible for properly conditioning its output signal so that the SIM960 (PID Controller) can properly regulate
 the device temperature.
 
-TODO: Make sure that when done in mainframe mode, the exit string is sent to the SIM921
+TODO: Engineering functions: Loading curve, primarily.
 
-TODO: Include the SIM900 mainframe mode (SIM921 is in SIM900 mainframe and we want to connect to it directly. This is
- for development only!! This will not be used on the actual instrument)
-
-TODO: For updating settings, we need to make sure that we're not in violation of the contract we're setting with redis.
- Basically, the new_settings / old_settings should come directly from redis and we can/should not have a software record
- of what those settings are, but rather get them from the instrument itself
- (e.g. ask redis what the desired excitation is, then query the sim921 to see what the excitation is set to, then update
- if they dont match (if changing it automatically would be a pain) or ask redis what the desired excitation is and then
-  just send the command. The choice between if we need to ask the sim921 what the value is set to basically boils down
-  to how much a pain in the butt it is if you change that setting.)
+TODO: Updating settings! Essentially, stay "in contract" with redis.
 """
 
 import numpy as np
@@ -65,9 +56,16 @@ SN_KEY = 'status:device:sim921:sn'
 
 DEFAULT_MAINFRAME_KWARGS = {'mf_slot': 2, 'mf_exit_string': 'xyz'}
 
-COMMAND_DICT = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4', 2e3: '5', 20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'}},
-                'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3', 300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'}},
-                'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1', 'voltage': '2', 'power': '3'}},
+COMMAND_DICT = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {20e-3: '0', 200e-3: '1', 2: '2',
+                                                                                        20: '3', 200: '4', 2e3: '5',
+                                                                                        20e3: '6', 200e3: '7',
+                                                                                        2e6: '8', 20e6: '9'}},
+                'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {0: '-1', 3e-6: '0', 10e-6: '1',
+                                                                                        30e-6: '2', 100e-6: '3',
+                                                                                        300e-6: '4', 1e-3: '5',
+                                                                                        3e-3: '6', 10e-3: '7', 30e-3: '8'}},
+                'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1',
+                                                                                       'voltage': '2', 'power': '3'}},
                 'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0.050, 40]},
                 'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [1049.08, 63765.1]},
                 'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
@@ -108,14 +106,14 @@ class SimCommand(object):
             self.mapping = None
             self.value = float(self.value)
 
-    def validValue(self):
+    def valid_value(self):
         if self.range is not None:
             return self.range[0] <= self.value <= self.range[1]
         else:
             return self.value in self.mapping.keys()
 
     def format_command(self):
-        if self.validValue():
+        if self.valid_value():
             if self.range is not None:
                 return f"{self.command} {self.value}"
             else:
@@ -272,134 +270,6 @@ class SIM921Agent(agent.SerialAgent):
         self._voltage_monitor_thread.daemon = True
         self._voltage_monitor_thread.start()
 
-
-
-    # def read_default_settings(self):
-    #     """
-    #     Reads all of the default SIM921 settings that are stored in the redis database and reads them into the
-    #     dictionaries which the agent will use to command the SIM921 to change settings.
-    #
-    #     TODO Isn't this is a violation of the contract with the database? Since this function doesn't actually SET the settings
-    #      calling it creates the probability of a mismatch between the database and whatever is loaded into the SIM!
-    #
-    #     #TODO axe this, at least as a class member
-    #
-    #     Also reads these now current settings into the redis database.
-    #     """
-    #     try:
-    #         defaults = get_redis_value(self.redis, list(map(DEFAULT_KEY_FACTORY, SETTING_KEYS)))
-    #         d = {k: v for k, v in zip(SETTING_KEYS, defaults)}
-    #
-    #         #self.prev_sim_settings.update(d) # this line isn't actually recording previous settings!
-    #         #self.new_sim_settings.update(d) #this line may also break the contract with the control system
-    #         #store_redis_data(self.redis,d)  #This line breaks the contract with the control system
-    #     except RedisError as e:
-    #         raise e
-
-    # def initialize_sim(self, settings, load_curve=False):
-    #     """
-    #     Sets all of the values that are read in in the self.read_default_settings() function to their default values.
-    #     In this instance, self.prev_sim_settings are the values from the default:* keys in the redis db.
-    #
-    #     TODO When we are operating and for some reason something happens that triggers a reinitialization it
-    #      would probably make for smoother operations to load the current settings (which would have been loaded from
-    #      defaults at program start).
-    #      It would also be nicer for you if things are structured so that you've got a more general API to programatically
-    #      set settings without bespoke code e.g.
-    #         active_settings = self.get_active_settings()
-    #         self.reset_sim()  #This might force a hiccup that isn't always needed
-    #         for k,v in active_settings:
-    #             self.set_setting(k, v)
-    #
-    #     Note that during the execution of this function there is a brief window where multiple settings are out of sync
-    #     in redis this probably doesn't matter but should be kept in mind as it can create a race condition.
-    #     I think tt is possible to lock redis such that anyone that is querying the keys you are in the process of modifying will
-    #     block or otherwise get an indication that things are in flux. Thereby preventing another program from doing
-    #     something based on a bad inferred state.
-    #
-    #     here that might look like
-    #     lock_redis_keys(defaults.keys())
-    #     for k,v in defaults.items(): self.set(k,v)
-    #     update_redis(defaults)
-    #     self.current_settings.update(defaults)
-    #     unlock_redis_keys(defaults.keys())
-    #
-    #     or
-    #     self.set_resistance(defaults['resistance'])
-    #     self.current_settings['resistance'])=defaults['resistance']
-    #     update_redis('resistance', defaults['resistance'])
-    #     repeat with next setting.
-    #
-    #     The second is much more verbose and makes for more typing.
-    #
-    #
-    #     """
-    #     log.info(f"Initializing SIM921")
-    #
-    #     try:
-    #
-    #         #move the fetching from redis outside the class
-    #         defaults = settings # get_redis_value(self.redis, list(map(DEFAULT_KEY_FACTORY, SETTING_KEYS)), return_dict=True)
-    #
-    #         self.reset_sim()
-    #
-    #         self.set_resistance_range(defaults['device-settings:sim921:resistance-range'])
-    #         self.set_excitation_value(defaults['device-settings:sim921:excitation-value'])
-    #         self.set_excitation_mode(defaults['device-settings:sim921:excitation-mode'])
-    #         self.set_time_constant_value(defaults['device-settings:sim921:time-constant'])
-    #
-    #         self.set_temperature_offset(defaults['device-settings:sim921:temp-offset'])
-    #         self.set_temperature_output_scale(defaults['device-settings:sim921:temp-slope'])
-    #
-    #         self.set_resistance_offset(defaults['device-settings:sim921:resistance-offset'])
-    #         self.set_resistance_output_scale(defaults['device-settings:sim921:resistance-slope'])
-    #
-    #         self.set_output_manual_voltage(defaults['device-settings:sim921:manual-vout'])
-    #         self.set_output_mode(defaults['device-settings:sim921:output-mode'])
-    #         self.set_output_scale_units(self.scale_units)
-    #
-    #         if load_curve:
-    #             # Loading the curve can and should probably be automated, but at the moment we only have one possible
-    #             # curve we can use and so it is more trouble than it is worth to go through not hardcoding it.
-    #             self._load_calibration_curve(1, 'linear', 'PICTURE-C', '../hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl')
-    #
-    #         self.choose_calibration_curve(defaults['device-settings:sim921:curve-number'])
-    #
-    #         self.command("DTEM 1")
-    #
-    #         self.prev_sim_settings.update(defaults)  # this line isn't actually recording previous settings!
-    #         self.new_sim_settings.update(defaults) #this line may also break the contract with the control system
-    #         store_redis_data(self.redis,defaults)  #This line breaks the contract with the control system
-    #
-    #     except IOError as e:
-    #         log.debug(f"Initialization failed: {e}")
-    #         raise e
-    #     except RedisError as e:
-    #         log.debug(f"Redis error occurred in initialization of SIM921: {e}")
-    #         raise e
-
-#     def choose_calibration_curve(self, curve):
-#         """
-#         Choose the Resistance-vs-Temperature curve to report temperature. As of July 2020, there is only one possible
-#         option that is loaded into channel 1, the LakeShore RX-102-A calibration curve for the thermistor that we have
-#         in the PICTURE-C cryostat. Channels 2 and 3 are not 'legal' channels since we have not loaded any calibration
-#         curves into them. When we do, LOADED_CURVES should be changed to reflect that so that curve can be used during
-#         normal operation.
-#         """
-#         #TODO this should be be a global
-#         # this can also be integrated with minor modification into the command class I defined above by just populating
-#         # its mapping with the loaded curves
-#         LOADED_CURVES = [1]  # This parameter should probably be updated in redis/somewhere permanent. But the most we
-#         # can have is 3 curves on channels 1, 2, or 3. Loaded curves is currently manually set to whichever we have loaded
-#         if curve in LOADED_CURVES:
-#             try:
-#                 self.set_sim_param("CURV", int(curve))
-#             except (IOError, RedisError) as e:
-#                 raise e
-#         else:
-#             log.warning(f"Curve number {curve} has not been loaded into the SIM921. This curve"
-#                                         f"cannot be used to convert resistance to temperature!")
-#
 #     def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, file:str=None):
 #         """
 #         This is an engineering function for the SIM921 device. In normal operation of the fridge, the user should never
@@ -465,94 +335,6 @@ class SIM921Agent(agent.SerialAgent):
 #             store_redis_data(self.redis, {CURVE_NUMBER_KEY: curve_num})
 #         except RedisError as e:
 #             raise e
-#
-#     def _check_settings(self):
-#         """
-#         Reads in the redis database values of the setting keys to self.new_sim_settings and then compares them to
-#         those in self.prev_sim_settings. If any of the values are different, it stores the key of the desired value to
-#         change as well as the new value. These will be used in self.update_sim_settings() to send the necessary commands
-#         to the SIM921 to change any of the necessary settings on the instrument.
-#
-#         Returns a dictionary where the keys are the redis keys that correspond to the SIM921 settings and the values are
-#         the new, desired values to set them to.
-#
-#         TODO this doesn't really check the settings at all, rather it looks to see if previous and new are
-#         """
-#         try:
-#             for i in self.new_sim_settings.keys():
-#                 self.new_sim_settings[i] = get_redis_value(self.redis, i)
-#         except RedisError as e:
-#             raise e
-#
-#         changed_idx = []
-#         for i,j in enumerate(zip(self.prev_sim_settings.values(), self.new_sim_settings.values())):
-#             if str(j[0]) != str(j[1]):
-#                 changed_idx.append(True)
-#             else:
-#                 changed_idx.append(False)
-#
-#         keysToChange = np.array(list(self.new_sim_settings.keys()))[changed_idx]
-#         valsToChange = np.array(list(self.new_sim_settings.values()))[changed_idx]
-#
-#         return {k: v for k, v in zip(keysToChange, valsToChange)}
-#
-#     def update_sim_settings(self):
-#         """
-#
-#         TODO A functions specification is an interface. It should be kept independing of other function. I.E.
-#          Takes a dictionary of redis keys and values and uses them to update the SIM is great.
-#          Takes the output of X and ... is problematic for many of the programming reasons we've talked about.
-#
-#         TODO Why is this function implicit? just make it take the settings dict, then you can use it and all its
-#          validation everywhere (in the vein of my other comments.
-#          def update...(self, d, error=True):
-#              self._check_settings(d, error=error)
-#              try:
-#                  self.set_resistance_range(d['device-settings:sim921:resistance-range'])
-#              except KeyError:
-#                  pass
-#              ...
-#
-#
-#         Takes the output of self._check_settings() and sends the appropriate commands to the SIM921 to update the
-#         desired settings. Leaves the unchanged settings alone and does not send any commands associated with them.
-#
-#         After changing all of the necessary settings, self.new_sim_settings is read into self.prev_sim_settings for
-#         continuity. This happens each time through the loop so self.prev_sim_settings reflects what the settings were in
-#         the previous loop and self.new_sim_settings reflects the desired state.
-#         """
-#         key_val_dict = self._check_settings()
-#         keys = key_val_dict.keys()
-#         try:
-#             if 'device-settings:sim921:resistance-range' in keys:
-#                 self.set_resistance_range(key_val_dict['device-settings:sim921:resistance-range'])
-#             if 'device-settings:sim921:excitation-value' in keys:
-#                 self.set_excitation_value(key_val_dict['device-settings:sim921:excitation-value'])
-#             if 'device-settings:sim921:excitation-mode' in keys:
-#                 self.set_excitation_mode(key_val_dict['device-settings:sim921:excitation-mode'])
-#             if 'device-settings:sim921:time-constant' in keys:
-#                 self.set_time_constant_value(key_val_dict['device-settings:sim921:time-constant'])
-#             if 'device-settings:sim921:temp-offset' in keys:
-#                 self.set_temperature_offset(key_val_dict['device-settings:sim921:temp-offset'])
-#             if 'device-settings:sim921:temp-slope' in keys:
-#                 self.set_temperature_output_scale(key_val_dict['device-settings:sim921:temp-slope'])
-#             if 'device-settings:sim921:resistance-offset' in keys:
-#                 self.set_resistance_offset(key_val_dict['device-settings:sim921:resistance-offset'])
-#             if 'device-settings:sim921:resistance-slope' in keys:
-#                 self.set_resistance_output_scale(key_val_dict['device-settings:sim921:resistance-slope'])
-#             if 'device-settings:sim921:curve-number' in keys:
-#                 self.choose_calibration_curve(key_val_dict['device-settings:sim921:curve-number'])
-#             if 'device-settings:sim921:manual-vout' in keys:
-#                 self.set_output_manual_voltage(key_val_dict['device-settings:sim921:manual-vout'])
-#             if 'device-settings:sim921:output-mode' in keys:
-#                 self.set_output_mode(key_val_dict['device-settings:sim921:output-mode'])
-#         except (IOError, RedisError) as e:
-#             raise e
-#
-#         # Update the self.prev_sim_settings dictionary. Consider doing this in the self.set_...() functions?
-#         for i in self.prev_sim_settings.keys():
-#             self.prev_sim_settings[i] = self.new_sim_settings[i]
-
 
 if __name__ == "__main__":
 
@@ -582,11 +364,8 @@ if __name__ == "__main__":
         log.critical(f"Redis server error! {e}")
         sys.exit(1)
 
-
-    # """
     # For each loop, update the sim settings if they need to, read and store the thermometry data, read and store the
     # SIM921 output voltage, update the status of the program, and handle any potential errors that may come up.
-    # """
 
     store_temp_res_func = lambda x: redis.store({TEMP_KEY: x['temperature'], RES_KEY: x['resistance']}, timeseries=True)
     sim921.monitor_temp(QUERY_INTERVAL, value_callback=store_temp_res_func)
@@ -618,24 +397,17 @@ if __name__ == "__main__":
             for key, val in redis.listen(SETTING_KEYS):
                 log.debug(f"sim921agent received {key}, {val}. Trying to send a command.")
                 cmd = SimCommand(key, val)
-                if cmd.validValue():
-                    log.info(f'Here we would send the command "{cmd.format_command()}\\n"')
+                if cmd.valid_value():
+                    try:
+                        log.info(f'Here we would send the command "{cmd.format_command()}\\n"')
+                        # sim921.send(f"{cmd.format_command()}")
+                        # redis.store({cmd.setting: cmd.value})
+                        # redis.store({STATUS_KEY: "OK"})
+                    except IOError as e:
+                        redis.store({STATUS_KEY: f"Error {e}"})
+                        log.error(f"Some error communicating with the SIM921! {e}")
                 else:
                     log.warning(f'Not a valid value. Can\'t send key:value pair "{key} / {val}" to the SIM921!')
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
-
-    # while True:
-    #     try:
-    #         #A rought over simplification of what we talked about:
-    #         settings = redis.read(list_of_all_setting_keys, return_dict=True)
-    #         sim921.set_settings(settings)
-    #         redis.store(sim921.read_thermometry(return_setting_dict=True), timeseries=True)
-    #         redis.store(sim921.read_output(return_setting_dict=True), timeseries=True)
-    #         redis.store((STATUS_KEY, "OK"), timeseries=False)
-    #     except IOError as e:
-    #         log.error(f"IOError occurred in run loop: {e}")
-    #         redis.store((STATUS_KEY, f"Error {e}"))
-    #     except RedisError as e:
-    #         log.critical(f"Error with redis while running: {e}")
-    #         sys.exit(1)
+            sys.exit(1)
