@@ -107,7 +107,7 @@ class SerialAgent:
 
     def query(self, cmd: str, **kwargs):
         """
-        Send cmd and wair for a response, kwargs passed to send, raises only IOError
+        Send command and wait for a response, kwargs passed to send, raises only IOError
         TODO: Check for a question mark at the end of the string? - Probably do this if overriding in subclass
         """
         with self._rlock:
