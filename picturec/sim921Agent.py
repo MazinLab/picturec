@@ -65,24 +65,16 @@ SN_KEY = 'status:device:sim921:sn'
 
 DEFAULT_MAINFRAME_KWARGS = {'mf_slot': 2, 'mf_exit_string': 'xyz'}
 
-COMMAND_DICT = {'device-settings:sim921:resistance-range': {'cmd': 'RANG', 'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4', 2e3: '5', 20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'}},
-                'device-settings:sim921:excitation-value': {'cmd': 'EXCI', 'vals': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3', 300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'}},
-                'device-settings:sim921:excitation-mode': {'cmd': 'MODE', 'vals': {'passive': '0', 'current': '1', 'voltage': '2', 'power': '3'}},
-                'device-settings:sim921:temp-offset': {'cmd': 'TSET', 'vals': [0.050, 40]},
-                'device-settings:sim921:resistance-offset': {'cmd': 'RSET', 'vals': [1049.08, 63765.1]},
-                'device-settings:sim921:temp-slope': {'cmd': 'VKEL', 'vals': [0, 1e-2]},
-                'device-settings:sim921:resistance-slope': {'cmd': 'VOHM', 'vals': [0, 1e-5]},
-                'device-settings:sim921:output-mode': {'cmd': 'AMAN', 'vals': {'scaled': '1', 'manual': '0'}},
-                'device-settings:sim921:manual-vout': {'cmd': 'AOUT', 'vals': [-10, 10]},
-                'device-settings:sim921:curve-number': {'cmd': 'CURV', 'vals': {1: '1', 2: '2', 3: '3'}},
-                # Not sure what to do with EXON and ATEM. These are important/necessary but don't need explicit changing
-                # during normal operations.
-                # EXON probably can always be on so might be able to be axed.
-                # ATEM should NEVER be changed without deep consideration/mid-operation.
-                # TODO: (1) <- decide (2) consider making them 'special' commands. by all accounts these are
-                #  two settings that should never be changed, can be set at startup.
-                'device-settings:sim921:excitation-value-modified': {'cmd': 'EXON', 'vals': {'off': '0', 'on': '1'}},
-                'special-key': {'cmd': 'ATEM', 'vals': {'resistance': '0', 'temperature': '1'}},
+COMMAND_DICT = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {20e-3: '0', 200e-3: '1', 2: '2', 20: '3', 200: '4', 2e3: '5', 20e3: '6', 200e3: '7', 2e6: '8', 20e6: '9'}},
+                'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {0: '-1', 3e-6: '0', 10e-6: '1', 30e-6: '2', 100e-6: '3', 300e-6: '4', 1e-3: '5', 3e-3: '6', 10e-3: '7', 30e-3: '8'}},
+                'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1', 'voltage': '2', 'power': '3'}},
+                'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0.050, 40]},
+                'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [1049.08, 63765.1]},
+                'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
+                'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-5]},
+                'device-settings:sim921:output-mode': {'command': 'AMAN', 'vals': {'scaled': '1', 'manual': '0'}},
+                'device-settings:sim921:manual-vout': {'command': 'AOUT', 'vals': [-10, 10]},
+                'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {1: '1', 2: '2', 3: '3'}},
                 }
 
 
@@ -653,6 +645,14 @@ if __name__ == "__main__":
     elif unit == '1':
         log.critical(f"Unit query response was {1}. Analog output voltage scale units are temperature. DO NOT OPERATE"
                      f" IN THIS MODE")
+        sys.exit(1)
+
+    sim921.send("EXON 1")
+    exon = sim921.query("EXON?")
+    if exon == '1':
+        log.critical(f"EXON query response was {0}. Excitation is on!")
+    elif exon == '0':
+        log.critical(f"EXON query response was {1}. Excitation is off,ou won't be able to operate in this mode!")
         sys.exit(1)
 
     while True:
