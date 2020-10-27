@@ -29,7 +29,7 @@ from picturec.pcredis import PCRedis, RedisError
 import threading
 
 REDIS_DB = 0
-QUERY_INTERVAL = 0.1
+QUERY_INTERVAL = 10
 
 SETTING_KEYS = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:excitation-value',
