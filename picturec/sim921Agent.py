@@ -594,7 +594,8 @@ if __name__ == "__main__":
     store_voltage_func = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x}, timeseries=True)
     sim921.monitor_output_voltage(QUERY_INTERVAL, value_callback=store_voltage_func)
 
-    # NOTE: The following block is likely unnecessary BUT I have it in here as a safeguard because
+    # TODO: Determine how to properly treat the ATEM (and EXON). Talk with Jeb about scheme for it. For what it's worth
+    #  they should always be the same, unless there is a major change in system (new thermometer).
     sim921.send("ATEM 0")
     unit = sim921.query("ATEM?")
     if unit == '0':
