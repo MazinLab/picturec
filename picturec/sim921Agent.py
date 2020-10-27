@@ -547,57 +547,6 @@ class SIM921Agent(agent.SerialAgent):
 #         # Update the self.prev_sim_settings dictionary. Consider doing this in the self.set_...() functions?
 #         for i in self.prev_sim_settings.keys():
 #             self.prev_sim_settings[i] = self.new_sim_settings[i]
-#
-#     def read_and_store_thermometry(self):
-#         """
-#         Query and store the resistance and temperature values at a given time.
-#         """
-#
-#         #TODO dont see a good reason for the dual role function here
-#         try:
-#             tval = self.query("TVAL?")
-#             rval = self.query("RVAL?")
-#             store_redis_ts_data(self.redis_ts, {TEMP_KEY: tval})
-#             store_redis_ts_data(self.redis_ts, {RES_KEY: rval})
-#         except IOError as e:
-#             raise e
-#         except RedisError as e:
-#             raise e
-#
-#     def read_and_store_output(self):
-#         """
-#         Query and store the output value from the SIM921 that will go to the SIM960. This is ultimately the signal which
-#         will be used to run the PID loop and keep the temperature at 100 mK (or whatever operating temperature we may
-#         choose to use). Ultimately, we should be comparing this at some point with what the SIM960 measures at its
-#         input to confirm that the expected value is what it is reading.
-#         """
-#         #TODO dont see a good reason for the dual role function here
-#         try:
-#             output = self.query("AOUT?")
-#             store_redis_ts_data(self.redis_ts, {OUTPUT_VOLTAGE_KEY: output})
-#         except IOError as e:
-#             raise e
-#         except RedisError as e:
-#             raise e
-
-#
-# def get_redis_value(redis, key):
-#     try:
-#         val = redis.get(key).decode("utf-8")
-#     except RedisError as e:
-#         log.error(f"Error accessing {key} from redis: {e}")
-#         return None
-#     return val
-#
-#
-# def store_sim921_status(redis, status: str):
-#     redis.set(STATUS_KEY, status)
-#
-#
-# def store_sim921_id_info(redis, info):
-#     redis.set(MODEL_KEY, info[0])
-#     redis.set(SN_KEY, info[1])
-#     redis.set(FIRMWARE_KEY, info[2])
 
 
 if __name__ == "__main__":
