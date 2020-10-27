@@ -151,6 +151,9 @@ if __name__ == "__main__":
         redis.store({FIRMWARE_KEY: ''})
         redis.store({STATUS_KEY: 'FAILURE to poll firmware'})
         sys.exit(1)
+    except RedisError as e:
+        log.critical(f"Redis server error! {e}")
+        sys.exit(1)
 
     store_func = lambda x: redis.store({CURRENT_VALUE_KEY: x}, timeseries=True)
     currentduino.monitor_current(QUERY_INTERVAL, value_callback=store_func)
