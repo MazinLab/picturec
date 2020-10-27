@@ -624,6 +624,9 @@ if __name__ == "__main__":
                      MODEL_KEY: '',
                      SN_KEY: ''})
         sys.exit(1)
+    except RedisError as e:
+        log.critical(f"Redis server error! {e}")
+        sys.exit(1)
 
 
     # """
