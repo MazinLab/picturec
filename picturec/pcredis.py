@@ -88,15 +88,18 @@ class PCRedis(object):
         """
         pass
 
-    def publish(self, *keys):
+    def publish(self, channel, message):
         """
         Not yet implemented. Following docstring should be thought of as a brainstorm.
         A wrapper to enable easy publishing to a redis pubsub channel. Unlike subscribing, there's no overhead in
         doing a publish action, you can publish anytime to any channel without regard to if it is subscribed to.
         There is not necessarily a need to return anything from redis.publish(), but calling publish() returns the
         number of pubsub objects that are subscribed to the channel that was just published to. This COULD be useful
+        TODO: Honestly this is probably unnecessary, it's just nice not to have to type pcredis.redis.publish(...)
+         every time you want to send a message. For what it's worth, if we have psubscribe functionality channel can
+         just use a pattern instead of a sepcific key, but I have yet to see where that would be useful.
         """
-        pass
+        self.redis.publish(channel, message)
 
     def read(self, keys, return_dict=True):
         """
