@@ -616,12 +616,12 @@ if __name__ == "__main__":
     while True:
         try:
             for key, val in redis.listen(SETTING_KEYS):
-                print(f"Key: {key} / Val: {val}")
+                log.debug(f"sim921agent received {key}, {val}. Trying to send a command.")
                 cmd = SimCommand(key, val)
                 if cmd.validValue():
-                    log.info(f'Here we would send the command "{cmd.cmd} {cmd.value}\\n"')
+                    log.info(f'Here we would send the command "{cmd.format_command()}\\n"')
                 else:
-                    log.warning(f'Not a valid value. Can\'t send "{cmd.cmd} {cmd.value}\\n"')
+                    log.warning(f'Not a valid value. Can\'t send key:value pair "{key} / {val}" to the SIM921!')
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
 
