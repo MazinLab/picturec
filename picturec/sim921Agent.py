@@ -624,25 +624,45 @@ if __name__ == "__main__":
     # SIM921 output voltage, update the status of the program, and handle any potential errors that may come up.
     # """
 
-    redis.listen(SETTING_KEYS)
-
     store_temp_res_func = lambda x: redis.store({TEMP_KEY: x['temperature'], RES_KEY: x['resistance']}, timeseries=True)
     sim921.monitor_temp(QUERY_INTERVAL, value_callback=store_temp_res_func)
 
     store_voltage_func = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x}, timeseries=True)
     sim921.monitor_output_voltage(QUERY_INTERVAL, value_callback=store_voltage_func)
 
+    # NOTE: The following block is likely unnecessary BUT I have it in here as a safeguard because
+    sim921.send("ATEM 0")
+    unit = sim921.query("ATEM?")
+    if unit == '0':
+        log.critical(f"Unit query response was {0}. Analog output voltage scale units are resistance")
+    elif unit == '1':
+        log.critical(f"Unit query response was {1}. Analog output voltage scale units are temperature. DO NOT OPERATE"
+                     f" IN THIS MODE")
+        sys.exit(1)
+
     while True:
         try:
-            #A rought over simplification of what we talked about:
-            settings = redis.read(list_of_all_setting_keys, return_dict=True)
-            sim921.set_settings(settings)
-            redis.store(sim921.read_thermometry(return_setting_dict=True), timeseries=True)
-            redis.store(sim921.read_output(return_setting_dict=True), timeseries=True)
-            redis.store((STATUS_KEY, "OK"), timeseries=False)
-        except IOError as e:
-            log.error(f"IOError occurred in run loop: {e}")
-            redis.store((STATUS_KEY, f"Error {e}"))
+            for key, val in redis.listen(SETTING_KEYS):
+                print(f"Key: {key} / Val: {val}")
+                cmd = SimCommand(key, val)
+                if cmd.validValue():
+                    log.info(f'Here we would send the command "{cmd.cmd} {cmd.value}\\n"')
+                else:
+                    log.warning(f'Not a valid value. Can\'t send "{cmd.cmd} {cmd.value}\\n"')
         except RedisError as e:
-            log.critical(f"Error with redis while running: {e}")
-            sys.exit(1)
+            log.critical(f"Redis server error! {e}")
+
+    # while True:
+    #     try:
+    #         #A rought over simplification of what we talked about:
+    #         settings = redis.read(list_of_all_setting_keys, return_dict=True)
+    #         sim921.set_settings(settings)
+    #         redis.store(sim921.read_thermometry(return_setting_dict=True), timeseries=True)
+    #         redis.store(sim921.read_output(return_setting_dict=True), timeseries=True)
+    #         redis.store((STATUS_KEY, "OK"), timeseries=False)
+    #     except IOError as e:
+    #         log.error(f"IOError occurred in run loop: {e}")
+    #         redis.store((STATUS_KEY, f"Error {e}"))
+    #     except RedisError as e:
+    #         log.critical(f"Error with redis while running: {e}")
+    #         sys.exit(1)
