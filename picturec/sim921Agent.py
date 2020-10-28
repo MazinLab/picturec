@@ -229,7 +229,12 @@ class SIM921Agent(agent.SerialAgent):
          (PID control) it is (V/OHM) * (RDEV), where RDEV=RVAL-RSET
         :return:
         """
-        voltage = self.query("AOUT?")
+        if self.query("AMAN?") == "1":
+            log.info("SIM921 voltage output is in manual mode!")
+            voltage = self.query("AOUT?")
+        elif self.query("AMAN?") == "0":
+            log.info("SIM921 voltage output is in scaled mode!")
+            voltage = float(self.query("VOHM")) * float(self.query("RDEV"))
 
         return voltage
 
