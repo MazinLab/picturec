@@ -369,15 +369,6 @@ if __name__ == "__main__":
         log.critical(f"Redis server error! {e}")
         sys.exit(1)
 
-    # For each loop, update the sim settings if they need to, read and store the thermometry data, read and store the
-    # SIM921 output voltage, update the status of the program, and handle any potential errors that may come up.
-
-    store_temp_res_func = lambda x: redis.store({TEMP_KEY: x['temperature'], RES_KEY: x['resistance']}, timeseries=True)
-    sim921.monitor_temp(QUERY_INTERVAL, value_callback=store_temp_res_func)
-
-    store_voltage_func = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x}, timeseries=True)
-    sim921.monitor_output_voltage(QUERY_INTERVAL, value_callback=store_voltage_func)
-
     # TODO: Determine how to properly treat the ATEM (and EXON). Talk with Jeb about scheme for it. For what it's worth
     #  they should always be the same, unless there is a major change in system (new thermometer).
     sim921.send("ATEM 0")
@@ -396,6 +387,18 @@ if __name__ == "__main__":
     elif exon == '0':
         log.critical(f"EXON query response was {1}. Excitation is off,ou won't be able to operate in this mode!")
         sys.exit(1)
+
+    # TODO: Load defaults here.
+    default_settings_to_load = redis.read(DEFAULT_SETTING_KEYS)
+
+
+    # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
+
+    store_temp_res_func = lambda x: redis.store({TEMP_KEY: x['temperature'], RES_KEY: x['resistance']}, timeseries=True)
+    sim921.monitor_temp(QUERY_INTERVAL, value_callback=store_temp_res_func)
+
+    store_voltage_func = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x}, timeseries=True)
+    sim921.monitor_output_voltage(QUERY_INTERVAL, value_callback=store_voltage_func)
 
     while True:
         try:
