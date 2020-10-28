@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='picturec',
-    version='0.3.6',
+    version='0.4.0',
     author='Noah Swimmer',
     author_email='nswimmer@ucsb.edu',
     description='PICTURE-C Control Software',
