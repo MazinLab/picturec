@@ -44,8 +44,6 @@ DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
 TEMP_KEY = 'status:temps:mkidarray:temp'
 RES_KEY = 'status:temps:mkidarray:resistance'
 OUTPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'
-
-
 TS_KEYS = [TEMP_KEY, RES_KEY, OUTPUT_VOLTAGE_KEY]
 
 
@@ -54,7 +52,9 @@ MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SN_KEY = 'status:device:sim921:sn'
 
+
 DEFAULT_MAINFRAME_KWARGS = {'mf_slot': 2, 'mf_exit_string': 'xyz'}
+
 
 COMMAND_DICT = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {20e-3: '0', 200e-3: '1', 2: '2',
                                                                                         20: '3', 200: '4', 2e3: '5',
@@ -222,6 +222,11 @@ class SIM921Agent(agent.SerialAgent):
         return values
 
     def read_output_voltage(self):
+        """
+        TODO: AOUT? Only tells you what the output voltage is if you are in manual mode. In scaled output mode
+         (PID control) it is (V/OHM) * (RDEV), where RDEV=RVAL-RSET
+        :return:
+        """
         voltage = self.query("AOUT?")
 
         return voltage
