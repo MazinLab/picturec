@@ -284,6 +284,29 @@ class SIM921Agent(agent.SerialAgent):
         self._voltage_monitor_thread.daemon = True
         self._voltage_monitor_thread.start()
 
+    def initialize_sim(self, db_read_func, dc_store_func=None, from_state='defaults'):
+        settings_used = None
+        if from_state.lower() == 'defaults':
+            settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
+            settings_used = 'defaults'
+        elif (from_state.lower() == 'previous') or (from_state.lower() == 'last_state'):
+            settings_to_load = db_read_func(SETTING_KEYS)
+            settings_used = 'last'
+        else:
+            log.critical("Invalid initializtion mode requested! Using default settings.")
+            settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
+            settings_used = 'defaults'
+
+        for setting, value in settings_to_load.items():
+            if settings_used == 'defaults':
+                setting = setting[8:]  # Chop off 'default:' from the beginning of the string.
+            cmd = SimCommand(setting, value)
+            log.debug(cmd.format_command())
+            self.send(cmd.format_command())
+            if dc_store_func:
+                dc_store_func({setting: cmd.value})
+            time.sleep(0.1)
+
 #     def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, file:str=None):
 #         """
 #         This is an engineering function for the SIM921 device. In normal operation of the fridge, the user should never
@@ -399,15 +422,8 @@ if __name__ == "__main__":
     #     log.critical(f"EXON query response was {1}. Excitation is off,ou won't be able to operate in this mode!")
     #     sys.exit(1)
 
-    # TODO: Load defaults here.
-    default_settings_to_load = redis.read(DEFAULT_SETTING_KEYS)
-    for setting, value in default_settings_to_load.items():
-        setting = setting[8:]
-        cmd = SimCommand(setting, value)
-        log.debug(cmd.format_command())
+    sim921.initialize_sim(redis.read, redis.store, from_state='defaults')
 
-
-    log.debug('DONE WITH INITIALIZATION')
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
 
     store_temp_res_func = lambda x: redis.store({TEMP_KEY: x['temperature'], RES_KEY: x['resistance']}, timeseries=True)
