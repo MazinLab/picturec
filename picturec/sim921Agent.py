@@ -424,9 +424,9 @@ if __name__ == "__main__":
                 if cmd.valid_value():
                     try:
                         log.info(f'Here we would send the command "{cmd.format_command()}\\n"')
-                        # sim921.send(f"{cmd.format_command()}")
-                        # redis.store({cmd.setting: cmd.value})
-                        # redis.store({STATUS_KEY: "OK"})
+                        sim921.send(f"{cmd.format_command()}")
+                        redis.store({cmd.setting: cmd.value})
+                        redis.store({STATUS_KEY: "OK"})
                     except IOError as e:
                         redis.store({STATUS_KEY: f"Error {e}"})
                         log.error(f"Some error communicating with the SIM921! {e}")
