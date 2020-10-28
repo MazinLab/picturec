@@ -8,7 +8,9 @@ the device temperature.
 
 TODO: Engineering functions: Loading curve, primarily.
 
-TODO: Updating settings! Essentially, stay "in contract" with redis.
+TODO: Do we want a 'confirm' ability with the command to make sure it sent?
+ - I think no, because the only case I have seen infidelity with commands is if they're invalid (taken care of already)
+ or there is a physical disconnect (IOError from serial port).
 """
 
 import numpy as np
