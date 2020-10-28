@@ -236,7 +236,7 @@ class SIM921Agent(agent.SerialAgent):
             voltage = self.query("AOUT?")
         elif self.query("AMAN?") == "0":
             log.info("SIM921 voltage output is in scaled mode!")
-            voltage = float(self.query("VOHM")) * float(self.query("RDEV"))
+            voltage = float(self.query("VOHM?")) * float(self.query("RDEV?"))
 
         return voltage
 
