@@ -24,17 +24,17 @@ import threading
 REDIS_DB = 0
 QUERY_INTERVAL = 10
 
-SETTING_KEYS = ['device-settings:sim921:resistance-range',
+SETTING_KEYS = ['device-settings:sim921:output-mode',
+                'device-settings:sim921:manual-vout',
+                'device-settings:sim921:curve-number',
+                'device-settings:sim921:resistance-slope',
+                'device-settings:sim921:resistance-range',
+                'device-settings:sim921:resistance-offset',
+                'device-settings:sim921:temp-slope',
+                'device-settings:sim921:temp-offset',
                 'device-settings:sim921:excitation-value',
                 'device-settings:sim921:excitation-mode',
-                'device-settings:sim921:time-constant',
-                'device-settings:sim921:temp-offset',
-                'device-settings:sim921:temp-slope',
-                'device-settings:sim921:resistance-offset',
-                'device-settings:sim921:resistance-slope',
-                'device-settings:sim921:curve-number',
-                'device-settings:sim921:manual-vout',
-                'device-settings:sim921:output-mode']
+                'device-settings:sim921:time-constant']
 
 # TODO: Consider if default keys are even necessary
 # A note -> in any case, the only time default keys are necessary are for when settings must be initialized on the
