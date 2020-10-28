@@ -112,6 +112,9 @@ class PCRedis(object):
         :return: Dict. {'key1':'value1', 'key2':'value2', ...}
         """
         vals = [self.redis.get(k).decode("utf-8") for k in keys]
+        # TODO: Make a choice here where we choose whether or not to allow nonexistent keys to be read. As it stands
+        #  this code will error ("Cannot decode object of None type") if you try to read a key that does not exist.
+        # vals = [self.redis.get(k).decode("utf-8") for k in keys if self.redis.get(k) is not None]
         return vals if not return_dict else {k: v for k, v in zip(keys, vals)}
 
     def _ps_subscribe(self, channels: list, ignore_sub_msg=False):
