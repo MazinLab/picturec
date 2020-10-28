@@ -387,18 +387,25 @@ if __name__ == "__main__":
                      f" IN THIS MODE")
         sys.exit(1)
 
-    sim921.send("EXON 1")
-    exon = sim921.query("EXON?")
-    if exon == '1':
-        log.critical(f"EXON query response was {0}. Excitation is on!")
-    elif exon == '0':
-        log.critical(f"EXON query response was {1}. Excitation is off,ou won't be able to operate in this mode!")
-        sys.exit(1)
+    # TODO: EXON (Turning the excitation on) doesn't need to be commanded.
+    #  It defaults to on and shouldn't ever be turned off.
+    # sim921.send("EXON 1")
+    # exon = sim921.query("EXON?")
+    # if exon == '1':
+    #     log.critical(f"EXON query response was {0}. Excitation is on!")
+    # elif exon == '0':
+    #     log.critical(f"EXON query response was {1}. Excitation is off,ou won't be able to operate in this mode!")
+    #     sys.exit(1)
 
     # TODO: Load defaults here.
     default_settings_to_load = redis.read(DEFAULT_SETTING_KEYS)
+    for setting, value in default_settings_to_load.items():
+        setting = setting[8:]
+        cmd = SimCommand(setting, value)
+        log.debug(cmd.format_command())
 
 
+    log.debug('DONE WITH INITIALIZATION')
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
 
     store_temp_res_func = lambda x: redis.store({TEMP_KEY: x['temperature'], RES_KEY: x['resistance']}, timeseries=True)
