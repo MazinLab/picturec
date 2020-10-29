@@ -11,6 +11,8 @@ TODO: Engineering functions: Loading curve, primarily.
 TODO: Do we want a 'confirm' ability with the command to make sure it sent?
  - I think no, because the only case I have seen infidelity with commands is if they're invalid (taken care of already)
  or there is a physical disconnect (IOError from serial port).
+
+TODO: Add value caching? (self.output_mode = 'manual', self.curve_number = 1)
 """
 
 import numpy as np
@@ -20,6 +22,7 @@ import sys
 import picturec.agent as agent
 from picturec.pcredis import PCRedis, RedisError
 import threading
+import os
 
 REDIS_DB = 0
 QUERY_INTERVAL = 10
@@ -221,9 +224,8 @@ class SIM921Agent(agent.SerialAgent):
         temp = self.query("TVAL?")
         res = self.query("RVAL?")
 
-        values = {'temperature': temp, 'resistance':res}
+        return {'temperature': temp, 'resistance':res}
 
-        return values
 
     def read_output_voltage(self):
         """
@@ -237,7 +239,6 @@ class SIM921Agent(agent.SerialAgent):
         elif self.query("AMAN?") == "0":
             log.info("SIM921 voltage output is in scaled mode!")
             voltage = float(self.query("VOHM?")) * float(self.query("RDEV?"))
-
         return voltage
 
     def monitor_temp(self, interval, value_callback=None):
@@ -307,71 +308,57 @@ class SIM921Agent(agent.SerialAgent):
                 dc_store_func({setting: cmd.value})
             time.sleep(0.1)
 
-#     def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, file:str=None):
-#         """
-#         This is an engineering function for the SIM921 device. In normal operation of the fridge, the user should never
-#         have to load a curve in. This should only ever be used if (1) a new curve becomes available, (2) the
-#         thermometer used by the SIM921 is changed out for a new one, or (3) the original curve becomes corrupted.
-#         Currently (21 July 2020) designed specifically to read in the LakeShore RX-102-A calibration curve, but can be
-#         modified without difficulty to take in other curves. The command syntax will not change for loading the curve
-#         onto the SIM921, only the np.loadtxt() and data manipulation of the curve data itself. As long as the curve
-#         is in a format where resistance[n] < resistance[n+1] for all points n on the curve, it can be loaded into the
-#         SIM921 instrument.
-#         """
-#         if file is None:
-#             #TODO use package resources and a curve to resource name golbal dict to lookup the path do that it works
-#             # with pip installation.
-#             # e.g. (needs refining)
-#             import pkg_resources as pkg
-#             CURVE_DICT = {'RX-102A_Mean_Curve':'RX-102A_Mean_Curve.tbl'}
-#             path_to_curve = pkg.resource_filename('hardware/thermometry/RX-102A', CURVE_DICT[curve_name])
-#         else:
-#             path_to_curve = file
-#
-#         #All three of these things look like globals or things that should be programmatically generated
-#         CURVE_NUMBER_KEY = 'device-settings:sim921:curve-number'
-#         valid_curves = [1, 2, 3]
-#         CURVE_TYPE_DICT = {'linear': '0',
-#                            'semilogt': '1',
-#                            'semilogr': '2',
-#                            'loglog': '3'}
-#
-#         if curve_num in valid_curves:
-#             log.debug(f"Curve {curve_num} is valid and can be initialized.")
-#         else:
-#             log.warning(f"Curve {curve_num} is NOT valid. Not initializing any curve")
-#             return False
-#
-#         if curve_type in CURVE_TYPE_DICT.keys():
-#             log.debug(f"Curve type {curve_type} is valid and can be initialized.")
-#         else:
-#             log.warning(f"Curve type {curve_type} is NOT valid. Not initializing any curve")
-#             return False
-#
-#         try:
-#             curve_init_str = "CINI "+str(curve_num)+", "+str(CURVE_TYPE_DICT[curve_type]+", "+curve_name)
-#             self.command(curve_init_str)
-#         except IOError as e:
-#             raise e
-#
-#         try:
-#             curve_data = np.loadtxt(path_to_curve)
-#             temp_data = np.flip(curve_data[:, 0], axis=0)
-#             res_data = np.flip(curve_data[:, 1], axis=0)
-#         except Exception:
-#             raise ValueError(f"{path_to_curve} couldn't be loaded.")
-#
-#         try:
-#             for t, r in zip(temp_data, res_data):
-#                 self.command("CAPT"+str(curve_num)+", "+str(r)+", "+str(t))
-#                 time.sleep(0.1)
-#         except IOError as e:
-#             raise e
-#
-#         try:
-#             store_redis_data(self.redis, {CURVE_NUMBER_KEY: curve_num})
-#         except RedisError as e:
-#             raise e
+    def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, file:str=None):
+        """
+        This is an engineering function for the SIM921 device. In normal operation of the fridge, the user should never
+        have to load a curve in. This should only ever be used if (1) a new curve becomes available, (2) the
+        thermometer used by the SIM921 is changed out for a new one, or (3) the original curve becomes corrupted.
+        Currently (21 July 2020) designed specifically to read in the LakeShore RX-102-A calibration curve, but can be
+        modified without difficulty to take in other curves. The command syntax will not change for loading the curve
+        onto the SIM921, only the np.loadtxt() and data manipulation of the curve data itself. As long as the curve
+        is in a format where resistance[n] < resistance[n+1] for all points n on the curve, it can be loaded into the
+        SIM921 instrument.
+        """
+        if curve_num not in [1, 2, 3]:
+            log.error(f"SIM921 only accepts 1, 2, or 3 as the curve number")
+            return None
+        log.info(f"Attempting to initialize curve {curve_num}")
+
+        CURVE_TYPE_DICT = {'linear': '0', 'semilogt': '1', 'semilogr': '2', 'loglog': '3'}
+        if curve_type not in CURVE_TYPE_DICT.keys():
+            log.error(f"Invalid calibration curve type for SIM921. Valid types are {CURVE_TYPE_DICT.keys()}")
+            return None
+        log.info(f"Curve {curve_num} will be {curve_type}")
+
+        if file is None:
+            import pkg_resources as pkg
+            path_to_curve = pkg.resource_filename('hardware.thermometry.RX-102A', 'RX-102A_Mean_Curve.tbl')
+        else:
+            path_to_curve = file
+
+        if os.path.isfile(path_to_curve):
+            log.info(f"Curve data at {path_to_curve}")
+        else:
+            log.error(f"Trying to load a curve from an invalid path!")
+
+        try:
+            curve_data = np.loadtxt(path_to_curve)
+            temp_data = np.flip(curve_data[:, 0], axis=0)
+            res_data = np.flip(curve_data[:, 1], axis=0)
+        except Exception:
+            raise ValueError(f"{path_to_curve} couldn't be loaded.")
+
+        try:
+            # curve_init_str = "CINI "+str(curve_num)+", "+str(CURVE_TYPE_DICT[curve_type]+", "+curve_name)
+            self.send(f"CINI {curve_num}, {CURVE_TYPE_DICT[curve_type]}, {curve_name}")
+            for t, r in zip(temp_data, res_data):
+                # self.send("CAPT"+str(curve_num)+", "+str(r)+", "+str(t))
+                self.send(f"CAPT {curve_num}, {r}, {t}")
+                time.sleep(0.1)
+        except IOError as e:
+            raise e
+        log.info(f"Successfully loaded curve {curve_num} - '{curve_name}'!")
+
 
 if __name__ == "__main__":
 
