@@ -4,19 +4,20 @@ Author: Noah Swimmer, 21 July 2020
 NOTE: Unlike the SIM921, the SIM960 supports different baudrates. These need to be tested outside of the mainframe
 before settling on the most appropriate one.
 
-TODO: - Run/ramp functions
- - Make PID tuning easier and more coherent
- - Coherent checks on lower/upper output limits
+TODO: Figure out appropriate handling of 'device-settings:sim960:pid'
 """
 
-import serial
 import numpy as np
-from logging import getLogger
-from serial import SerialException
+import logging
 import time
-from redis import Redis, RedisError
-from redistimeseries.client import Client
 import sys
+import picturec.agent as agent
+from picturec.pcredis import PCRedis, RedisError
+import threading
+import os
+
+REDIS_DB = 0
+QUERY_INTERVAL = 1
 
 SETTING_KEYS = ['device-settings:sim960:mode',
                 'device-settings:sim960:vout-min-limit',
