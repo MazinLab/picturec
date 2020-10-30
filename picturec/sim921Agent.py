@@ -6,8 +6,6 @@ is monitoring the temperature of the thermometer on the MKID device stage in the
 responsible for properly conditioning its output signal so that the SIM960 (PID Controller) can properly regulate
 the device temperature.
 
-TODO: Engineering functions: Loading curve, primarily.
-
 TODO: Do we want a 'confirm' ability with the command to make sure it sent?
  - I think no, because the only case I have seen infidelity with commands is if they're invalid (taken care of already)
  or there is a physical disconnect (IOError from serial port).
@@ -25,7 +23,7 @@ import threading
 import os
 
 REDIS_DB = 0
-QUERY_INTERVAL = 10
+QUERY_INTERVAL = 1
 
 SETTING_KEYS = ['device-settings:sim921:output-mode',
                 'device-settings:sim921:manual-vout',
