@@ -59,36 +59,26 @@ MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SERIALNO_KEY = 'status:device:sim921:sn'
 
-COMMAND_DICT = {'AMAN': {'key': 'device-settings:sim960:mode',
-                         'vals': {'manual': '0', 'pid': '1'}},
-                'MOUT': {'key': 'device-settings:sim960:vout-value',
-                         'vals': [-10, 10]},
-                'FLOW': {'vals': {'none': '0', 'rts': '1', 'xon': '2'}},
-                'LLIM': {'key': 'device-settings:sim960:vout-min-limit',
-                         'vals': [-10, 10]},
-                'ULIM': {'key': 'device-settings:sim960:vout-max-limit',
-                         'vals': [-10, 10]},
-                'INPT': {'key': 'device-settings:sim960:setpoint-mode',
-                         'vals': {'internal': '0', 'external': '1'}},
-                'SETP': {'key': 'device-settings:sim960:pid-control-vin-setpoint',
-                         'vals': [-10, 10]},
-                'PCTL': {'key': 'device-settings:sim960:pid',
-                         'vals': {'p': '1', 'i': '0', 'd': '0', 'pi': '1', 'pd': '1', 'id': '0', 'pid': '1'}},
-                'ICTL': {'key': 'device-settings:sim960:pid',
-                         'vals': {'p': '0', 'i': '1', 'd': '0', 'pi': '1', 'pd': '0', 'id': '1', 'pid': '1'}},
-                'DCTL': {'key': 'device-settings:sim960:pid',
-                         'vals': {'p': '0', 'i': '0', 'd': '1', 'pi': '0', 'pd': '1', 'id': '1', 'pid': '1'}},
+
+DEFAULT_MAINFRAME_KWARGS = {'mf_slot': 5, 'mf_exit_string': 'xyz'}
+
+
+COMMAND_DICT = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'manual': '0', 'pid': '1'}},
+                'device-settings:sim960:vout-value': {'command': 'MOUT', 'vals': [-10, 10]},
+                'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
+                'device-settings:sim960:vout-max-limit': {'command': 'ULIM', 'vals': [-10, 10]},
+                'device-settings:sim960:setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
+                'device-settings:sim960:pid-control-vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
+                'device-settings:sim960:pid-p:value': {'command': 'GAIN', 'vals': [-1e3, -1e-1]},
+                'device-settings:sim960:pid-i:value': {'command': 'INTG', 'vals': [1e-2, 5e5]},
+                'device-settings:sim960:pid-d:value': {'command': 'DERV', 'vals': [1e-6, 1e1]},
+                'device-settings:sim960:setpoint-ramp-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},
+                'device-settings:sim960:setpoint-ramp-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},
+                'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
+                'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
+                'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
                 'APOL': {'vals': {'negative': '0', 'positive': '1'}},
-                'GAIN': {'key': 'device-settings:sim960:pid-p',
-                         'vals': [-1e3, -1e-1]},
-                'INTG': {'key': 'device-settings:sim960:pid-i',
-                         'vals': [1e-2, 5e5]},
-                'DERV': {'key': 'device-settings:sim960:pid-d',
-                         'vals': [1e-6, 1e1]},
-                'RAMP': {'key': 'device-settings:sim960:setpoint-ramp-enable',
-                         'vals': {'off': '0', 'on': '1'}},
-                'RATE': {'key': 'device-settings:sim960:setpoint-ramp-rate',
-                         'vals': [1e-3, 1e4]}
+                'FLOW': {'vals': {'none': '0', 'rts': '1', 'xon': '2'}}
                 }
 
 class SIM960Agent(object):
