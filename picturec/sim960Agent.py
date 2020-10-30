@@ -48,10 +48,11 @@ MAGNET_CURRENT_KEY = 'status:magnet:current'  # To get the current from the sim9
 MAGNET_STATE_KEY = 'status:magnet:state'  # OFF | RAMPING | SOAKING | QUENCH (DON'T QUENCH!)
 HEATSWITCH_STATUS_KEY = 'status:heatswitch'  # Needs to be read to determine its status, and set by the sim960agent during
 # normal operation so it's possible to run the ramp appropriately
-HC_BOARD_CURRENT = 'status:highcurrentboard:current'  #
+HC_BOARD_CURRENT = 'status:highcurrentboard:current'  # Current from HC Boost board.
 
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY,
            MAGNET_STATE_KEY, HEATSWITCH_STATUS_KEY, HC_BOARD_CURRENT]
+
 
 STATUS_KEY = 'status:device:sim921:status'
 MODEL_KEY = 'status:device:sim921:model'
