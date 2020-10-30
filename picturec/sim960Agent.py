@@ -81,26 +81,55 @@ COMMAND_DICT = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'man
                 'FLOW': {'vals': {'none': '0', 'rts': '1', 'xon': '2'}}
                 }
 
-class SIM960Agent(object):
-    def __init__(self, port, redis, redis_ts, baudrate=9600, timeout=0.1, initialize=True, sim_polarity='negative'):
-        self.ser = None
-        self.port = port
-        self.baudrate = baudrate
-        self.timeout = timeout
-        self.connect(raise_errors=False)
-        time.sleep(.5)
-        self.redis = redis
-        self.redis_ts = redis_ts
 
-        self.sim_polarity = sim_polarity
+log = logging.getLogger(__name__)
 
-        self.prev_sim_settings = {}
-        self.new_sim_settings = {}
 
-        if initialize:
-            self.initialize_sim()
+class SimCommand(object):
+    def __init__(self, redis_setting, value):
+        self.value = value
+
+        if redis_setting not in COMMAND_DICT.keys():
+            raise ValueError('Mapping dict or range tuple required')
+
+        self.setting = redis_setting
+        self.command = COMMAND_DICT[self.setting]['command']
+        setting_vals = COMMAND_DICT[self.setting]['vals']
+
+        if isinstance(setting_vals, dict):
+            self.mapping = setting_vals
+            self.range = None
+            mapping_type = type(list(self.mapping.keys())[0])
+            try:
+                if mapping_type == str:
+                    self.value = str(self.value)
+                elif (mapping_type == float) or (mapping_type == int):
+                    self.value = float(self.value)
+            except ValueError as e:
+                log.warning(f"The value sent was not the correct type! {e}")
+        elif isinstance(setting_vals, list):
+            self.range = setting_vals
+            self.mapping = None
+            self.value = float(self.value)
+
+    def valid_value(self):
+        if self.range is not None:
+            return self.range[0] <= self.value <= self.range[1]
         else:
-            self.read_default_settings()
+            return self.value in self.mapping.keys()
+
+    def format_command(self):
+        if self.valid_value():
+            if self.range is not None:
+                return f"{self.command} {self.value}"
+            else:
+                return f"{self.command} {self.mapping[self.value]}"
+        else:
+            log.info(f"Trying to set the SIM921 to an invalid value! Setting {self.setting} to {self.value}")
+
+
+class SIM960Agent(object):
+    def __init__(self, port, baudrate=9600, timeout=0.1, initialize=True, sim_polarity='negative'):
 
     def connect(self, reconnect=False, raise_errors=True):
         """
