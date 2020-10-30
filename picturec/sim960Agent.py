@@ -533,37 +533,6 @@ class SIM960Agent(object):
             self.prev_sim_settings[i] = self.new_sim_settings[i]
 
 
-def setup_redis(host='localhost', port=6379, db=0):
-    redis = Redis(host=host, port=port, db=db)
-    return redis
-
-
-def setup_redis_ts(host='localhost', port=6379, db=0):
-    redis_ts = Client(host=host, port=port, db=db)
-
-    for key in TS_KEYS:
-        try:
-            redis_ts.create(key)
-        except RedisError:
-            getLogger(__name__).debug(f"KEY '{key}' already exists")
-            pass
-
-    return redis_ts
-
-
-def store_status(redis, status):
-    redis.set(STATUS_KEY, status)
-
-
-def get_redis_value(redis, key):
-    try:
-        val = redis.get(key).decode("utf-8")
-    except RedisError as e:
-        getLogger(__name__).error(f"Error accessing {key} from redis: {e}")
-        return None
-    return val
-
-
 def store_sim960_status(redis, status: str):
     redis.set(STATUS_KEY, status)
 
@@ -572,15 +541,3 @@ def store_sim960_id_info(redis, info):
     redis.set(MODEL_KEY, info[0])
     redis.set(SERIALNO_KEY, info[1])
     redis.set(FIRMWARE_KEY, info[2])
-
-
-def store_redis_data(redis, data):
-    for k, v in data.items():
-        getLogger(__name__).info(f"Setting key:value - {k}:{v}")
-        redis.set(k, v)
-
-
-def store_redis_ts_data(redis_ts, data):
-    for k, v in data.items():
-        getLogger(__name__).info(f"Setting key:value - {k}:{v} at {int(time.time())}")
-        redis_ts.add(key=k, value=v, timestamp='*')
