@@ -116,14 +116,14 @@ class SIM960Agent(object):
         except Exception:
             pass
 
-        getLogger(__name__).debug(f"Connecting to {self.port} at {self.baudrate}")
+        log.debug(f"Connecting to {self.port} at {self.baudrate}")
         try:
             self.ser = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
-            getLogger(__name__).debug(f"port {self.port} connection established")
+            log.debug(f"port {self.port} connection established")
             return True
         except (SerialException, IOError) as e:
             self.ser = None
-            getLogger(__name__).error(f"Conntecting to port {self.port} failed: {e}")
+            log.error(f"Conntecting to port {self.port} failed: {e}")
             if raise_errors:
                 raise e
             else:
@@ -137,7 +137,7 @@ class SIM960Agent(object):
             self.ser.close()
             self.ser = None
         except Exception as e:
-            getLogger(__name__).info(f"Exception durring disconnect: {e}")
+            log.info(f"Exception durring disconnect: {e}")
 
     def send(self, msg: str, connect=True):
         """
@@ -151,12 +151,12 @@ class SIM960Agent(object):
             self.connect()
         msg = msg.strip().upper() + "\n"
         try:
-            getLogger(__name__).debug(f"Writing message: {msg}")
+            log.debug(f"Writing message: {msg}")
             self.ser.write(msg.encode("utf-8"))
-            getLogger(__name__).debug(f"Sent {msg} successfully")
+            log.debug(f"Sent {msg} successfully")
         except (SerialException, IOError) as e:
             self.disconnect()
-            getLogger(__name__).error(f"Send failed: {e}")
+            log.error(f"Send failed: {e}")
             raise e
 
     def receive(self):
@@ -167,11 +167,11 @@ class SIM960Agent(object):
         """
         try:
             data = self.ser.readline().decode("utf-8").strip()
-            getLogger(__name__).debug(f"read {data} from SIM960")
+            log.debug(f"read {data} from SIM960")
             return data
         except (IOError, SerialException) as e:
             self.disconnect()
-            getLogger(__name__).debug(f"Send failed {e}")
+            log.debug(f"Send failed {e}")
             raise e
 
     def reset_sim(self):
@@ -183,7 +183,7 @@ class SIM960Agent(object):
         to be the optimal to read out the hardware we have.
         """
         try:
-            getLogger(__name__).info(f"Resetting the SIM960!")
+            log.info(f"Resetting the SIM960!")
             self.send("*RST")
         except IOError as e:
             raise e
@@ -194,7 +194,7 @@ class SIM960Agent(object):
         the manual in picturec/hardware/thermometry/SRS-SIM960-PIDController-Manual.pdf
         """
         try:
-            getLogger(__name__).debug(f"Sending command '{command_msg}' to SIM960")
+            log.debug(f"Sending command '{command_msg}' to SIM960")
             self.send(command_msg)
         except IOError as e:
             raise e
@@ -207,7 +207,7 @@ class SIM960Agent(object):
         picturec/hardware/thermometry/SRS-SIM960-PIDController-Manual.pdf
         """
         try:
-            getLogger(__name__).debug(f"Querying '{query_msg}' from SIM960")
+            log.debug(f"Querying '{query_msg}' from SIM960")
             self.send(query_msg)
             response = self.receive()
         except Exception as e:
@@ -229,7 +229,7 @@ class SIM960Agent(object):
             model = idn_info[1]
             sn = idn_info[2]
             firmware = idn_info[3]
-            getLogger(__name__).info(f"SIM960 Identity - model {model}, s/n:{sn}, firmware {firmware}")
+            log.info(f"SIM960 Identity - model {model}, s/n:{sn}, firmware {firmware}")
         except Exception as e:
             raise ValueError(f"Illegal format. Check communication is working properly: {e}")
 
@@ -251,7 +251,7 @@ class SIM960Agent(object):
             raise e
 
     def initialize_sim(self):
-        getLogger(__name__).info(f"Initializing SIM960")
+        log.info(f"Initializing SIM960")
 
         try:
             self.read_default_settings()
@@ -274,10 +274,10 @@ class SIM960Agent(object):
             self.set_pid_d_value("pi", 0.0)
 
         except IOError as e:
-            getLogger(__name__).debug(f"Initialization failed: {e}")
+            log.debug(f"Initialization failed: {e}")
             raise e
         except RedisError as e:
-            getLogger(__name__).debug(f"Redis error occurred in initialization of SIM960: {e}")
+            log.debug(f"Redis error occurred in initialization of SIM960: {e}")
             raise e
 
     def set_sim_value(self, setting: str, value: str):
@@ -310,20 +310,20 @@ class SIM960Agent(object):
             max_val = command_vals[1]
 
             if value < min_val:
-                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is below the minimum allowed "
+                log.warning(f"Cannot set {command_key} to {value}, it is below the minimum allowed "
                                             f"value! Setting {command_key} to minimum allowed value: {min_val}")
                 cmd_value = str(min_val)
             elif value > max_val:
-                getLogger(__name__).warning(f"Cannot set {command_key} to {value}, it is above the maximum allowed "
+                log.warning(f"Cannot set {command_key} to {value}, it is above the maximum allowed "
                                             f"value! Setting {command_key} to maximum allowed value: {max_val}")
                 cmd_value = str(max_val)
             else:
-                getLogger(__name__).info(f"Setting {command_key} to {value}")
+                log.info(f"Setting {command_key} to {value}")
                 cmd_value = str(value)
         else:
             try:
                 cmd_value = command_vals[value]
-                getLogger(__name__).info(f"Setting {command_key} to {value}")
+                log.info(f"Setting {command_key} to {value}")
             except KeyError:
                 raise KeyError(f"{value} is not a valid value for '{command}")
 
@@ -360,7 +360,7 @@ class SIM960Agent(object):
             if float(ulim) > float(value):
                 self.set_sim_param("LLIM", float(value))
             else:
-                getLogger(__name__).warning(f"Trying to set an lower voltage limit above the upper voltage limit!")
+                log.warning(f"Trying to set an lower voltage limit above the upper voltage limit!")
         except (IOError, RedisError) as e:
             raise e
 
@@ -370,7 +370,7 @@ class SIM960Agent(object):
             if float(llim) < float(value):
                 self.set_sim_param("ULIM", float(value))
             else:
-                getLogger(__name__).warning(f"Trying to set an upper voltage limit below the lower voltage limit!")
+                log.warning(f"Trying to set an upper voltage limit below the lower voltage limit!")
         except (IOError, RedisError) as e:
             raise e
 
