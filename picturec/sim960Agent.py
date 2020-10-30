@@ -20,34 +20,26 @@ REDIS_DB = 0
 QUERY_INTERVAL = 1
 
 SETTING_KEYS = ['device-settings:sim960:mode',
+                'device-settings:sim960:vout-value',
                 'device-settings:sim960:vout-min-limit',
                 'device-settings:sim960:vout-max-limit',
-                'device-settings:sim960:pid',
-                'device-settings:sim960:pid-p',
-                'device-settings:sim960:pid-i',
-                'device-settings:sim960:pid-d',
+                'device-settings:sim960:pid-p:enabled',
+                'device-settings:sim960:pid-i:enabled',
+                'device-settings:sim960:pid-d:enabled',
+                'device-settings:sim960:pid-p:value',
+                'device-settings:sim960:pid-i:value',
+                'device-settings:sim960:pid-d:value',
                 'device-settings:sim960:setpoint-mode',
                 'device-settings:sim960:pid-control-vin-setpoint',
                 'device-settings:sim960:setpoint-ramp-rate',
                 'device-settings:sim960:setpoint-ramp-enable',
-                'device-settings:sim960:vout-value',
                 'device-settings:sim960:ramp-rate',
                 'device-settings:sim960:ramp-enable']
 
-DEFAULT_SETTING_KEYS = ['default:device-settings:sim960:mode',
-                        'default:device-settings:sim960:vout-min-limit',
-                        'default:device-settings:sim960:vout-max-limit',
-                        'default:device-settings:sim960:pid',
-                        'default:device-settings:sim960:pid-p',
-                        'default:device-settings:sim960:pid-i',
-                        'default:device-settings:sim960:pid-d',
-                        'default:device-settings:sim960:setpoint-mode',
-                        'default:device-settings:sim960:pid-control-vin-setpoint',
-                        'default:device-settings:sim960:setpoint-ramp-rate',
-                        'default:device-settings:sim960:setpoint-ramp-enable',
-                        'default:device-settings:sim960:vout-value',
-                        'default:device-settings:sim960:ramp-rate',
-                        'default:device-settings:sim960:ramp-enable']
+
+default_key_factory = lambda key: f"default:{key}"
+DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
+
 
 OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'  # Set by 'MOUT' in manual mode, monitored by 'OMON?' always
 INPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'  # This is the output from the sim921 to the sim960 for PID control
