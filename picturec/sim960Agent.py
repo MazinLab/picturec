@@ -5,6 +5,8 @@ NOTE: Unlike the SIM921, the SIM960 supports different baudrates. These need to 
 before settling on the most appropriate one.
 
 TODO: Figure out appropriate handling of 'device-settings:sim960:pid'
+
+TODO: Should ramp stuff be in here?
 """
 
 import numpy as np
@@ -72,11 +74,12 @@ COMMAND_DICT = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'man
                 'device-settings:sim960:pid-p:value': {'command': 'GAIN', 'vals': [-1e3, -1e-1]},
                 'device-settings:sim960:pid-i:value': {'command': 'INTG', 'vals': [1e-2, 5e5]},
                 'device-settings:sim960:pid-d:value': {'command': 'DERV', 'vals': [1e-6, 1e1]},
-                'device-settings:sim960:setpoint-ramp-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},
-                'device-settings:sim960:setpoint-ramp-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},
+                'device-settings:sim960:setpoint-ramp-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},  # Note: Internal setpoint ramp, NOT magnet ramp
+                'device-settings:sim960:setpoint-ramp-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},  # Note: Internal setpoint ramp rate, NOT magnet ramp
                 'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
                 'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
                 'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
+                # TODO: turn apol and flow to 1-off commands at the beginning of main.
                 'APOL': {'vals': {'negative': '0', 'positive': '1'}},
                 'FLOW': {'vals': {'none': '0', 'rts': '1', 'xon': '2'}}
                 }
