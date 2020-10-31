@@ -218,12 +218,33 @@ class SIM921Agent(agent.SerialAgent):
         elif self.kwargs['mf_exit_string']:
             self.send(f"{self.kwargs['mf_exit_string']}\n")
 
+    def initialize_sim(self, db_read_func, dc_store_func=None, from_state='defaults'):
+        if from_state.lower() == 'defaults':
+            settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
+            settings_used = 'defaults'
+        elif (from_state.lower() == 'previous') or (from_state.lower() == 'last_state'):
+            settings_to_load = db_read_func(SETTING_KEYS)
+            settings_used = 'last'
+        else:
+            log.critical("Invalid initializtion mode requested! Using default settings.")
+            settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
+            settings_used = 'defaults'
+
+        for setting, value in settings_to_load.items():
+            if settings_used == 'defaults':
+                setting = setting[8:]  # Chop off 'default:' from the beginning of the string.
+            cmd = SimCommand(setting, value)
+            log.debug(cmd.format_command())
+            self.send(cmd.format_command())
+            if dc_store_func:
+                dc_store_func({setting: cmd.value})
+            time.sleep(0.1)
+
     def read_temp_and_resistance(self):
         temp = self.query("TVAL?")
         res = self.query("RVAL?")
 
         return {'temperature': temp, 'resistance':res}
-
 
     def read_output_voltage(self):
         """
@@ -282,29 +303,6 @@ class SIM921Agent(agent.SerialAgent):
         self._voltage_monitor_thread = threading.Thread(target=f, name='Voltage Monitoring Thread')
         self._voltage_monitor_thread.daemon = True
         self._voltage_monitor_thread.start()
-
-    def initialize_sim(self, db_read_func, dc_store_func=None, from_state='defaults'):
-        settings_used = None
-        if from_state.lower() == 'defaults':
-            settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
-            settings_used = 'defaults'
-        elif (from_state.lower() == 'previous') or (from_state.lower() == 'last_state'):
-            settings_to_load = db_read_func(SETTING_KEYS)
-            settings_used = 'last'
-        else:
-            log.critical("Invalid initializtion mode requested! Using default settings.")
-            settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
-            settings_used = 'defaults'
-
-        for setting, value in settings_to_load.items():
-            if settings_used == 'defaults':
-                setting = setting[8:]  # Chop off 'default:' from the beginning of the string.
-            cmd = SimCommand(setting, value)
-            log.debug(cmd.format_command())
-            self.send(cmd.format_command())
-            if dc_store_func:
-                dc_store_func({setting: cmd.value})
-            time.sleep(0.1)
 
     def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, file:str=None):
         """
