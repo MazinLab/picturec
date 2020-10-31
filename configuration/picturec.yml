@@ -27,10 +27,15 @@ defaults:
       vout-max-limit: 10
       pid:
         polarity: '-'
-        mode: 'pi'
-        p: 1.6e1
-        i: 0.2
-        d: 0
+        p:
+          value: 1.6e1
+          enabled: True
+        i:
+          value: 0.2
+          enabled: True
+        d:
+          value: 0
+          enabled: False
       setpoint-mode: 'internal'
       pid-control-vin-setpoint: 0
       ramp-rate: 1e-3
