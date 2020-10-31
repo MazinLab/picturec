@@ -56,10 +56,10 @@ TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY,
            MAGNET_STATE_KEY, HEATSWITCH_STATUS_KEY, HC_BOARD_CURRENT]
 
 
-STATUS_KEY = 'status:device:sim921:status'
-MODEL_KEY = 'status:device:sim921:model'
-FIRMWARE_KEY = 'status:device:sim921:firmware'
-SERIALNO_KEY = 'status:device:sim921:sn'
+STATUS_KEY = 'status:device:sim960:status'
+MODEL_KEY = 'status:device:sim960:model'
+FIRMWARE_KEY = 'status:device:sim960:firmware'
+SERIALNO_KEY = 'status:device:sim960:sn'
 
 
 DEFAULT_MAINFRAME_KWARGS = {'mf_slot': 5, 'mf_exit_string': 'xyz'}
