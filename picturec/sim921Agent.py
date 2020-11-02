@@ -250,11 +250,6 @@ class SIM921Agent(agent.SerialAgent):
         return {'temperature': temp, 'resistance': res}
 
     def read_output_voltage(self):
-        """
-        TODO: AOUT? Only tells you what the output voltage is if you are in manual mode. In scaled output mode
-         (PID control) it is (V/OHM) * (RDEV), where RDEV=RVAL-RSET
-        :return:
-        """
         voltage = None
         if self.query("AMAN?") == "1":
             log.info("SIM921 voltage output is in manual mode!")
