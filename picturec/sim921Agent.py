@@ -247,7 +247,7 @@ class SIM921Agent(agent.SerialAgent):
         temp = self.query("TVAL?")
         res = self.query("RVAL?")
 
-        return {'temperature': temp, 'resistance':res}
+        return {'temperature': temp, 'resistance': res}
 
     def read_output_voltage(self):
         """
