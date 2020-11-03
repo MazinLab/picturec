@@ -5,6 +5,8 @@ Program for controlling ArduinoMEGA that monitors the bias voltages and currents
 of the cryogenic HEMT amplifiers in the PITCURE-C cryostat. Will log the values directly to redis database
 for the fridge monitor to store/determine that the amplifiers are working properly.
 
+TODO: Refactor to use all updated agents/functionality
+
 TODO: - Add error checking to determine if the HEMT bias values are out of acceptable ranges
  - Add HEMT rack temperature reporting. It might make the most sense to do it on this Arduino
  since it is another mindless reading operation
@@ -13,6 +15,8 @@ TODO: - Add error checking to determine if the HEMT bias values are out of accep
  - Is this where we want to add the HEMT S/N values to 'register' them?
  - Make key creation more intuitive (instead of searching if it already exists, just handle the
  exception for a pre-existing key)
+ - Currently this purelt stores bias voltages. Drain-current-bias can be stored as a current using the conversion
+ formula -> drain-current-bias = (0.1 V/mA) * drain-current -> drain-current = drain-current-bias / (0.1 V/mA)
 """
 
 import serial
