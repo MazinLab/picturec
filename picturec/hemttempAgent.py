@@ -5,34 +5,29 @@ Program for controlling ArduinoMEGA that monitors the bias voltages and currents
 of the cryogenic HEMT amplifiers in the PITCURE-C cryostat. Will log the values directly to redis database
 for the fridge monitor to store/determine that the amplifiers are working properly.
 
-TODO: Refactor to use all updated agents/functionality
-
 TODO: - Add error checking to determine if the HEMT bias values are out of acceptable ranges
- - Add HEMT rack temperature reporting. It might make the most sense to do it on this Arduino
- since it is another mindless reading operation
- - Add 'device-settings:hemtduino:hemts-enabled' key to be used in error checking to determine
- if HEMTS should be ON or OFF (this will go along with the 'status:feedline:hemt:powered' key)
- - Is this where we want to add the HEMT S/N values to 'register' them?
- - Make key creation more intuitive (instead of searching if it already exists, just handle the
- exception for a pre-existing key)
- - Currently this purelt stores bias voltages. Drain-current-bias can be stored as a current using the conversion
- formula -> drain-current-bias = (0.1 V/mA) * drain-current -> drain-current = drain-current-bias / (0.1 V/mA)
+
+TODO: Add HEMT rack temperature reporting (after rack thermometers installed)
+
+TODO: Account for HEMT Power On/Off?
+
+TODO: STORE HEMT S/N Value? Maybe here, maybe static config location
+
+TODO: Currently (3 November 2020) this purely stores bias voltages. Drain-current-bias can be stored as a current using
+ the conversion formula -> drain-current-bias = (0.1 V/mA) * drain-current
+                        -> drain-current = drain-current-bias / (0.1 V/mA)
 """
 
-import serial
+
 import sys
 import time
 import logging
-from logging import getLogger
-from datetime import datetime
 import numpy as np
-from serial import SerialException
-from redis import RedisError
-from redis import Redis
-from redistimeseries.client import Client
+from picturec.pcredis import PCRedis, RedisError
+import picturec.agent as agent
 
 REDIS_DB = 0
-QUERY_INTERVAL = 3
+QUERY_INTERVAL = 1
 
 HEMT_VALUES = ['gate-voltage-bias', 'drain-current-bias', 'drain-voltage-bias']
 KEYS = [f"status:feedline{5-i}:hemt:{j}" for i in range(5) for j in HEMT_VALUES]
