@@ -388,10 +388,13 @@ if __name__ == "__main__":
     sim921.send("ATEM 0")
     unit = sim921.query("ATEM?")
     if unit == '0':
-        log.critical(f"Unit query response was {0}. Analog output voltage scale units are resistance")
+        log.info(f"Unit query response was {0}. Analog output voltage scale units are resistance")
     elif unit == '1':
         log.critical(f"Unit query response was {1}. Analog output voltage scale units are temperature. DO NOT OPERATE"
                      f" IN THIS MODE")
+        sys.exit(1)
+    else:
+        log.error(f"An unexpected value was returned when querying the scale units. Please restart the program for safety!")
         sys.exit(1)
 
     # TODO: EXON (Turning the excitation on) doesn't need to be commanded.
