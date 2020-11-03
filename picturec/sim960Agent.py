@@ -56,6 +56,7 @@ HEATSWITCH_STATUS_KEY = 'status:heatswitch'  # Needs to be read to determine its
 # normal operation so it's possible to run the ramp appropriately
 HC_BOARD_CURRENT = 'status:highcurrentboard:current'  # Current from HC Boost board.
 
+
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY,
            MAGNET_STATE_KEY, HEATSWITCH_STATUS_KEY, HC_BOARD_CURRENT]
 
@@ -63,7 +64,7 @@ TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY,
 STATUS_KEY = 'status:device:sim960:status'
 MODEL_KEY = 'status:device:sim960:model'
 FIRMWARE_KEY = 'status:device:sim960:firmware'
-SERIALNO_KEY = 'status:device:sim960:sn'
+SN_KEY = 'status:device:sim960:sn'
 
 
 DEFAULT_MAINFRAME_KWARGS = {'mf_slot': 5, 'mf_exit_string': 'xyz'}
