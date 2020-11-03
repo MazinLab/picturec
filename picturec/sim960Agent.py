@@ -4,9 +4,10 @@ Author: Noah Swimmer, 21 July 2020
 NOTE: Unlike the SIM921, the SIM960 supports different baudrates. These need to be tested outside of the mainframe
 before settling on the most appropriate one.
 
-TODO: Figure out appropriate handling of 'device-settings:sim960:pid'
+TODO: Measure output voltage-to-current conversion. Should be ~1 V/A
 
-TODO: Should ramp stuff be in here?
+TODO: Consider how to most effectively store magnet current data (conversion from SIM960 output voltage?) and magnet
+ state/safety checks (should this be done in a monitoring loop in the sim960 agent or from a fridge manager?)
 """
 
 import numpy as np
@@ -34,9 +35,12 @@ SETTING_KEYS = ['device-settings:sim960:mode',
                 'device-settings:sim960:setpoint-mode',
                 'device-settings:sim960:pid-control-vin-setpoint',
                 'device-settings:sim960:setpoint-ramp-rate',
-                'device-settings:sim960:setpoint-ramp-enable',
-                'device-settings:sim960:ramp-rate',
-                'device-settings:sim960:ramp-enable']
+                'device-settings:sim960:setpoint-ramp-enable']
+
+                # TODO: Magnet ramp rate/enable is not a sim-setting! Magnet ramp should be run elsewhere. Safety
+                #  checks may(?) be performed here.
+                # 'device-settings:sim960:magnet-ramp-rate',
+                # 'device-settings:sim960:magnet-ramp-enable']
 
 
 default_key_factory = lambda key: f"default:{key}"
