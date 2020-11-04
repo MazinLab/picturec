@@ -1,0 +1,11 @@
+TODO: Enable restarting
+
+[Unit]
+Description=LakeShore240 Agent
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/kids/anaconda3/bin/python /picturec/picturec/lakeshore240Agent.py
