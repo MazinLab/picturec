@@ -39,6 +39,7 @@ log = logging.getLogger(__name__)
 
 class Hemtduino(agent.SerialAgent):
     VALID_FIRMWARES = [0.0, 0.1]
+
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='hemtduino')
         if connect:
@@ -47,9 +48,16 @@ class Hemtduino(agent.SerialAgent):
         self.terminator = ''
 
     def format_msg(self, msg:str):
+        """
+        Overwrites the format_msg function from SerialAgent. Returns a lowercase string with the hemtduino terminator
+        (which is '' in the contract with the hemtduino).
+        """
         return f"{msg.strip().lower()}{self.terminator}"
 
     def firmware_ok(self):
+        """
+        Return True if the reported firmware is in the list of valid firmwares for the hemtduino.
+        """
         return self.firmware in self.VALID_FIRMWARES
 
     @property
@@ -71,6 +79,12 @@ class Hemtduino(agent.SerialAgent):
             raise IOError(f'Bad firmware response: "{response}"')
 
     def read_hemt_data(self):
+        """
+        Return the hemt data in the order received from the hemtduino (it reads A0 -> A14) along with the proper keys.
+        This reports the bias voltages read. It does not convert to current for the gate current values. Raises a value
+        error if a bad response is returned (the arduino does not report back the query string as the final character)
+        or a nonsense string is returned that is unparseable.
+        """
         response = self.query('?', connect=True)
         try:
             resp = response.split(' ')
