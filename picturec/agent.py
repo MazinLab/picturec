@@ -9,6 +9,9 @@ import time
 import threading
 
 def escapeString(string):
+    """
+    Takes a string and escapes newline characters so they can be logged and display the newline characters in that string
+    """
     return string.replace('\n','\\n').replace('\r','\\r')
 
 class SerialAgent:
@@ -23,12 +26,10 @@ class SerialAgent:
 
     def connect(self, reconnect=False, raise_errors=True, post_connect_sleep=0.2):
         """
-        Create serial connection with the SIM921. In reality, the SIM921 connection is only up to the USB-to-RS232
-        interface, and so disconnects will need to be checked differently from either side of the converter.
-
-        #TODO What do you mean "only up to...so disconnects will ..."?
-             - Response -> The udev rules for the sim921/960 are for the usb-to-rs232 cable, not the sim921/960 itself,
-               so it checks the cable is plugged in on the USB end, not the rs232 end
+        Connect to a serial port. If reconnect is True, closes the port first and then tries to reopen it. First asks
+        the port if it is already open. If so, returns nothing and allows the calling function to continue on. If port
+        is not already open, first attempts to create a serial.Serial object and establish the connection.
+        Raises an IOError if the serial connection is unable to be established.
         """
         if reconnect:
             self.disconnect()
@@ -54,7 +55,8 @@ class SerialAgent:
 
     def disconnect(self):
         """
-        Disconnect from the SIM921 serial connection
+        First closes the existing serial connection and then sets the ser attribute to None. If an exception occurs in
+        closing the port, log the error but do not raise.
         """
         try:
             self.ser.close()
@@ -68,11 +70,9 @@ class SerialAgent:
 
     def send(self, msg: str, connect=True):
         """
-        Send a message to the SIM921 in its desired format.
-        The typical message is all caps, terminated with a newline character '\n'
-        Commands will be followed by a code, typically a number (e.g. 'RANG 3\n')
-        Queries will be followed by a question mark (e.g. 'TVAL?\n')
-        The identity query (and a number of other 'special' commands) start with a * (e.g. '*IDN?')
+        Send a message to a serial port. If connect is True, try to connect to the serial port before sending the
+        message. Formats message according to the class's format_msg function before attempting to write to serial port.
+        If IOError or SerialException occurs, first disconnect from the serial port, then log and raise the error.
         """
         if connect:
             self.connect()
@@ -90,9 +90,9 @@ class SerialAgent:
 
     def receive(self):
         """
-        Receiving from the SIM921 consists of reading a line, as some queries may return longer strings than others,
-        and each query has its own parsing needs (for example: '*IDN?' returns a string with model, serial number,
-        firmware, and company, while 'TVAL?' or 'RVAL?' returns the measured temperature/resistance value at the time)
+        Receives a message from a serial port. Assumes that the message consists of a single line. If a message is
+        received, decode it and strip it of any newline characters. In the case of an error or serialException,
+        disconnects from the serial port and raises an IOError.
         """
         try:
             data = self.ser.readline().decode("utf-8").strip()
@@ -101,7 +101,7 @@ class SerialAgent:
         except (IOError, serial.SerialException) as e:
             self.disconnect()
             getLogger(__name__).debug(f"Send failed {e}")
-            raise e
+            raise IOError(e)
 
     def query(self, cmd: str, **kwargs):
         """
