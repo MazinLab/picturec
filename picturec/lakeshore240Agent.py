@@ -10,12 +10,10 @@ will be functionality in the lakeshore240Agent to configure settings, although t
 thermometers are removed and replaced with new ones.
 Again, the calibration process can be done manually using the LakeShore GUI if so desired.
 
+HARDWARE NOTE: Ch1 -> LN2, Ch2 -> LHe
+
 See manual in hardware/thermometry/LakeShore240_temperatureMonitor_manual.pdf
 TODO: More Docstrings
-
-TODO: Double check that the curves have the appropriate names!
-
-TODO: Incorporate redis storage (this program does not need pubsub in any obvious places)
 """
 
 import sys
@@ -71,8 +69,6 @@ class LakeShore240(agent.SerialAgent):
     def read_temperatures(self):
         """Queries the temperature of all enabled channels on the LakeShore 240. LakeShore reports values of temperature
         in Kelvin. May raise IOError in the case of serial communication not working."""
-
-        # TODO: Set and confirm the mapping of channel -> cryogen tank. (Ch1=?, Ch2=?). Could also query curvename here
         readings = []
         tanks = ['ln2', 'lhe']
         for channel in self.enabled_channels:

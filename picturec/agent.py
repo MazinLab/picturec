@@ -1,7 +1,6 @@
 """
 Author: Jeb Bailey
 
-TODO: Add escaping for \n, \r, \t characters in logging statements
 """
 
 from logging import getLogger
@@ -94,7 +93,6 @@ class SerialAgent:
         Receiving from the SIM921 consists of reading a line, as some queries may return longer strings than others,
         and each query has its own parsing needs (for example: '*IDN?' returns a string with model, serial number,
         firmware, and company, while 'TVAL?' or 'RVAL?' returns the measured temperature/resistance value at the time)
-        TODO: Confirm that the syntax for receiving is the same for all devices (it should be)
         """
         try:
             data = self.ser.readline().decode("utf-8").strip()
@@ -108,7 +106,6 @@ class SerialAgent:
     def query(self, cmd: str, **kwargs):
         """
         Send command and wait for a response, kwargs passed to send, raises only IOError
-        TODO: Check for a question mark at the end of the string? - Probably do this if overriding in subclass
         """
         with self._rlock:
             try:

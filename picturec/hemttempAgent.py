@@ -5,8 +5,6 @@ Program for controlling ArduinoMEGA that monitors the bias voltages and currents
 of the cryogenic HEMT amplifiers in the PITCURE-C cryostat. Will log the values directly to redis database
 for the fridge monitor to store/determine that the amplifiers are working properly.
 
-TODO: - Add error checking to determine if the HEMT bias values are out of acceptable ranges
-
 TODO: Add HEMT rack temperature reporting (after rack thermometers installed)
 
 TODO: Account for HEMT Power On/Off?

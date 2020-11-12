@@ -86,9 +86,6 @@ COMMAND_DICT = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'man
                 'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
                 'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
                 'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
-                # TODO: turn apol and flow to 1-off commands at the beginning of main.
-                'APOL': {'vals': {'negative': '0', 'positive': '1'}},
-                'FLOW': {'vals': {'none': '0', 'rts': '1', 'xon': '2'}}
                 }
 
 

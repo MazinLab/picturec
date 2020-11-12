@@ -143,7 +143,6 @@ class PCRedis(object):
         """
         Unsubscribe from all of the channels that self.ps is currently subscribed to. Sets self.ps to None
         :return: No return. Will raise an error if the program cannot communicate with redis.
-        TODO: Determine if there is a need for only unsubscribing from single channels
         """
         try:
             self.ps.unsubscribe()

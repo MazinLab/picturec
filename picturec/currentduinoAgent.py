@@ -60,7 +60,6 @@ class Currentduino(agent.SerialAgent):
 
     def read_current(self):
         """Read and return the current, may raise ValueError (unparseable response) or IOError (something else)"""
-        # TODO: Match response parsing with self.move_heat_switch()?
         response = self.query('?', connect=True)
         try:
             value = float(response.split(' ')[0])
@@ -136,7 +135,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)  # Note that ultimately this is going to need to change. As written I suspect
     # all log messages will appear from "__main__" instead of showing up from "picturec.currentduinoAgent.Currentduino"
-    # TODO: Logging for a package is something that's been on my to-do list for a while. Now is probably the time
+    # TODO: Logging for a package
 
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=['status:highcurrentboard:current'])
     currentduino = Currentduino(port='/dev/currentduino', baudrate=115200, timeout=0.1)
