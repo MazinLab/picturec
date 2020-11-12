@@ -20,6 +20,9 @@ import picturec.agent as agent
 from picturec.pcredis import PCRedis, RedisError
 import threading
 import os
+import picturec.util as util
+
+DEVICE = '/dev/sim921'
 
 REDIS_DB = 0
 QUERY_INTERVAL = 1
@@ -125,6 +128,9 @@ class SimCommand(object):
         else:
             return self.value in self.mapping.keys()
 
+    def __str__(self):
+        return self.format_command()
+
     def format_command(self):
         if self.valid_value():
             if self.range is not None:
@@ -147,9 +153,10 @@ class SIM960Agent(agent.SerialAgent):
         self.kwargs = kwargs
         self.last_input_voltage = None
         self.last_output_voltage = None
+        self._voltage_monitor_thread = None
 
         if connect_mainframe:
-            if (int(self.kwargs['mf_slot']) in (np.arange(7)+1)) and self.kwargs['mf_exit_string']:
+            if int(self.kwargs['mf_slot']) in range(1, 9) and self.kwargs['mf_exit_string']:
                 self.mainframe_disconnect()
                 log.info(f"Connected to {self.idn}, going down the chain to connect to SIM960")
                 time.sleep(1)
@@ -198,6 +205,9 @@ class SIM960Agent(agent.SerialAgent):
                     'sn': sn,
                     'firmware': firmware}
         except IOError as e:
+            # TODO If you have an ioerror here then there is a good chance you've lost the
+            #  connection. mainframe_disconnect calls send, whihc will try to reconnect, is that
+            #  expected emergent behavior?
             if 'mf_disconnect_string' in self.kwargs.keys():
                 self.mainframe_disconnect()
             log.error(f"Serial error: {e}")
@@ -217,22 +227,25 @@ class SIM960Agent(agent.SerialAgent):
     def mainframe_connect(self, mf_slot=None, mf_exit_string=None):
         if mf_slot and mf_exit_string:
             self.send(f"CONN {mf_slot}, '{mf_exit_string}'")
+        #TODO This seems a bit odd. The protection here only works if both keywords are present.
+        # If either is missing nothing will be sent and if one is missing you'll raise a keyerror
         elif self.kwargs['mf_slot'] and self.kwargs['mf_exit_string']:
             self.send(f"CONN {self.kwargs['mf_slot']}, '{self.kwargs['mf_exit_string']}'")
         else:
             log.critical("You've messed up a keyword for mainframe connection! Not connecting for your safety")
 
     def mainframe_disconnect(self, mf_exit_string=None):
+        #TODO Is the KeyError this can raise expected?
         if mf_exit_string:
             self.send(f"{mf_exit_string}\n")
         elif self.kwargs['mf_exit_string']:
             self.send(f"{self.kwargs['mf_exit_string']}\n")
 
     def initialize_sim(self, db_read_func, dc_store_func=None, from_state='defaults'):
-        if from_state.lower() == 'defaults':
+        if from_state.lower() == 'defaults':  #TODO make singular like other option
             settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
             settings_used = 'defaults'
-        elif (from_state.lower() == 'previous') or (from_state.lower() == 'last_state'):
+        elif (from_state.lower() == 'previous') or (from_state.lower() == 'last_state'): #TODO why not just call it 'last'
             settings_to_load = db_read_func(SETTING_KEYS)
             settings_used = 'last'
         else:
@@ -241,92 +254,76 @@ class SIM960Agent(agent.SerialAgent):
             settings_used = 'defaults'
 
         for setting, value in settings_to_load.items():
-            if settings_used == 'defaults':
-                setting = setting[8:]  # Chop off 'default:' from the beginning of the string.
-            cmd = SimCommand(setting, value)
-            log.debug(cmd.format_command())
+            cmd = SimCommand(setting.lstrip('default:'), value)
+            log.debug(cmd)
             self.send(cmd.format_command())
             if dc_store_func:
-                dc_store_func({setting: cmd.value})
+                dc_store_func({cmd.setting: cmd.value})
             time.sleep(0.1)
 
     def read_input_voltage(self):
-        input = self.query("MMON?")
-
-        return input
+        return self.query("MMON?")
 
     def read_output_voltage(self):
-        output = self.query("OMON?")
+        return self.query("OMON?")
 
-        return output
-
-    def monitor_input_voltage(self, interval, value_callback=None):
+    def monitor_voltages(self, interval, input_value_callback=None, output_value_callback=None):
         def f():
             while True:
                 last_input_voltage = None
+                last_output_voltage = None
                 try:
                     self.last_input_voltage = self.read_input_voltage()
                     last_input_voltage = self.last_input_voltage
                 except IOError as e:
                     log.error(f"Error: {e}")
 
-                if value_callback is not None and last_input_voltage is not None:
-                    try:
-                        value_callback(self.last_input_voltage)
-                    except:
-                        log.error(f"Unable to store input voltage due to redis error: {e}")
-
-                time.sleep(interval)
-
-        self._input_voltage_monitor_thread = threading.Thread(target=f, name='Input Voltage Monitor Thread')
-        self._input_voltage_monitor_thread.daemon = True
-        self._input_voltage_monitor_thread.start()
-
-    def monitor_output_voltage(self, interval, value_callback=None):
-        def f():
-            while True:
-                last_output_voltage = None
                 try:
                     self.last_output_voltage = self.read_output_voltage()
                     last_output_voltage = self.last_output_voltage
                 except IOError as e:
                     log.error(f"Error: {e}")
 
-                if value_callback is not None and last_output_voltage is not None:
+                if input_value_callback is not None and last_input_voltage is not None:
                     try:
-                        value_callback(self.last_output_voltage)
-                    except:
+                        input_value_callback(self.last_input_voltage)
+                    except Exception as e:
+                        log.error(f"Unable to store input voltage due to error: {e}")
+
+                if output_value_callback is not None and last_output_voltage is not None:
+                    try:
+                        output_value_callback(self.last_output_voltage)
+                    except Exception as e:
                         log.error(f"Unable to store out voltage due to redis error: {e}")
 
                 time.sleep(interval)
 
-        self._output_voltage_monitor_thread = threading.Thread(target=f, name='Input Voltage Monitor Thread')
-        self._output_voltage_monitor_thread.daemon = True
-        self._output_voltage_monitor_thread.start()
+        self._voltage_monitor_thread = threading.Thread(target=f, name='Input Voltage Monitor Thread')
+        self._voltage_monitor_thread.daemon = True
+        self._voltage_monitor_thread.start()
+
 
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.DEBUG)
+    util.setup_logging()
 
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
-    sim960 = SIM960Agent(port='/dev/sim921', baudrate=9600, timeout=0.1, connect_mainframe=True, **DEFAULT_MAINFRAME_KWARGS)
+    sim960 = SIM960Agent(port=DEVICE, baudrate=9600, timeout=0.1, connect_mainframe=True,
+                         **DEFAULT_MAINFRAME_KWARGS)
 
     try:
         sim960_info = sim960.idn
-        if not sim960.manufacturer_ok():
-            redis.store({STATUS_KEY: f'Unsupported manufacturer: {sim960_info["manufacturer"]}'})
-            sys.exit(1)
-        if not sim960.model_ok():
-            redis.store({STATUS_KEY: f'Unsupported model: {sim960_info["model"]}'})
+        if not sim960.manufacturer_ok() or not sim960.model_ok():
+            msg = f'Unsupported device: {sim960_info["manufacturer"]}/{sim960_info["model"]}'
+            redis.store({STATUS_KEY: msg})
+            log.critical(msg)
             sys.exit(1)
         redis.store({FIRMWARE_KEY: sim960_info['firmware'],
                      MODEL_KEY: sim960_info['model'],
                      SN_KEY: sim960_info['firmware']})
     except IOError as e:
-        log.error(f"Serial error in querying SIM921 identification information: {e}")
-        redis.store({FIRMWARE_KEY: '',
-                     MODEL_KEY: '',
-                     SN_KEY: ''})
+        log.critical(f"Query SIM960 ID failed: {e}")
+        redis.store({FIRMWARE_KEY: '', MODEL_KEY: '', SN_KEY: ''})
         sys.exit(1)
     except RedisError as e:
         log.critical(f"Redis server error! {e}")
@@ -335,30 +332,23 @@ if __name__ == "__main__":
     # Set polarity to negative here. This is a non-redis controlled setting (not modifiable during normal operation).
     sim960.send("APOL 0")
     polarity = sim960.query("APOL?")
-    if polarity == '0':
-        log.info(f"Polarity query returned 0. PID loop polarity is negative")
-    elif polarity == '1':
-        log.critical(f"Polarity query returned 1. PID loop polarity is positive.")
-        sys.exit(1)
-    else:
-        log.error(f"An unexpected value for polarity was returned. Please restart the program!")
+    if polarity != '0':
+        log.critical(f"Polarity query returned {polarity}. Setting PID loop polarity to negative failed.")
         sys.exit(1)
 
+    # TODO Is this functionally wise? Lets say you have a crash loop periodically through the night
+    #    won't the settings then be bouncing between user and defaults? Does this violate the principal of not altering
+    #    active settings without explicit user action?
     sim960.initialize_sim(redis.read, redis.store, from_state='defaults')
-
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
 
-    store_input_voltage_func = lambda x: redis.store({INPUT_VOLTAGE_KEY: x}, timeseries=True)
-    sim960.monitor_input_voltage(QUERY_INTERVAL, value_callback=store_input_voltage_func)
-
-    store_output_voltage_func = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x}, timeseries=True)
-    sim960.monitor_output_voltage(QUERY_INTERVAL, value_callback=store_output_voltage_func)
-
-    # Below : A version of the store output voltage where we also store the magnet current.
-    #  TODO: (1) Apply this. (2) Figure out where to add in magnet state checking (in the sim960 or elsewhere?)
-    # OUTPUT_TO_CURRENT_FACTOR = 1 # V/A (TODO: Measure this value)
-    # store_output_voltage_and_magnet_current_func = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x, MAGNET_CURRENT_KEY: x * OUTPUT_TO_CURRENT_FACTOR}, timeseries=True)
-    # sim960.monitor_output_voltage(QUERY_INTERVAL, value_callback=store_output_voltage_func)
+    OUTPUT_TO_CURRENT_FACTOR = 1  # V/A (TODO: Measure this value)
+    store_input = lambda x: redis.store({INPUT_VOLTAGE_KEY: x}, timeseries=True)
+    store_output = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x,
+                                          MAGNET_CURRENT_KEY: x * OUTPUT_TO_CURRENT_FACTOR},
+                                         timeseries=True)
+    sim960.monitor_voltages(QUERY_INTERVAL, input_value_callback=store_input, output_value_callback=store_output)
+    #  TODO: Figure out where to add in magnet state checking (in the sim960 or elsewhere?)
 
     while True:
         try:
@@ -367,7 +357,8 @@ if __name__ == "__main__":
                 cmd = SimCommand(key, val)
                 if cmd.valid_value():
                     try:
-                        log.info(f'Here we would send the command "{cmd.format_command()}\\n"')
+                        log.info(f'Sending command "{cmd}"')  #TODO if you want to explicityy show non-printables in the
+                        #  msg then use a stinrg function to escape them either in __str__ or str(cmd).XXXX
                         sim960.send(f"{cmd.format_command()}")
                         redis.store({cmd.setting: cmd.value})
                         redis.store({STATUS_KEY: "OK"})
