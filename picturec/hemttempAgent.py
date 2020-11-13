@@ -23,7 +23,9 @@ import logging
 import numpy as np
 from picturec.pcredis import PCRedis, RedisError
 import picturec.agent as agent
+import picturec.util as util
 
+DEVICE = "/dev/hemtduino"
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 
@@ -33,12 +35,13 @@ KEY_DICT = {msg_idx: key for (msg_idx, key) in zip(np.arange(0, 15, 1), KEYS)}
 STATUS_KEY = "status:device:hemtduino:status"
 FIRMWARE_KEY = "status:device:hemtduino:firmware"
 
-
+# TODO Note that this way of using logging throughout the file means that Hemtduino (and all the othrs)
+#  would be better off in their own picturec.devices module
 log = logging.getLogger(__name__)
 
 
 class Hemtduino(agent.SerialAgent):
-    VALID_FIRMWARES = [0.0, 0.1]
+    VALID_FIRMWARES = (0.0, 0.1)  #TODO JB Tuples are immutable
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='hemtduino')
@@ -62,7 +65,9 @@ class Hemtduino(agent.SerialAgent):
 
     @property
     def firmware(self):
-        """ Return the firmware string or raise IOError"""
+        """ Return the firmware string or raise IOError """
+        #TODO JB There is a lot of common code between firmware, idn, and the mains.
+        # Things could be simplified and made more reliable by better encapsulating this
         try:
             log.debug(f"Querying currentduino firmware")
             response = self.query("v", connect=True)
@@ -97,16 +102,16 @@ class Hemtduino(agent.SerialAgent):
             else:
                 raise ValueError(f"Nonsense was returned: {response}")
         except Exception as e:
-            raise ValueError(f"Error parsing response data: {response}")
+            raise ValueError(f"Error parsing response data: {response}. Exception {e}")
         return ret
 
 
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.DEBUG)
+    util.setup_logging()
 
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=KEYS)
-    hemtduino = Hemtduino(port="/dev/hemtduino", baudrate=115200, timeout=0.1)
+    hemtduino = Hemtduino(port=DEVICE, baudrate=115200, timeout=0.1)
 
     try:
         firmware = hemtduino.firmware
