@@ -11,6 +11,13 @@ TODO: Do we want a 'confirm' ability with the command to make sure it sent?
  or there is a physical disconnect (IOError from serial port).
 
 TODO: Add value caching? (self.output_mode = 'manual', self.curve_number = 1)
+
+TODO JB: Much of the 960 and 921 code has overlap. I'd suggest (after agent becomes SerialDevice)
+
+SimDevice(SerialDevice)
+Sim960(SimDevice)
+Sim921(SimDevice)
+
 """
 
 import numpy as np
@@ -21,7 +28,9 @@ import picturec.agent as agent
 from picturec.pcredis import PCRedis, RedisError
 import threading
 import os
+import picturec.util as util
 
+DEVICE = '/dev/sim921'
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 
@@ -140,6 +149,10 @@ class SIM921Agent(agent.SerialAgent):
         self.kwargs = kwargs
         self.last_voltage = None
         self.last_monitored_values = None
+        self._monitor_thread = None
+        self.last_voltage_read = None
+        self.last_temp_read = None
+        self.last_resistance_read = None
 
         if connect_mainframe:
             if (int(self.kwargs['mf_slot']) in (np.arange(7)+1)) and self.kwargs['mf_exit_string']:
@@ -191,6 +204,7 @@ class SIM921Agent(agent.SerialAgent):
                     'sn': sn,
                     'firmware': firmware}
         except IOError as e:
+            #TODO JB: same comments about the 960 and disconnects
             if 'mf_disconnect_string' in self.kwargs.keys():
                 self.mainframe_disconnect()
             log.error(f"Serial error: {e}")
@@ -208,6 +222,7 @@ class SIM921Agent(agent.SerialAgent):
         return self.idn['model'] == "SIM921"
 
     def mainframe_connect(self, mf_slot=None, mf_exit_string=None):
+        #TODO
         if mf_slot and mf_exit_string:
             self.send(f"CONN {mf_slot}, '{mf_exit_string}'")
         elif self.kwargs['mf_slot'] and self.kwargs['mf_exit_string']:
@@ -243,65 +258,82 @@ class SIM921Agent(agent.SerialAgent):
                 dc_store_func({setting: cmd.value})
             time.sleep(0.1)
 
-    def read_temp_and_resistance(self):
+    def read_temp(self):
         temp = self.query("TVAL?")
-        res = self.query("RVAL?")
+        self.last_temp_read = temp
+        return temp
 
-        return {'temperature': temp, 'resistance': res}
+    def read_resistance(self):
+        res = self.query("RVAL?")
+        self.last_resistance_read = res
+
+    def read_temp_and_resistance(self):
+        return {'temperature': self.read_temp(), 'resistance': self.read_resistance()}
 
     def read_output_voltage(self):
         voltage = None
         if self.query("AMAN?") == "1":
+            # TODO, not this is DEF not an info message if the mode isn't changing all the time.
+            #  Talk about log spam every query interval!
             log.info("SIM921 voltage output is in manual mode!")
             voltage = self.query("AOUT?")
         elif self.query("AMAN?") == "0":
             log.info("SIM921 voltage output is in scaled mode!")
             voltage = float(self.query("VOHM?")) * float(self.query("RDEV?"))
+        self.last_voltage_read = voltage
         return voltage
 
-    def monitor_temp(self, interval, value_callback=None):
+    def monitor(self, interval: float, monitor_func: (callable, tuple), value_callback: (callable, tuple) = None):
+        """
+        TODO JB: This is a first stab at a quasi-general purpose monitoring function that fixes some of the issues we
+         discussed.
+        Given a monitoring function (or is of the same) and either one or the same number of optional callback
+        functions call the monitors every interval. If one callback it will get all the values in the order of the
+        monitor funcs, if a list of the same number as of monitorables each will get a single value.
+
+        Monitor functions may not return None.
+
+        When there is a 1-1 correspondence the callback is not called in the event of a monitoring error.
+        If a single callback is present for multiple monitor functions values that had errors will be sent as None.
+        Function must accept as many arguments as monitor functions.
+        """
+        if not isinstance(monitor_func, (list, tuple)):
+            monitor_func = (monitor_func,)
+        if value_callback is not None and not isinstance(value_callback, (list, tuple)):
+            value_callback = (value_callback,)
+        if not (value_callback is None or len(monitor_func) == len(value_callback) or len(value_callback) == 1):
+            raise ValueError('When specified, the number of callbacks must be one or the number of monitor functions')
+
         def f():
             while True:
-                last_monitored_values = None
-                try:
-                    self.last_monitored_values = self.read_temp_and_resistance()
-                    last_monitored_values = self.last_monitored_values
-                except IOError as e:
-                    log.error(f"Error: {e}")
-
-                if value_callback is not None and last_monitored_values is not None:
+                vals = []
+                for func in monitor_func:
                     try:
-                        value_callback(self.last_monitored_values)
-                    except RedisError as e:
-                        log.error(f"Unable to store temperature and resistance due to redis error: {e}")
+                        vals.append(func())
+                    except IOError as e:
+                        log.error(f"Failed to poll {func}: {e}")
+                        vals.append(None)
+
+                if value_callback is not None:
+                    if len(value_callback) > 1 or len(monitor_func) == 1:
+                        for v, cb in zip(vals, value_callback):
+                            if v is not None:
+                                try:
+                                    cb(v)
+                                except Exception as e:
+                                    log.error(f"Callback {cb} raised {e} when called with {v}.")
+                    else:
+                        cb = value_callback[0]
+                        try:
+                            cb(*vals)
+                        except Exception as e:
+                            log.error(f"Callback {cb} raised {e} when called with {v}.")
 
                 time.sleep(interval)
 
-        self._monitor_thread = threading.Thread(target=f, name='Temperature and Resistance Monitoring Thread')
+        self._monitor_thread = threading.Thread(target=f, name='Monitor Thread')
         self._monitor_thread.daemon = True
         self._monitor_thread.start()
-
-    def monitor_output_voltage(self, interval, value_callback=None):
-        def f():
-            while True:
-                last_voltage = None
-                try:
-                    self.last_voltage = self.read_output_voltage()
-                    last_voltage = self.last_voltage
-                except IOError as e:
-                    log.error(f"Error: {e}")
-
-                if value_callback is not None and last_voltage is not None:
-                    try:
-                        value_callback(self.last_voltage)
-                    except RedisError as e:
-                        log.error(f"Unable to store temperature and resistance due to redis error: {e}")
-
-                time.sleep(interval)
-
-        self._voltage_monitor_thread = threading.Thread(target=f, name='Voltage Monitoring Thread')
-        self._voltage_monitor_thread.daemon = True
-        self._voltage_monitor_thread.start()
 
     def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, file:str=None):
         """
@@ -314,35 +346,32 @@ class SIM921Agent(agent.SerialAgent):
         is in a format where resistance[n] < resistance[n+1] for all points n on the curve, it can be loaded into the
         SIM921 instrument.
         """
-        if curve_num not in [1, 2, 3]:
+        if curve_num not in (1, 2, 3):
             log.error(f"SIM921 only accepts 1, 2, or 3 as the curve number")
             return None
-        log.info(f"Attempting to initialize curve {curve_num}")
 
         CURVE_TYPE_DICT = {'linear': '0', 'semilogt': '1', 'semilogr': '2', 'loglog': '3'}
         if curve_type not in CURVE_TYPE_DICT.keys():
             log.error(f"Invalid calibration curve type for SIM921. Valid types are {CURVE_TYPE_DICT.keys()}")
             return None
-        log.info(f"Curve {curve_num} will be {curve_type}")
 
         if file is None:
             import pkg_resources as pkg
-            path_to_curve = pkg.resource_filename('hardware.thermometry.RX-102A', 'RX-102A_Mean_Curve.tbl')
-        else:
-            path_to_curve = file
+            file = pkg.resource_filename('hardware.thermometry.RX-102A', 'RX-102A_Mean_Curve.tbl')
 
-        if os.path.isfile(path_to_curve):
-            log.info(f"Curve data at {path_to_curve}")
-        else:
-            log.error(f"Trying to load a curve from an invalid path!")
+        log.info(f"Curve data at {file}")
 
         try:
-            curve_data = np.loadtxt(path_to_curve)
+            curve_data = np.loadtxt(file)
             temp_data = np.flip(curve_data[:, 0], axis=0)
             res_data = np.flip(curve_data[:, 1], axis=0)
-        except Exception:
-            raise ValueError(f"{path_to_curve} couldn't be loaded.")
+        except OSError:
+            log.error(f"Could not find curve data file.")
+            raise ValueError(f"{file} couldn't be loaded.")
+        except IndexError:
+            raise ValueError(f"{file} couldn't be loaded.")
 
+        log.info(f"Attempting to initialize curve {curve_num}, type {curve_type}")
         try:
             # curve_init_str = "CINI "+str(curve_num)+", "+str(CURVE_TYPE_DICT[curve_type]+", "+curve_name)
             self.send(f"CINI {curve_num}, {CURVE_TYPE_DICT[curve_type]}, {curve_name}")
@@ -357,22 +386,22 @@ class SIM921Agent(agent.SerialAgent):
 
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.DEBUG)
+    util.setup_logging()
 
+    #TODO if the mainfram isn't going to be used in the field but is in the lab then it needs to be an argument to this
+    # program, its not a good idea to need to dive into multiple code files and change defaults just to get something
+    # into test mode in the lab
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
-    sim921 = SIM921Agent(port='/dev/sim921', baudrate=9600, timeout=0.1, connect_mainframe=True, **DEFAULT_MAINFRAME_KWARGS)
+    sim = SIM921Agent(port=DEVICE, baudrate=9600, timeout=0.1, connect_mainframe=True, **DEFAULT_MAINFRAME_KWARGS)
 
     try:
-        sim921_info = sim921.idn
-        if not sim921.manufacturer_ok():
-            redis.store({STATUS_KEY: f'Unsupported manufacturer: {sim921_info["manufacturer"]}'})
+        info = sim.idn
+        if not sim.manufacturer_ok() or not sim.model_ok():
+            msg = f'Unsupported device: {info["manufacturer"]}/{info["model"]}'
+            redis.store({STATUS_KEY: msg})
+            log.critical(msg)
             sys.exit(1)
-        if not sim921.model_ok():
-            redis.store({STATUS_KEY: f'Unsupported model: {sim921_info["model"]}'})
-            sys.exit(1)
-        redis.store({FIRMWARE_KEY: sim921_info['firmware'],
-                     MODEL_KEY: sim921_info['model'],
-                     SN_KEY: sim921_info['firmware']})
+        redis.store({FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['firmware']})
     except IOError as e:
         log.error(f"Serial error in querying SIM921 identification information: {e}")
         redis.store({FIRMWARE_KEY: '',
@@ -385,37 +414,37 @@ if __name__ == "__main__":
 
     # TODO: Determine how to properly treat the ATEM (and EXON). Talk with Jeb about scheme for it. For what it's worth
     #  they should always be the same, unless there is a major change in system (new thermometer).
-    sim921.send("ATEM 0")
-    unit = sim921.query("ATEM?")
-    if unit == '0':
-        log.info(f"Unit query response was {0}. Analog output voltage scale units are resistance")
-    elif unit == '1':
-        log.critical(f"Unit query response was {1}. Analog output voltage scale units are temperature. DO NOT OPERATE"
-                     f" IN THIS MODE")
-        sys.exit(1)
-    else:
-        log.error(f"An unexpected value was returned when querying the scale units. Please restart the program for safety!")
+    #  JB: this seems pretty straightforward to me. not sure what I'm missing.
+    sim.send("ATEM 0")
+    atem = sim.query("ATEM?")
+    if atem != '0':
+        log.critical(f"Setting ATEM=0 failed, got '{atem}'. "
+                     "Zero, indicating the voltage scale units are resistance, is required. DO NOT OPERATE! Exiting.")
         sys.exit(1)
 
     # TODO: EXON (Turning the excitation on) doesn't need to be commanded.
     #  It defaults to on and shouldn't ever be turned off.
-    # sim921.send("EXON 1")
-    # exon = sim921.query("EXON?")
-    # if exon == '1':
-    #     log.critical(f"EXON query response was {0}. Excitation is on!")
-    # elif exon == '0':
-    #     log.critical(f"EXON query response was {1}. Excitation is off,ou won't be able to operate in this mode!")
-    #     sys.exit(1)
+    #  JB: If there is no harm in setting it then that frees you from relying on the default and I'd just do it.
+    sim.send("EXON 1")
+    exon = sim.query("EXON?")
+    if exon != '1':
+        log.critical(f"EXON=1 failed, got '{exon}'. Unable to enable excitation and unable to operate!")
+        sys.exit(1)
 
-    sim921.initialize_sim(redis.read, redis.store, from_state='defaults')
+    # TODO Is this functionally wise? Lets say you have a crash loop periodically through the night
+    #    won't the settings then be bouncing between user and defaults? Does this violate the principal of not altering
+    #    active settings without explicit user action?
+    sim.initialize_sim(redis.read, redis.store, from_state='defaults')
 
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
 
-    store_temp_res_func = lambda x: redis.store({TEMP_KEY: x['temperature'], RES_KEY: x['resistance']}, timeseries=True)
-    sim921.monitor_temp(QUERY_INTERVAL, value_callback=store_temp_res_func)
-
-    store_voltage_func = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x}, timeseries=True)
-    sim921.monitor_output_voltage(QUERY_INTERVAL, value_callback=store_voltage_func)
+    def callback(t, r, v):
+        d = {}
+        for k, val in zip([TEMP_KEY, RES_KEY, OUTPUT_VOLTAGE_KEY], (t, r, v)):
+            if val is not None:  # TODO JB: Since we don't want to store bad data
+                d[k] = val
+        redis.store(d, timeseries=True)
+    sim.monitor(QUERY_INTERVAL, (sim.read_temp, sim.read_resistance, sim.read_output_voltage), value_callback=callback)
 
     while True:
         try:
@@ -425,7 +454,7 @@ if __name__ == "__main__":
                 if cmd.valid_value():
                     try:
                         log.info(f'Here we would send the command "{cmd.format_command()}\\n"')
-                        sim921.send(f"{cmd.format_command()}")
+                        sim.send(f"{cmd.format_command()}")
                         redis.store({cmd.setting: cmd.value})
                         redis.store({STATUS_KEY: "OK"})
                     except IOError as e:
