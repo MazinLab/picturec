@@ -205,11 +205,6 @@ class SIM960Agent(agent.SerialAgent):
                     'sn': sn,
                     'firmware': firmware}
         except IOError as e:
-            # TODO If you have an ioerror here then there is a good chance you've lost the
-            #  connection. mainframe_disconnect calls send, whihc will try to reconnect, is that
-            #  expected emergent behavior?
-            if 'mf_disconnect_string' in self.kwargs.keys():
-                self.mainframe_disconnect()
             log.error(f"Serial error: {e}")
             raise e
         except ValueError as e:
