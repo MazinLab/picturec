@@ -42,11 +42,6 @@ SETTING_KEYS = ['device-settings:sim960:mode',
                 'device-settings:sim960:setpoint-ramp-rate',
                 'device-settings:sim960:setpoint-ramp-enable']
 
-                # TODO: Magnet ramp rate/enable is not a sim-setting! Magnet ramp should be run elsewhere. Safety
-                #  checks may(?) be performed here.
-                # 'device-settings:sim960:magnet-ramp-rate',
-                # 'device-settings:sim960:magnet-ramp-enable']
-
 
 default_key_factory = lambda key: f"default:{key}"
 DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
