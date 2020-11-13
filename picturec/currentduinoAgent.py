@@ -19,11 +19,13 @@ import logging
 import threading
 from picturec.pcredis import PCRedis, RedisError
 import picturec.agent as agent
+import picturec.util as util
 
 REDIS_DB = 0
 QUERY_INTERVAL = 1
 LOOP_INTERVAL = .001
 
+DEVICE = '/dev/currentduino'
 
 KEYS = ['device-settings:currentduino:highcurrentboard',
         'device-settings:currentduino:heatswitch',
@@ -47,7 +49,7 @@ log = logging.getLogger(__name__)
 
 
 class Currentduino(agent.SerialAgent):
-    VALID_FIRMWARES = [0.0, 0.1, 0.2]
+    VALID_FIRMWARES = (0.0, 0.1, 0.2)  #TODO: tuple is better as it isn't mutable
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='currentduino')
@@ -67,7 +69,7 @@ class Currentduino(agent.SerialAgent):
             value = float(response.split(' ')[0])
             current = (value * (5.0 / 1023.0) * ((R1 + R2) / R2))
         except ValueError:
-            raise ValueError(f"Couldn't parse '{response}' into a float")
+            raise ValueError(f"Could not parse '{response}' into a float")
         return current
 
     def format_msg(self, msg: str):
@@ -100,12 +102,12 @@ class Currentduino(agent.SerialAgent):
             raise IOError(e)
 
     def firmware_ok(self):
-        """Return true if the firmware is valid. Otherwise return false"""
+        """ Return True or False if the firmware is supported, may raise IOErrors """
         return self.firmware in self.VALID_FIRMWARES
 
     @property
     def firmware(self):
-        """ Return the firmware string or raise IOError"""
+        """ Return the firmware string or raise IOError """
         try:
             log.debug(f"Querying currentduino firmware")
             response = self.query("v", connect=True)
@@ -136,7 +138,7 @@ class Currentduino(agent.SerialAgent):
                     self.last_current = self.read_current()
                     current = self.last_current
                 except IOError as e:
-                    log.error(f"Error: {e}")
+                    log.error(f"Unable to poll for current: {e}")
 
                 if value_callback is not None and current is not None:
                     try:
@@ -153,12 +155,10 @@ class Currentduino(agent.SerialAgent):
 
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.DEBUG)  # Note that ultimately this is going to need to change. As written I suspect
-    # all log messages will appear from "__main__" instead of showing up from "picturec.currentduinoAgent.Currentduino"
-    # TODO: Logging for a package
+    util.setup_logging()
 
-    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=['status:highcurrentboard:current'])
-    currentduino = Currentduino(port='/dev/currentduino', baudrate=115200, timeout=0.1)
+    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=[CURRENT_VALUE_KEY])
+    currentduino = Currentduino(port=DEVICE, baudrate=115200, timeout=0.1)
 
     try:
         firmware = currentduino.firmware
