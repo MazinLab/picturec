@@ -248,7 +248,7 @@ class SIM960Agent(agent.SerialAgent):
 
     def mainframe_connect(self, mf_slot:int=None, mf_exit_string:str=None):
         """Takes in a mainframe slot and mainframe exit string. If both are present, it will send the mainframe
-        connection string. Otherwise it will inform the user that they haven't specified a proper command. Log and raise
+        connection string. Otherwise it will inform the user that they haven't specified a proper value. Log and raise
         IOError if it occurs"""
         if mf_slot and mf_exit_string:
             try:
@@ -261,6 +261,9 @@ class SIM960Agent(agent.SerialAgent):
 
 
     def mainframe_disconnect(self, mf_exit_string:str=None):
+        """Takes in a mainframe exit string. If both are present, it will send the mainframe connection string.
+        Otherwise it will inform the user that they haven't specified a proper variable. Log and raise
+        IOError if it occurs. NOTE: Does not check to make sure it is the correct exit_string."""
         if mf_exit_string:
             try:
                 self.send(f"{mf_exit_string}\n")
@@ -270,33 +273,42 @@ class SIM960Agent(agent.SerialAgent):
         else:
             log.critical(f"Cannot disconnect from mainframe without an exit string! Please specify.")
 
-    def initialize_sim(self, db_read_func, dc_store_func=None, from_state='defaults'):
-        if from_state.lower() == 'defaults':  #TODO make singular like other option
+    def initialize_sim(self, db_read_func, db_store_func=None, from_state='default'):
+        '''
+        Function that can initialize the SIM960 from the default setting keys or the last stored values of the setting
+        keys. If db_store_func is not None, then after sending a command to the SIM960, store the updated setting in
+        the redis DB. from_state can be 'default' or 'last'. Default should only be used at the before any SIM960
+        operation. After operation has begun, use 'last' to restore the settings that were previously stored.
+        '''
+        if from_state.lower() == 'default':
             settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
-            settings_used = 'defaults'
-        elif (from_state.lower() == 'previous') or (from_state.lower() == 'last_state'): #TODO why not just call it 'last'
+        elif from_state.lower() == 'last':
             settings_to_load = db_read_func(SETTING_KEYS)
-            settings_used = 'last'
         else:
             log.critical("Invalid initializtion mode requested! Using default settings.")
             settings_to_load = db_read_func(DEFAULT_SETTING_KEYS)
-            settings_used = 'defaults'
 
         for setting, value in settings_to_load.items():
             cmd = SimCommand(setting.lstrip('default:'), value)
             log.debug(cmd)
             self.send(cmd.format_command())
-            if dc_store_func:
-                dc_store_func({cmd.setting: cmd.value})
+            if db_store_func:
+                db_store_func({cmd.setting: cmd.value})
             time.sleep(0.1)
 
     def read_input_voltage(self):
+        """Read the voltage being sent to the input monitor of the SIM960 from the SIM921"""
         return self.query("MMON?")
 
     def read_output_voltage(self):
+        """Report the voltage at the output of the SIM960. In manual mode, this will be explicitly controlled using MOUT
+        and in PID mode this will be the value set by the function Output = P(e + I * int(e) + D * derv(e)) + Offset"""
         return self.query("OMON?")
 
     def monitor_voltages(self, interval, input_value_callback=None, output_value_callback=None):
+        """Create and start a thread to handle voltage monitoring for the input and output voltages. In the case of any
+        IOErrors, do not break the thread, simply log the error that was seen. If there are input or output value
+        callback functions, call them (these are typically used to store the values to the redis DB)."""
         def f():
             while True:
                 last_input_voltage = None
