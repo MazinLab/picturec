@@ -202,6 +202,8 @@ class SIM960Agent(agent.SerialAgent):
             raise e
 
     def format_msg(self, msg: str):
+        """Overwrite format_msg() from superclass. Formats message to send to Sim960 by ensuring uppercase characters
+        followed by \n terminator"""
         return f"{msg.strip().upper()}{self.terminator}"
 
     @property
@@ -211,6 +213,8 @@ class SIM960Agent(agent.SerialAgent):
         Raise IOError if serial connection isn't working or if invalid values are received
         ID return string is "<manufacturer>,<model>,<instrument serial>,<firmware versions>"
         Format of return string is "s[25],s[6],s[9],s[6-8]"
+        Raises IOError if query has a problem sending/receiving information to port. Raises ValueError in case the
+        message is garbage and cant be read (mismatched baudrates, partial string, etc.)
         :return: Dict
         """
         try:
@@ -222,6 +226,10 @@ class SIM960Agent(agent.SerialAgent):
                     'sn': sn,
                     'firmware': firmware}
         except IOError as e:
+            # Note: In the case of mainframe connection. If this error occurs, reinitialization automatically calls
+            # mainframe_disconnect first. Because the exit string should not ever need to change, this will fix any
+            # broken connections. Additionally, in the case of mainframe operation, and IOError should never happen
+            # here. It would always be much earlier (during connect) or later (in normal operation).
             log.error(f"Serial error: {e}")
             raise e
         except ValueError as e:
@@ -231,9 +239,11 @@ class SIM960Agent(agent.SerialAgent):
             raise IOError(f"Bad firmware format: {firmware}. Error: {e}")
 
     def manufacturer_ok(self):
+        """Return True or False if the manufacturer from the idn query is valid or not"""
         return self.idn['manufacturer'] == "Stanford_Research_Systems"
 
     def model_ok(self):
+        """Return True or False if the SIM model from the idn query is valid or not"""
         return self.idn['model'] == "SIM960"
 
     def mainframe_connect(self, mf_slot:int=None, mf_exit_string:str=None):
