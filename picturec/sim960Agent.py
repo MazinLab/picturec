@@ -172,15 +172,21 @@ class SIM960Agent(agent.SerialAgent):
         self._voltage_monitor_thread = None
 
         if connect_mainframe:
+            """If an IOError occurs it is raised, which will stop the program. If mainframe mode is desired and cannot
+            be set up, then the rest of the program will not be able to work properly."""
             if int(self.kwargs['mf_slot']) in range(1, 9) and self.kwargs['mf_exit_string']:
-                self.mainframe_disconnect()
-                log.info(f"Connected to {self.idn}, going down the chain to connect to SIM960")
-                time.sleep(1)
-                self.mainframe_connect()
-                time.sleep(1)
-                log.info(f"Now connected to {self.idn}")
-                # self.mainframe_connect()
-                # time.sleep(1)
+                try:
+                    self.mainframe_disconnect(self.kwargs['mf_exit_string'])
+                    log.info(f"Connected to {self.idn}, going down the chain to connect to SIM960")
+                    time.sleep(1)
+                    self.mainframe_connect(self.kwargs['mf_slot'], self.kwargs['mf_exit_string'])
+                    time.sleep(1)
+                    log.info(f"Now connected to {self.idn}")
+                    # self.mainframe_connect()
+                    # time.sleep(1)
+                except IOError:
+                    log.error(f"Unable to communicate with SIM mainframe or module to properly connect or disconnect")
+                    raise IOError(f"Unable to communicate with SIM mainframe or module to properly connect or disconnect")
             else:
                 raise IOError(f"Invalid configuration of slot ({self.kwargs['mf_slot']}) "
                               f"and exit string {self.kwargs['mf-exit-string']} for SIM900 mainframe!")
@@ -235,22 +241,29 @@ class SIM960Agent(agent.SerialAgent):
     def model_ok(self):
         return self.idn['model'] == "SIM960"
 
-    def mainframe_connect(self, mf_slot=None, mf_exit_string=None):
+    def mainframe_connect(self, mf_slot:int=None, mf_exit_string:str=None):
+        """Takes in a mainframe slot and mainframe exit string. If both are present, it will send the mainframe
+        connection string. Otherwise it will inform the user that they haven't specified a proper command. Log and raise
+        IOError if it occurs"""
         if mf_slot and mf_exit_string:
-            self.send(f"CONN {mf_slot}, '{mf_exit_string}'")
-        #TODO This seems a bit odd. The protection here only works if both keywords are present.
-        # If either is missing nothing will be sent and if one is missing you'll raise a keyerror
-        elif self.kwargs['mf_slot'] and self.kwargs['mf_exit_string']:
-            self.send(f"CONN {self.kwargs['mf_slot']}, '{self.kwargs['mf_exit_string']}'")
+            try:
+                self.send(f"CONN {mf_slot},'{mf_exit_string}'")
+            except IOError as e:
+                log.error(f"Unable to connect to the SIM960 in mainframe mode: {e}")
+                raise e
         else:
-            log.critical("You've messed up a keyword for mainframe connection! Not connecting for your safety")
+            log.critical("A keyword for connecting to the SIM960 in the SIM900 mainframe is missing! No command sent")
 
-    def mainframe_disconnect(self, mf_exit_string=None):
-        #TODO Is the KeyError this can raise expected?
+
+    def mainframe_disconnect(self, mf_exit_string:str=None):
         if mf_exit_string:
-            self.send(f"{mf_exit_string}\n")
-        elif self.kwargs['mf_exit_string']:
-            self.send(f"{self.kwargs['mf_exit_string']}\n")
+            try:
+                self.send(f"{mf_exit_string}\n")
+            except IOError as e:
+                log.error(f"Unable to disconnect from the SIM960 in mainframe mode due to a serial error: {e}")
+                raise e
+        else:
+            log.critical(f"Cannot disconnect from mainframe without an exit string! Please specify.")
 
     def initialize_sim(self, db_read_func, dc_store_func=None, from_state='defaults'):
         if from_state.lower() == 'defaults':  #TODO make singular like other option
