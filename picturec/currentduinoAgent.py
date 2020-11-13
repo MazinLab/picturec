@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 
 
 class Currentduino(agent.SerialAgent):
-    VALID_FIRMWARES = (0.0, 0.1, 0.2)  #TODO: tuple is better as it isn't mutable
+    VALID_FIRMWARES = (0.0, 0.1, 0.2)
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='currentduino')
