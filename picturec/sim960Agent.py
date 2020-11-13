@@ -380,7 +380,6 @@ if __name__ == "__main__":
     #    active settings without explicit user action?
     #  Response - Honestly I think the flip side is probably the best option. Using 'last' as the default case and then
     #  only using 'defaults' in the case everything is out of wack and we want to set it back to tried and true values.
-    sim960.initialize_sim(redis.read, redis.store, from_state='defaults')
     sim.initialize_sim(redis.read, redis.store, from_state='defaults')
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
 
