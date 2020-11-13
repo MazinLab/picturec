@@ -380,6 +380,8 @@ if __name__ == "__main__":
     # TODO Is this functionally wise? Lets say you have a crash loop periodically through the night
     #    won't the settings then be bouncing between user and defaults? Does this violate the principal of not altering
     #    active settings without explicit user action?
+    #  Response - Honestly I think the flip side is probably the best option. Using 'last' as the default case and then
+    #  only using 'defaults' in the case everything is out of wack and we want to set it back to tried and true values.
     sim960.initialize_sim(redis.read, redis.store, from_state='defaults')
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
 
@@ -399,7 +401,7 @@ if __name__ == "__main__":
                 if cmd.valid_value():
                     try:
                         log.info(f'Sending command "{cmd}"')  #TODO if you want to explicityy show non-printables in the
-                        #  msg then use a stinrg function to escape them either in __str__ or str(cmd).XXXX
+                        #  msg then use a stinrg function to escape them either in __str__ or str(cmd).XXXX - Not exactly sure what's meant here
                         sim960.send(f"{cmd.format_command()}")
                         redis.store({cmd.setting: cmd.value})
                         redis.store({STATUS_KEY: "OK"})
