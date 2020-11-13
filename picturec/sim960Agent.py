@@ -97,6 +97,11 @@ log = logging.getLogger(__name__)
 
 class SimCommand(object):
     def __init__(self, redis_setting, value):
+        """
+        Initializes a SimCommand. Takes in a redis device-setting:* key and desired value an evaluates it for its type,
+        the mapping of the command, and appropriately sets the mapping|range for the command. If the setting is not
+        supported, raise a ValueError.
+        """
         self.value = value
 
         if redis_setting not in COMMAND_DICT.keys():
@@ -123,6 +128,7 @@ class SimCommand(object):
             self.value = float(self.value)
 
     def valid_value(self):
+        """Return True or False if the desired value to command is valid or not."""
         if self.range is not None:
             return self.range[0] <= self.value <= self.range[1]
         else:
@@ -132,18 +138,28 @@ class SimCommand(object):
         return self.format_command()
 
     def format_command(self):
+        """
+        Returns a string that can then be sent to format_msg in SIM960Agent for appropriate command syntax. Logs an
+        error in the case the value is not valid and does not return anything.
+        # TODO: Return None for an invalid command?
+        """
         if self.valid_value():
             if self.range is not None:
                 return f"{self.command} {self.value}"
             else:
                 return f"{self.command} {self.mapping[self.value]}"
         else:
-            log.info(f"Trying to set the SIM960 to an invalid value! Setting {self.setting} to {self.value}")
+            log.info(f"Trying to set the SIM960 to an invalid value! Setting {self.setting} to {self.value} is not allowed")
 
 
 class SIM960Agent(agent.SerialAgent):
     def __init__(self, port, baudrate=9600, timeout=0.1, polarity='negative', connect=True,
                  connect_mainframe=False, **kwargs):
+        """
+        Initializes SIM960 agent. First hits the superclass (SerialAgent) init function. Then sets class variables which
+        will be used in normal operation. If connect mainframe is True, attempts to connect to the SIM960 via the SIM900
+        in mainframe mode. Raise IOError if an invalid slot or exit string is given (or if no exit string is given).
+        """
         super().__init__(port, baudrate, timeout, name='sim960')
 
         if connect:
