@@ -127,9 +127,9 @@ class Currentduino(agent.SerialAgent):
         """
         Create a function to continuously query the current as measured by the arduino. Log any IOErrors that occur.
         If a value_callback is given, perform whatever actions the value_callback requires (typically storing values to
-        redis database). Except any redis errors here and log them, but continue monitoring. Interval determines the
-        time between queries of current.
-        TODO: Raise the RedisError?
+        redis database). Except and raise RedisError. If the redis server has gone down or the program can't communicate
+        with it, something is wrong and the program cannot successfully run. Interval determines the time between
+        queries of current.
         """
         def f():
             while True:
@@ -145,6 +145,7 @@ class Currentduino(agent.SerialAgent):
                         value_callback(self.last_current)
                     except RedisError as e:
                         log.error(f"Unable to store current due to redis error: {e}")
+                        raise e
 
                 time.sleep(interval)
 
