@@ -59,9 +59,6 @@ class LakeShore240(agent.SerialAgent):
     def format_msg(self, msg:str):
         """
         Overrides agent.SerialAgent format_message() function. Commands to the LakeShore 240 are all upper-case.
-        The exception to this is when setting names (for the Module or Individual channels, e.g.
-        'INNAME1,"LHe Thermometer"\n' to set the name of the input channel)
-
         *NOTE: By choice, using .upper(), if we manually store a name of a curve/module, it will be in all caps.
         """
         return f"{msg.strip().upper()}{self.terminator}"
@@ -88,7 +85,6 @@ class LakeShore240(agent.SerialAgent):
         ID return string is "<manufacturer>,<model>,<instrument serial>,<firmware version>\n"
         Format of return string is "s[4],s[11],s[7],float(#.#)"
         :return: Dict
-        TODO: Return None in the case of errors?
         """
         try:
             id_string = self.query("*IDN?")
@@ -108,14 +104,17 @@ class LakeShore240(agent.SerialAgent):
             raise IOError(f"Bad firmware format: {firmware}. Error: {e}")
 
     def manufacturer_ok(self):
+        """Returns true if the manufacturer for the lakeshore is valid. Otherwise false"""
         return self.idn['manufacturer'] == "LSCI"
 
     def model_ok(self):
+        """Returns true if the model number for the lakeshore is valid. Otherwise false"""
         return self.idn['model-no'] in [2, 8]
 
     def _set_curve_name(self, channel: int, name: str):
         """Engineering function to set the name of a curve on the LakeShore240. Convenient since both thermometers are
-        DT-670A-CU style, and so this can clear any ambiguity. Does not need to be used in normal operation
+        DT-670A-CU style, and so this can clear any ambiguity. Does not need to be used in normal operation. Logs
+        IOError but does not raise it.
         """
         try:
             self.send(f'INNAME{str(channel)},"{name}"')
@@ -128,7 +127,9 @@ class LakeShore240(agent.SerialAgent):
         """
         'INTYPE? <channel>' query returns channel configuration info with
         returns '<sensor type>,<autorange>,<range>,<current reversal>,<units>\n'
-        with format '#,#,#,#,#\n'
+        with format '#,#,#,#,#\n'. Raise IOError for any serial errors. Otherwise returns a list of enabled channels.
+        If model number is not determined (i.e. IDN has not been queried), return None and report that the model number
+        must be determined.
         """
         enabled = []
         if self.model:
