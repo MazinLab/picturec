@@ -349,19 +349,17 @@ if __name__ == "__main__":
     util.setup_logging()
 
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
-    sim960 = SIM960Agent(port=DEVICE, baudrate=9600, timeout=0.1, connect_mainframe=True,
-                         **DEFAULT_MAINFRAME_KWARGS)
+    sim = SIM960Agent(port=DEVICE, baudrate=9600, timeout=0.1, connect_mainframe=True,
+                      **DEFAULT_MAINFRAME_KWARGS)
 
     try:
-        sim960_info = sim960.idn
-        if not sim960.manufacturer_ok() or not sim960.model_ok():
-            msg = f'Unsupported device: {sim960_info["manufacturer"]}/{sim960_info["model"]}'
+        info = sim.idn
+        if not sim.manufacturer_ok() or not sim.model_ok():
+            msg = f'Unsupported device: {info["manufacturer"]}/{info["model"]}'
             redis.store({STATUS_KEY: msg})
             log.critical(msg)
             sys.exit(1)
-        redis.store({FIRMWARE_KEY: sim960_info['firmware'],
-                     MODEL_KEY: sim960_info['model'],
-                     SN_KEY: sim960_info['firmware']})
+        redis.store({FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['firmware']})
     except IOError as e:
         log.critical(f"Query SIM960 ID failed: {e}")
         redis.store({FIRMWARE_KEY: '', MODEL_KEY: '', SN_KEY: ''})
@@ -371,8 +369,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Set polarity to negative here. This is a non-redis controlled setting (not modifiable during normal operation).
-    sim960.send("APOL 0")
-    polarity = sim960.query("APOL?")
+    sim.send("APOL 0")
+    polarity = sim.query("APOL?")
     if polarity != '0':
         log.critical(f"Polarity query returned {polarity}. Setting PID loop polarity to negative failed.")
         sys.exit(1)
@@ -380,7 +378,7 @@ if __name__ == "__main__":
     # TODO Is this functionally wise? Lets say you have a crash loop periodically through the night
     #    won't the settings then be bouncing between user and defaults? Does this violate the principal of not altering
     #    active settings without explicit user action?
-    sim960.initialize_sim(redis.read, redis.store, from_state='defaults')
+    sim.initialize_sim(redis.read, redis.store, from_state='defaults')
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
 
     OUTPUT_TO_CURRENT_FACTOR = 1  # V/A (TODO: Measure this value)
@@ -388,7 +386,7 @@ if __name__ == "__main__":
     store_output = lambda x: redis.store({OUTPUT_VOLTAGE_KEY: x,
                                           MAGNET_CURRENT_KEY: x * OUTPUT_TO_CURRENT_FACTOR},
                                          timeseries=True)
-    sim960.monitor_voltages(QUERY_INTERVAL, input_value_callback=store_input, output_value_callback=store_output)
+    sim.monitor_voltages(QUERY_INTERVAL, input_value_callback=store_input, output_value_callback=store_output)
     #  TODO: Figure out where to add in magnet state checking (in the sim960 or elsewhere?)
 
     while True:
@@ -400,7 +398,7 @@ if __name__ == "__main__":
                     try:
                         log.info(f'Sending command "{cmd}"')  #TODO if you want to explicityy show non-printables in the
                         #  msg then use a stinrg function to escape them either in __str__ or str(cmd).XXXX
-                        sim960.send(f"{cmd.format_command()}")
+                        sim.send(f"{cmd.format_command()}")
                         redis.store({cmd.setting: cmd.value})
                         redis.store({STATUS_KEY: "OK"})
                     except IOError as e:
