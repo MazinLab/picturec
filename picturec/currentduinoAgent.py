@@ -59,7 +59,9 @@ class Currentduino(agent.SerialAgent):
         self.terminator = ''
 
     def read_current(self):
-        """Read and return the current, may raise ValueError (unparseable response) or IOError (something else)"""
+        """
+        Read and return the current, may raise ValueError (unparseable response) or IOError (serial port communcation
+        not working for some reason)"""
         response = self.query('?', connect=True)
         try:
             value = float(response.split(' ')[0])
@@ -69,9 +71,19 @@ class Currentduino(agent.SerialAgent):
         return current
 
     def format_msg(self, msg: str):
+        """
+        Overwrites function from SerialAgent superclass. Follows the communication model we made where the arduinos in
+        PICTURE-C do not require termination characters.
+        """
         return f"{msg.strip().lower()}{self.terminator}"
 
     def move_heat_switch(self, pos):
+        """
+        Takes a position (open | close) and first checks to make sure that it is valid. If it is, send the command to
+        the currentduino to move the heat switch to that position. Return position if successful, otherwise log that
+        the command failed and the heat switch position is 'unknown'. Raise IOError if there is a problem communicating
+        with the serial port.
+        """
         pos = pos.lower()
         if pos not in ('open', 'close'):
             raise ValueError(f"'{pos} is not a vaild (open, close) heat switch position")
@@ -88,6 +100,7 @@ class Currentduino(agent.SerialAgent):
             raise IOError(e)
 
     def firmware_ok(self):
+        """Return true if the firmware is valid. Otherwise return false"""
         return self.firmware in self.VALID_FIRMWARES
 
     @property
@@ -109,6 +122,13 @@ class Currentduino(agent.SerialAgent):
             raise IOError(f'Bad firmware response: "{response}"')
 
     def monitor_current(self, interval, value_callback=None):
+        """
+        Create a function to continuously query the current as measured by the arduino. Log any IOErrors that occur.
+        If a value_callback is given, perform whatever actions the value_callback requires (typically storing values to
+        redis database). Except any redis errors here and log them, but continue monitoring. Interval determines the
+        time between queries of current.
+        TODO: Raise the RedisError?
+        """
         def f():
             while True:
                 current = None
