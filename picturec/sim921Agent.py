@@ -422,9 +422,7 @@ if __name__ == "__main__":
                      "Zero, indicating the voltage scale units are resistance, is required. DO NOT OPERATE! Exiting.")
         sys.exit(1)
 
-    # TODO: EXON (Turning the excitation on) doesn't need to be commanded.
-    #  It defaults to on and shouldn't ever be turned off.
-    #  JB: If there is no harm in setting it then that frees you from relying on the default and I'd just do it.
+    # Make sure that the excitation is turned on.
     sim.send("EXON 1")
     exon = sim.query("EXON?")
     if exon != '1':
