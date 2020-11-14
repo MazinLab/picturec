@@ -90,6 +90,13 @@ COMMAND_DICT = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'man
 log = logging.getLogger(__name__)
 
 
+def escapeString(string):
+    """
+    Takes a string and escapes newline characters so they can be logged and display the newline characters in that string
+    """
+    return string.replace('\n','\\n').replace('\r','\\r')
+
+
 class SimCommand(object):
     def __init__(self, redis_setting, value):
         """
@@ -398,8 +405,7 @@ if __name__ == "__main__":
                 cmd = SimCommand(key, val)
                 if cmd.valid_value():
                     try:
-                        log.info(f'Sending command "{cmd}"')  #TODO if you want to explicityy show non-printables in the
-                        #  msg then use a stinrg function to escape them either in __str__ or str(cmd).XXXX
+                        log.info(f'Sending command "{escapeString(cmd)}"')
                         sim.send(f"{cmd.format_command()}")
                         redis.store({cmd.setting: cmd.value})
                         redis.store({STATUS_KEY: "OK"})
