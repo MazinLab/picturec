@@ -391,6 +391,7 @@ if __name__ == "__main__":
     #TODO if the mainfram isn't going to be used in the field but is in the lab then it needs to be an argument to this
     # program, its not a good idea to need to dive into multiple code files and change defaults just to get something
     # into test mode in the lab
+    # NS: Will update. -Make a flag for this program that sets connect-mainframe to true (or something akin to it)
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
     sim = SIM921Agent(port=DEVICE, baudrate=9600, timeout=0.1, connect_mainframe=True, **DEFAULT_MAINFRAME_KWARGS)
 
