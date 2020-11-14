@@ -412,9 +412,8 @@ if __name__ == "__main__":
         log.critical(f"Redis server error! {e}")
         sys.exit(1)
 
-    # TODO: Determine how to properly treat the ATEM (and EXON). Talk with Jeb about scheme for it. For what it's worth
-    #  they should always be the same, unless there is a major change in system (new thermometer).
-    #  JB: this seems pretty straightforward to me. not sure what I'm missing.
+    # Ensure that the scaled output will be proportional to the resistance error. NOT the temperature error. The
+    # resistance spans just over 1 order of magnitude (~1-64 kOhms) while temperature spans 4 (5e-2 - 4e2 K).
     sim.send("ATEM 0")
     atem = sim.query("ATEM?")
     if atem != '0':
@@ -422,7 +421,7 @@ if __name__ == "__main__":
                      "Zero, indicating the voltage scale units are resistance, is required. DO NOT OPERATE! Exiting.")
         sys.exit(1)
 
-    # Make sure that the excitation is turned on. If not successful, exit the program.
+    # Make sure that the excitation is turned on. If not successful, exit the program
     sim.send("EXON 1")
     exon = sim.query("EXON?")
     if exon != '1':
