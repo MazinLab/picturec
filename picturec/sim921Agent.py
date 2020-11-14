@@ -422,7 +422,7 @@ if __name__ == "__main__":
                      "Zero, indicating the voltage scale units are resistance, is required. DO NOT OPERATE! Exiting.")
         sys.exit(1)
 
-    # Make sure that the excitation is turned on.
+    # Make sure that the excitation is turned on. If not successful, exit the program.
     sim.send("EXON 1")
     exon = sim.query("EXON?")
     if exon != '1':
