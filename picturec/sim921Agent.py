@@ -391,6 +391,7 @@ if __name__ == "__main__":
     #TODO if the mainfram isn't going to be used in the field but is in the lab then it needs to be an argument to this
     # program, its not a good idea to need to dive into multiple code files and change defaults just to get something
     # into test mode in the lab
+    # NS: Will update. -Make a flag for this program that sets connect-mainframe to true (or something akin to it)
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
     sim = SIM921Agent(port=DEVICE, baudrate=9600, timeout=0.1, connect_mainframe=True, **DEFAULT_MAINFRAME_KWARGS)
 
@@ -412,9 +413,8 @@ if __name__ == "__main__":
         log.critical(f"Redis server error! {e}")
         sys.exit(1)
 
-    # TODO: Determine how to properly treat the ATEM (and EXON). Talk with Jeb about scheme for it. For what it's worth
-    #  they should always be the same, unless there is a major change in system (new thermometer).
-    #  JB: this seems pretty straightforward to me. not sure what I'm missing.
+    # Ensure that the scaled output will be proportional to the resistance error. NOT the temperature error. The
+    # resistance spans just over 1 order of magnitude (~1-64 kOhms) while temperature spans 4 (5e-2 - 4e2 K).
     sim.send("ATEM 0")
     atem = sim.query("ATEM?")
     if atem != '0':
@@ -422,9 +422,7 @@ if __name__ == "__main__":
                      "Zero, indicating the voltage scale units are resistance, is required. DO NOT OPERATE! Exiting.")
         sys.exit(1)
 
-    # TODO: EXON (Turning the excitation on) doesn't need to be commanded.
-    #  It defaults to on and shouldn't ever be turned off.
-    #  JB: If there is no harm in setting it then that frees you from relying on the default and I'd just do it.
+    # Make sure that the excitation is turned on. If not successful, exit the program
     sim.send("EXON 1")
     exon = sim.query("EXON?")
     if exon != '1':
@@ -434,6 +432,8 @@ if __name__ == "__main__":
     # TODO Is this functionally wise? Lets say you have a crash loop periodically through the night
     #    won't the settings then be bouncing between user and defaults? Does this violate the principal of not altering
     #    active settings without explicit user action?
+    #  NS: Honestly I think the flip side is probably the best option. Using 'last' as the default case and then
+    #  only using 'defaults' in the case everything is out of wack and we want to set it back to tried and true values.
     sim.initialize_sim(redis.read, redis.store, from_state='defaults')
 
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------

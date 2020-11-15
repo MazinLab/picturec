@@ -90,6 +90,13 @@ COMMAND_DICT = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'man
 log = logging.getLogger(__name__)
 
 
+def escapeString(string):
+    """
+    Takes a string and escapes newline characters so they can be logged and display the newline characters in that string
+    """
+    return string.replace('\n','\\n').replace('\r','\\r')
+
+
 class SimCommand(object):
     def __init__(self, redis_setting, value):
         """
@@ -378,6 +385,8 @@ if __name__ == "__main__":
     # TODO Is this functionally wise? Lets say you have a crash loop periodically through the night
     #    won't the settings then be bouncing between user and defaults? Does this violate the principal of not altering
     #    active settings without explicit user action?
+    #  Response - Honestly I think the flip side is probably the best option. Using 'last' as the default case and then
+    #  only using 'defaults' in the case everything is out of wack and we want to set it back to tried and true values.
     sim.initialize_sim(redis.read, redis.store, from_state='defaults')
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
 
@@ -396,8 +405,7 @@ if __name__ == "__main__":
                 cmd = SimCommand(key, val)
                 if cmd.valid_value():
                     try:
-                        log.info(f'Sending command "{cmd}"')  #TODO if you want to explicityy show non-printables in the
-                        #  msg then use a stinrg function to escape them either in __str__ or str(cmd).XXXX
+                        log.info(f'Sending command "{escapeString(cmd)}"')
                         sim.send(f"{cmd.format_command()}")
                         redis.store({cmd.setting: cmd.value})
                         redis.store({STATUS_KEY: "OK"})

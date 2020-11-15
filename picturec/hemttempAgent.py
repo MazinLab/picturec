@@ -68,6 +68,9 @@ class Hemtduino(agent.SerialAgent):
         """ Return the firmware string or raise IOError """
         #TODO JB There is a lot of common code between firmware, idn, and the mains.
         # Things could be simplified and made more reliable by better encapsulating this
+        #  NS: ^Agreed. Firmware/idn properties are split into 2 groups, arduinos (hemttempAgent+currentduinoAgent just
+        #  use firmware) and non-Arduinos (sim921,sim960,lakeshore have idns).
+        #  Probably could make both agent superclass properties
         try:
             log.debug(f"Querying currentduino firmware")
             response = self.query("v", connect=True)
