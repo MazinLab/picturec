@@ -10,6 +10,7 @@ import picturec.util as util
 
 log = logging.getLogger(__name__)
 
+#comment
 
 def escapeString(string):
     """
