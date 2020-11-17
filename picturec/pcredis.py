@@ -8,7 +8,7 @@ current, etc.).
 
 from redis import Redis as _Redis
 from redis import RedisError
-from redistimeseries.client import Client as _Client
+from redistimeseries.client import Client as _RTSClient
 import logging
 import time
 import sys
@@ -24,43 +24,36 @@ class PCRedis(object):
     Redistimeseries keys should be created with the PCRedis object. Unlike normal redis keys, they must be created
     explicitly and should be done at the each program's start for clarity and ease.
     """
-    def __init__(self, host='localhost', port=6379, db=0, timeseries=True, create_ts_keys=tuple()):
+    def __init__(self, host='localhost', port=6379, db=0, create_ts_keys=tuple()):
         self.redis = _Redis(host, port, db, socket_keepalive=True)
-        self.redis_ts = _Client(host, port, db, socket_keepalive=True) if timeseries else None
-        self.create_keys(create_ts_keys, timeseries=True)
+        self.redis_ts = None
+        self.create_ts_keys(create_ts_keys)
         self.ps = None  # Redis pubsub object. None until initialized, used for inter-program communication
 
-    def create_keys(self, keys, timeseries=True):
+    def _connect_ts(self):
+        """ Establish a redis time series client using the same connection info as for redis """
+        args = self.redis.connection_pool.connection_kwargs
+        self.redis_ts = _RTSClient(args['host'], args['port'], args['db'],  socket_keepalive=args['socket_keepalive'])
+
+    def create_ts_keys(self, keys):
         """
-        Given a list of keys, create them in the redis database for PICTURE-C.
-        :param keys: List of strings that will be used as redis keys. These come from the PICTURE-C schema and each
-        program will have (or import) a list of keys necessary for its successful operation.
-        :param timeseries: Bool. If True will create redistimeseries keys. If the keys have been created already it will
-        handle the error that redis raises and allow the program to continue running.
-        It should not be a fatal error to try to create keys that have already been created. If this is attempted, it
-        will be logged, but will not cause anything to break.
-        If False will raise NotImplementedError.
-        TODO: Decide if this should always be the case. Redis keys that are not for timeseries do not need to be
-         created explicitly. They are created the first time that key is stored with a value.
-        :return: None
+        Given a list of keys, create them in the redis database.
+        :param keys: List of strings to create as redis timeseries keys. If the keys have been created it will be
+        logged but no other action will be taken.
         """
+        if self.redis_ts is None and keys:
+            self._connect_ts()
         for k in keys:
             try:
-                if timeseries:
-                    self.redis_ts.create(k)
-                else:
-                    raise NotImplementedError('Only creation of ts keys implemented')
-            except RedisError:
+                self.redis_ts.create(k)
+            except RedisError:  # TODO can this be more explicit
                 logging.getLogger(__name__).debug(f"'{k}' already exists")
 
     def store(self, data, timeseries=False):
         """
         Function for storing data in redis. This is a wrapper that allows us to store either type of redis key:value
-        pairs (timeseries or 'normal').
-        :param data: Dict/Iterable.
-        If only given 1 key:value pair, must be a dict
-        If given multiple key:value pairs, SHOULD be a dict {'k1':'v1', 'k2':'v2', ...} but can be a list of lists
-        (('k1','v1'), ('k2','v2'), ...) although that is not preferred.
+        pairs (timeseries or 'normal'). Any TS keys must have been previously created
+        :param data: Dict or iterable of key value pairs.
         :param timeseries: Bool
         If True: uses redis_ts.add() and uses the automatic UNIX timestamp generation keyword (timestamp='*')
         If False: uses redis.set() and stores the keys normally
@@ -69,7 +62,7 @@ class PCRedis(object):
         generator = data.items() if isinstance(data, dict) else iter(data)
         if timeseries:
             if self.redis_ts is None:
-                raise RuntimeError('No redis timeseries connection')
+                self._connect_ts()
             for k, v in generator:
                 logging.getLogger(__name__).info(f"Setting key:value - {k}:{v} at {int(time.time())}")
                 self.redis_ts.add(key=k, value=v, timestamp='*')
@@ -78,32 +71,19 @@ class PCRedis(object):
                 logging.getLogger(__name__).info(f"Setting key:value - {k}:{v}")
                 self.redis.set(k, v)
 
-    def subscribe(self, *keys):
-        """
-        Not yet implemented. Following docstring should be thought of as a brainstorm.
-        A wrapper for creating and subscribing to a redis pubsub object in the case one
-        is desired outside of the PCRedis object.
-        e.g. instead of instantiating a PCRedis object and using self.ps, instantiating PCRedis object and creating a
-        pubsub object externally ps_obj = PCRedis.subscribe
-        """
-        pass
-
     def publish(self, channel, message):
         """
-        Not yet implemented. Following docstring should be thought of as a brainstorm.
-        A wrapper to enable easy publishing to a redis pubsub channel. Unlike subscribing, there's no overhead in
-        doing a publish action, you can publish anytime to any channel without regard to if it is subscribed to.
-        There is not necessarily a need to return anything from redis.publish(), but calling publish() returns the
-        number of pubsub objects that are subscribed to the channel that was just published to. This COULD be useful
-        TODO: Honestly this is probably unnecessary, it's just nice not to have to type pcredis.redis.publish(...)
-         every time you want to send a message. For what it's worth, if we have psubscribe functionality channel can
-         just use a pattern instead of a sepcific key, but I have yet to see where that would be useful.
-        """
-        self.redis.publish(channel, message)
+        Publishes message to channel. Channels need not have been previously created nor must there be a subscriber.
 
-    def read(self, keys, return_dict=True):
+        returns the number of listeners of the channel
+        """
+        return self.redis.publish(channel, message)
+
+    def read(self, keys, return_dict=True, error_missing=True):
         """
         Function for reading values from corresponding keys in the redis database.
+        :param error_missing: riase an error if a key isn't in redis, else silently omit it. Forced true if not
+         returning a dict.
         :param keys: List. If the key being searched for exists, will return the value, otherwise returns an empty string
         :param return_dict: Bool
         If True returns a dict with matching key:value pairs
@@ -111,11 +91,15 @@ class PCRedis(object):
         than one key you are looking for the value of)
         :return: Dict. {'key1':'value1', 'key2':'value2', ...}
         """
-        vals = [self.redis.get(k).decode("utf-8") for k in keys]
-        # TODO: Make a choice here where we choose whether or not to allow nonexistent keys to be read. As it stands
-        #  this code will error ("Cannot decode object of None type") if you try to read a key that does not exist.
-        # vals = [self.redis.get(k).decode("utf-8") for k in keys if self.redis.get(k) is not None]
-        return vals if not return_dict else {k: v for k, v in zip(keys, vals)}
+        vals = [self.redis.get(k) for k in keys]
+        missing = [k for k,v in zip(keys, vals) if v is None]
+        keys, vals = list(zip(*filter(lambda x: x[1] is not None, zip(keys, vals))))
+
+        if (error_missing or return_dict) and missing:
+            raise KeyError(f'Keys not in redis: {missing}')
+
+        vals = list(map(lambda v: v.decode('utf-8'), vals))
+        return vals if not return_dict else dict(zip(keys, vals))
 
     def _ps_subscribe(self, channels: list, ignore_sub_msg=False):
         """
@@ -208,7 +192,7 @@ class PCRedis(object):
             ps = self.redis.pubsub()
             ps.subscribe(list(channels))
         except RedisError as e:
-            log.error(f"Redis error while subscribing to redis pubsub!! {e}")
+            log.debug(f"Redis error while subscribing to redis pubsub!! {e}")
             raise e
 
         for msg in ps.listen():
