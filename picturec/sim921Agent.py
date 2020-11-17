@@ -14,6 +14,9 @@ TODO: Add value caching? (self.output_mode = 'manual', self.curve_number = 1)
 
 TODO JB: Much of the 960 and 921 code has overlap. I'd suggest (after agent becomes SerialDevice)
 
+TODO NS: Add 'resetting' to last stable state to SIM960
+
+
 SimDevice(SerialDevice)
 Sim960(SimDevice)
 Sim921(SimDevice)

@@ -10,6 +10,8 @@ TODO: Also measure magnet-current-to-currentduino-measurement conversion (does t
 
 TODO: Consider how to most effectively store magnet current data (conversion from SIM960 output voltage?) and magnet
  state/safety checks (should this be done in a monitoring loop in the sim960 agent or from a fridge manager?)
+
+TODO NS: Add 'resetting' to last stable state to SIM960
 """
 
 import numpy as np
@@ -385,7 +387,7 @@ if __name__ == "__main__":
     # TODO Is this functionally wise? Lets say you have a crash loop periodically through the night
     #    won't the settings then be bouncing between user and defaults? Does this violate the principal of not altering
     #    active settings without explicit user action?
-    #  Response - Honestly I think the flip side is probably the best option. Using 'last' as the default case and then
+    #  NS: Response - Honestly I think the flip side is probably the best option. Using 'last' as the default case and then
     #  only using 'defaults' in the case everything is out of wack and we want to set it back to tried and true values.
     sim.initialize_sim(redis.read, redis.store, from_state='defaults')
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
@@ -417,3 +419,4 @@ if __name__ == "__main__":
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
             sys.exit(1)
+
