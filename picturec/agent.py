@@ -2,17 +2,18 @@
 Author: Jeb Bailey
 
 """
-
 from logging import getLogger
 import serial
-import time
 import threading
+import time
+
 
 def escapeString(string):
     """
     Takes a string and escapes newline characters so they can be logged and display the newline characters in that string
     """
-    return string.replace('\n','\\n').replace('\r','\\r')
+    return string.replace('\n', '\\n').replace('\r', '\\r')
+
 
 class SerialDevice:
     def __init__(self, port, baudrate=115200, timeout=0.1, name=None, terminator='\n'):
@@ -24,7 +25,22 @@ class SerialDevice:
         self.terminator = terminator
         self._rlock = threading.RLock()
 
-    def connect(self, reconnect=False, raise_errors=True, post_connect_sleep=0.2):
+    def _preconnect(self):
+        """
+        Override to perform an action immediately prior to connection.
+        Function should raise IOError if the serial device should not be opened.
+        """
+        pass
+
+    def _postconnect(self):
+        """
+        Override to perform an action immediately after connection. Default is to sleep for twice the timeout
+        Function should raise IOError if there are issues with the connection.
+        Function will not be called if a connection can not be established or already exists.
+        """
+        time.sleep(2*self.timeout)
+
+    def connect(self, reconnect=False, raise_errors=True):
         """
         Connect to a serial port. If reconnect is True, closes the port first and then tries to reopen it. First asks
         the port if it is already open. If so, returns nothing and allows the calling function to continue on. If port
@@ -42,9 +58,10 @@ class SerialDevice:
 
         getLogger(__name__).debug(f"Connecting to {self.port} at {self.baudrate}")
         try:
+            self._preconnect()
             self.ser = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+            self._postconnect()
             getLogger(__name__).debug(f"port {self.port} connection established")
-            time.sleep(post_connect_sleep)
             return True
         except (serial.SerialException, IOError) as e:
             self.ser = None
@@ -74,19 +91,20 @@ class SerialDevice:
         message. Formats message according to the class's format_msg function before attempting to write to serial port.
         If IOError or SerialException occurs, first disconnect from the serial port, then log and raise the error.
         """
-        if connect:
-            self.connect()
+        with self._rlock:
+            if connect:
+                self.connect()
 
-        msg = self.format_msg(msg)
+            msg = self.format_msg(msg)
 
-        try:
-            getLogger(__name__).debug(f"Sending '{escapeString(msg)}'")  # Not the '' allow clearly logging empty sends
-            self.ser.write(msg.encode("utf-8"))
-            getLogger(__name__).debug(f"Sent '{escapeString(msg)}' successfully")  # TODO: Delete?
-        except (serial.SerialException, IOError) as e:
-            self.disconnect()
-            getLogger(__name__).error(f"Send failed: {e}")
-            raise e
+            try:
+                getLogger(__name__).debug(f"Sending '{escapeString(msg)}'")  # Not the '' allow clearly logging empty sends
+                self.ser.write(msg.encode("utf-8"))
+                getLogger(__name__).debug(f"Sent '{escapeString(msg)}' successfully")  # TODO: Delete?
+            except (serial.SerialException, IOError) as e:
+                self.disconnect()
+                getLogger(__name__).error(f"Send failed: {e}")
+                raise e
 
     def receive(self):
         """
@@ -94,14 +112,15 @@ class SerialDevice:
         received, decode it and strip it of any newline characters. In the case of an error or serialException,
         disconnects from the serial port and raises an IOError.
         """
-        try:
-            data = self.ser.readline().decode("utf-8").strip()
-            getLogger(__name__).debug(f"read {escapeString(data)} from {self.name}")
-            return data
-        except (IOError, serial.SerialException) as e:
-            self.disconnect()
-            getLogger(__name__).debug(f"Send failed {e}")
-            raise IOError(e)
+        with self._rlock:
+            try:
+                data = self.ser.readline().decode("utf-8").strip()
+                getLogger(__name__).debug(f"read {escapeString(data)} from {self.name}")
+                return data
+            except (IOError, serial.SerialException) as e:
+                self.disconnect()
+                getLogger(__name__).debug(f"Send failed {e}")
+                raise IOError(e)
 
     def query(self, cmd: str, **kwargs):
         """
