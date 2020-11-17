@@ -40,6 +40,13 @@ class SerialDevice:
         """
         time.sleep(2*self.timeout)
 
+    def _predisconnect(self):
+        """
+        Override to perform an action immediately prior to disconnection.
+        Function should raise IOError if the serial device should not be opened.
+        """
+        pass
+
     def connect(self, reconnect=False, raise_errors=True):
         """
         Connect to a serial port. If reconnect is True, closes the port first and then tries to reopen it. First asks
@@ -76,6 +83,7 @@ class SerialDevice:
         closing the port, log the error but do not raise.
         """
         try:
+            self._predisconnect()
             self.ser.close()
             self.ser = None
         except Exception as e:
