@@ -136,7 +136,7 @@ class SimCommand(object):
             log.info(f"Trying to set the SIM921 to an invalid value! Setting {self.setting} to {self.value}")
 
 
-class SIM921Agent(agent.SerialAgent):
+class SIM921(agent.SerialDevice):
 
     def __init__(self, port, baudrate=9600, timeout=0.1, scale_units='resistance', connect=True,
                  connect_mainframe=False, **kwargs):

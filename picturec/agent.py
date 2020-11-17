@@ -14,8 +14,8 @@ def escapeString(string):
     """
     return string.replace('\n','\\n').replace('\r','\\r')
 
-class SerialAgent:
-    def __init__(self, port, baudrate=9600, timeout=0.1, name=None, terminator='\n'):
+class SerialDevice:
+    def __init__(self, port, baudrate=115200, timeout=0.1, name=None, terminator='\n'):
         self.ser = None
         self.port = port
         self.baudrate = baudrate

@@ -48,7 +48,7 @@ QUERY_INTERVAL = 1
 log = logging.getLogger()
 
 
-class LakeShore240(agent.SerialAgent):
+class LakeShore240(agent.SerialDevice):
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='lakeshore240')
         if connect:
@@ -62,7 +62,7 @@ class LakeShore240(agent.SerialAgent):
 
     def format_msg(self, msg:str):
         """
-        Overrides agent.SerialAgent format_message() function. Commands to the LakeShore 240 are all upper-case.
+        Overrides agent.SerialDevice format_message() function. Commands to the LakeShore 240 are all upper-case.
         *NOTE: By choice, using .upper(), if we manually store a name of a curve/module, it will be in all caps.
         """
         return f"{msg.strip().upper()}{self.terminator}"

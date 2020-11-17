@@ -154,11 +154,11 @@ class SimCommand(object):
             log.info(f"Trying to set the SIM960 to an invalid value! Setting {self.setting} to {self.value} is not allowed")
 
 
-class SIM960Agent(agent.SerialAgent):
+class SIM960Agent(agent.SerialDevice):
     def __init__(self, port, baudrate=9600, timeout=0.1, polarity='negative', connect=True,
                  connect_mainframe=False, **kwargs):
         """
-        Initializes SIM960 agent. First hits the superclass (SerialAgent) init function. Then sets class variables which
+        Initializes SIM960 agent. First hits the superclass (SerialDevice) init function. Then sets class variables which
         will be used in normal operation. If connect mainframe is True, attempts to connect to the SIM960 via the SIM900
         in mainframe mode. Raise IOError if an invalid slot or exit string is given (or if no exit string is given).
         """
