@@ -40,7 +40,7 @@ FIRMWARE_KEY = "status:device:hemtduino:firmware"
 log = logging.getLogger(__name__)
 
 
-class Hemtduino(agent.SerialAgent):
+class Hemtduino(agent.SerialDevice):
     VALID_FIRMWARES = (0.0, 0.1)  #TODO JB Tuples are immutable
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
@@ -52,7 +52,7 @@ class Hemtduino(agent.SerialAgent):
 
     def format_msg(self, msg:str):
         """
-        Overwrites the format_msg function from SerialAgent. Returns a lowercase string with the hemtduino terminator
+        Overwrites the format_msg function from SerialDevice. Returns a lowercase string with the hemtduino terminator
         (which is '' in the contract with the hemtduino).
         """
         return f"{msg.strip().lower()}{self.terminator}"

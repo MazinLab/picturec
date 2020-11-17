@@ -22,6 +22,7 @@ import logging
 import threading
 from picturec.pcredis import PCRedis, RedisError
 import picturec.agent as agent
+import picturec.util as util
 
 REDIS_DB = 0
 
@@ -34,6 +35,8 @@ KEYS = ['device-settings:ls240:lhe-profile',
         'status:device:ls240:model',
         'status:device:ls240:sn']
 
+TS_KEYS = ('status:temps:lhetank', 'status:temps:ln2tank')
+
 STATUS_KEY = "status:device:ls240:status"
 
 FIRMWARE_KEY = "status:device:ls240:firmware"
@@ -44,7 +47,8 @@ QUERY_INTERVAL = 1
 
 log = logging.getLogger()
 
-class LakeShore240(agent.SerialAgent):
+
+class LakeShore240(agent.SerialDevice):
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='lakeshore240')
         if connect:
@@ -58,7 +62,7 @@ class LakeShore240(agent.SerialAgent):
 
     def format_msg(self, msg:str):
         """
-        Overrides agent.SerialAgent format_message() function. Commands to the LakeShore 240 are all upper-case.
+        Overrides agent.SerialDevice format_message() function. Commands to the LakeShore 240 are all upper-case.
         *NOTE: By choice, using .upper(), if we manually store a name of a curve/module, it will be in all caps.
         """
         return f"{msg.strip().upper()}{self.terminator}"
@@ -90,6 +94,12 @@ class LakeShore240(agent.SerialAgent):
             id_string = self.query("*IDN?")
             manufacturer, model, sn, firmware = id_string.split(",")  # See manual p.43
             firmware = float(firmware)
+            # TODO JB IMO it is bad practice for a property to have a sideeffect that alters the functionality of
+            #  an object, and especially when it does not document it. Morover since other class members use this
+            #  function they too have the sideeffect (and also do not disclose it).
+            #  This really should be set at initialization, or at what ever step must be completed before functions
+            #  using it can be meaningfully called. Here i think the solution is a post connect hook, wich will come
+            #  naturally as we integrate device checking with the connection process.
             self.model = int(model[-2])
             return {'manufacturer': manufacturer,
                     'model': model,
@@ -131,49 +141,49 @@ class LakeShore240(agent.SerialAgent):
         If model number is not determined (i.e. IDN has not been queried), return None and report that the model number
         must be determined.
         """
+        #TODO JB see comment in idn
+        if not self.model:
+            log.warning("enabled_channels() called yet model not set")
+            raise RuntimeError('idn must be checked prior to use of enabled_channels() ')
         enabled = []
-        if self.model:
-            for channel in range(1, self.model + 1):
-                try:
-                    _, _, _, _, _, enabled_status = self.query("INTYPE? "+str(channel)).split(",")
-                    if enabled_status == "1":
-                        enabled.append(channel)
-                except IOError as e:
-                    log.error(f"Serial error: {e}")
-                    raise IOError(f"Serial error: {e}")
-                # except ValueError:
-                #     log.critical(f"Channel {channel} returned and unknown value from channel information query")
-                #     raise IOError(f"Channel {channel} returned and unknown value from channel information query")
-            return enabled
-        else:
-            log.critical("Cannot determine enabled channels! Model number has not been determined")
-            return None
+        for channel in range(1, self.model + 1):
+            try:
+                _, _, enabled_status = self.query(f"INTYPE? {channel}").rpartition(',')
+                if enabled_status == "1":
+                    enabled.append(channel)
+            except IOError as e:
+                log.error(f"Serial error: {e}")
+                raise IOError(f"Serial error: {e}")
+            #TODO why is this commented
+            # except ValueError:
+            #     log.critical(f"Channel {channel} returned and unknown value from channel information query")
+            #     raise IOError(f"Channel {channel} returned and unknown value from channel information query")
+        return enabled
 
 
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.DEBUG)
-    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB,
-                    create_ts_keys=['status:temps:lhetank', 'status:temps:ln2tank'])
+    util.setup_logging()
+    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
     lakeshore = LakeShore240(port='/dev/lakeshore', baudrate=115200, timeout=0.1)
 
     try:
-        lakeshore_info = lakeshore.idn
-        redis.store({FIRMWARE_KEY: lakeshore_info['firmware'],
-                     MODEL_KEY: lakeshore_info['model'],
-                     SN_KEY: lakeshore_info['firmware']})
-        if not lakeshore.manufacturer_ok():
-            redis.store({STATUS_KEY: f'Unsupported manufacturer: {lakeshore_info["manufacturer"]}'})
-            sys.exit(1)
-        if not lakeshore.model_ok():
-            redis.store({STATUS_KEY: f'Unsupported model: {lakeshore_info["model"]}'})
+        info = lakeshore.idn
+        # TODO JB: Note that placing the store before exit makes this program behave differently in an abort
+        #  than both of the sims, which would not alter the database. I like this better.
+        redis.store({FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['firmware']})
+        if not lakeshore.manufacturer_ok() or not lakeshore.model_ok():
+            msg = f'Unsupported manufacture/device: {info["manufacturer"]}/{info["model"]}'
+            redis.store({STATUS_KEY: msg})  #TODO JB: note that no status ever gets set in the event of normal operation
+            log.critical(msg)
             sys.exit(1)
     except IOError as e:
         log.error(f"Serial error in querying LakeShore identification information: {e}")
-        redis.store({FIRMWARE_KEY: '',
-                     MODEL_KEY: '',
-                     SN_KEY: ''})
+        redis.store({FIRMWARE_KEY: '',  MODEL_KEY: '', SN_KEY: ''})
         sys.exit(1)
+
+    #TODO note that by moving the firmware (and other sim init settings) into the devices class, one is always
+    # guranateed that these checks are made, even if the connection is lost
 
     while True:
         try:
@@ -181,9 +191,8 @@ if __name__ == "__main__":
             redis.store({'status:temps:ln2tank': temps['ln2'],
                          'status:temps:lhetank': temps['lhe']}, timeseries=True)
         except IOError as e:
-            log.info(f"Some error communicating with the LakeShore 240 temperature monitor!")
+            log.error(f"Communication with LakeShore 240 failed: {e}")
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
-            break
-            # sys.exit(1)
+            sys.exit(1)
         time.sleep(QUERY_INTERVAL)

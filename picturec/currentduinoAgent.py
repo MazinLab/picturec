@@ -48,7 +48,7 @@ R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 log = logging.getLogger(__name__)
 
 
-class Currentduino(agent.SerialAgent):
+class Currentduino(agent.SerialDevice):
     VALID_FIRMWARES = (0.0, 0.1, 0.2)
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
@@ -74,7 +74,7 @@ class Currentduino(agent.SerialAgent):
 
     def format_msg(self, msg: str):
         """
-        Overwrites function from SerialAgent superclass. Follows the communication model we made where the arduinos in
+        Overwrites function from SerialDevice superclass. Follows the communication model we made where the arduinos in
         PICTURE-C do not require termination characters.
         """
         return f"{msg.strip().lower()}{self.terminator}"
