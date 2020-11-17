@@ -1,0 +1,36 @@
+name: picc
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - astropy>=4.0
+  - bitarray
+  - cython
+  - dbus
+  - hdf5>=1.10.4
+  - ipython
+  - jupyter
+  - matplotlib>=3
+  - numpy>=1.18
+  - pandas
+  - pillow
+  - pip
+  - psutil
+  - pyqt>=5
+  - pytables>=3.6.1
+  - python>=3
+  - ruamel_yaml
+  - scikit-image
+#  - scikit-learn
+  - flask
+  - scipy>=1.4.1
+  - seaborn
+  - tk
+  - tqdm
+  - pyserial
+  - redis-py
+  - bitstruct
+  - pip:
+      - fpbinary
+      - redistimeseries>=0.8.0
+
