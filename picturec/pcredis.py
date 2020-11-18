@@ -95,7 +95,7 @@ class PCRedis(object):
         missing = [k for k,v in zip(keys, vals) if v is None]
         keys, vals = list(zip(*filter(lambda x: x[1] is not None, zip(keys, vals))))
 
-        if (error_missing or return_dict) and missing:
+        if (error_missing or not return_dict) and missing:
             raise KeyError(f'Keys not in redis: {missing}')
 
         vals = list(map(lambda v: v.decode('utf-8'), vals))
