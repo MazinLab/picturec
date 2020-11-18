@@ -10,13 +10,46 @@ import picturec.util as util
 
 log = logging.getLogger(__name__)
 
-#comment
+COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {20e-3: '0', 200e-3: '1', 2: '2',
+                                                                                        20: '3', 200: '4', 2e3: '5',
+                                                                                        20e3: '6', 200e3: '7',
+                                                                                        2e6: '8', 20e6: '9'}},
+                'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {0: '-1', 3e-6: '0', 10e-6: '1',
+                                                                                        30e-6: '2', 100e-6: '3',
+                                                                                        300e-6: '4', 1e-3: '5',
+                                                                                        3e-3: '6', 10e-3: '7', 30e-3: '8'}},
+                'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1',
+                                                                                       'voltage': '2', 'power': '3'}},
+                'device-settings:sim921:time-constant': {'command': 'TCON', 'vals': {0.3: '0', 1: '1', 3: '2', 10: '3',
+                                                                                     30: '4', 100: '5', 300: '6'}},
+                'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0.050, 40]},
+                'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [1049.08, 63765.1]},
+                'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
+                'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-5]},
+                'device-settings:sim921:output-mode': {'command': 'AMAN', 'vals': {'scaled': '0', 'manual': '1'}},
+                'device-settings:sim921:manual-vout': {'command': 'AOUT', 'vals': [-10, 10]},
+                'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {1: '1', 2: '2', 3: '3'}},
+                }
 
-def escapeString(string):
-    """
-    Takes a string and escapes newline characters so they can be logged and display the newline characters in that string
-    """
-    return string.replace('\n','\\n').replace('\r','\\r')
+COMMANDS960 = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'manual': '0', 'pid': '1'}},
+                'device-settings:sim960:vout-value': {'command': 'MOUT', 'vals': [-10, 10]},
+                'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
+                'device-settings:sim960:vout-max-limit': {'command': 'ULIM', 'vals': [-10, 10]},
+                'device-settings:sim960:setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
+                'device-settings:sim960:pid-control-vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
+                'device-settings:sim960:pid-p:value': {'command': 'GAIN', 'vals': [-1e3, -1e-1]},
+                'device-settings:sim960:pid-i:value': {'command': 'INTG', 'vals': [1e-2, 5e5]},
+                'device-settings:sim960:pid-d:value': {'command': 'DERV', 'vals': [0, 1e1]},
+                'device-settings:sim960:setpoint-ramp-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},  # Note: Internal setpoint ramp, NOT magnet ramp
+                'device-settings:sim960:setpoint-ramp-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},  # Note: Internal setpoint ramp rate, NOT magnet ramp
+                'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
+                'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
+                'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
+                }
+
+COMMAND_DICT={}
+COMMAND_DICT.update(COMMANDS960)
+COMMAND_DICT.update(COMMANDS921)
 
 
 class SimCommand(object):
@@ -60,6 +93,11 @@ class SimCommand(object):
 
     def __str__(self):
         return self.format_command()
+
+    @property
+    def escaped(self):
+        """Return a string of the command with newlines and carriage returns escaped"""
+        return str(self).replace('\n','\\n').replace('\r','\\r')
 
     def format_command(self):
         """
@@ -109,7 +147,7 @@ class SimDevice(agent.SerialDevice):
             try:
                 manufacturer, model, _, _ = id_msg.split(",")
             except Exception:
-                raise IOError(f"Bad response to *IDN?: '{id_msg}'}")
+                raise IOError(f"Bad response to *IDN?: '{id_msg}'")
             if model == name:
                 self.mainframe_slot=slot
                 return slot
@@ -250,6 +288,15 @@ class SIM960(SimDevice):
         self.last_input_voltage = None
         self.last_output_voltage = None
         self._monitor_thread = None
+
+    def _simspecificconnect(self):
+        # Set polarity to negative here. This is a non-redis controlled setting (not modifiable during normal operation).
+        self.send("APOL 0", connect=False)
+        polarity = self.query("APOL?", connect=False)
+        if polarity != '0':
+            msg = f"Polarity query returned {polarity}. Setting PID loop polarity to negative failed."
+            log.critical(msg)
+            raise IOError(msg)
 
     def input_voltage(self):
         """Read the voltage being sent to the input monitor of the SIM960 from the SIM921"""
