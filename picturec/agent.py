@@ -68,7 +68,7 @@ class SerialDevice:
             self._preconnect()
             self.ser = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
             self._postconnect()
-            getLogger(__name__).debug(f"port {self.port} connection established")
+            getLogger(__name__).info(f"port {self.port} connection established")
             return True
         except (serial.SerialException, IOError) as e:
             self.ser = None
@@ -106,9 +106,8 @@ class SerialDevice:
             msg = self.format_msg(msg)
 
             try:
-                getLogger(__name__).debug(f"Sending '{escapeString(msg)}'")  # Not the '' allow clearly logging empty sends
+                getLogger(__name__).debug(f"Sending '{escapeString(msg)}'")  # Note: '' allows clear logging of empty sends
                 self.ser.write(msg.encode("utf-8"))
-                getLogger(__name__).debug(f"Sent '{escapeString(msg)}' successfully")  # TODO: Delete?
             except (serial.SerialException, IOError) as e:
                 self.disconnect()
                 getLogger(__name__).error(f"Send failed: {e}")
