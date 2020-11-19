@@ -104,7 +104,7 @@ class SimDevice(agent.SerialDevice):
         self.sn = None
         self.firmware = None
         self.mainframe_slot = None
-        self.mainframe_exitstring = 'xyz'
+        self.mainframe_exitstring = 'XYZ'
         self.connection_callback = connection_callback
         self._monitor_thread = None
         if connect:
