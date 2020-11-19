@@ -104,7 +104,7 @@ if __name__ == "__main__":
         except KeyError:
             sys.exit(1)
 
-    sim = SIM921(port=DEVICE, baudrate=9600, timeout=0.1, connection_callback=initialize)
+    sim = SIM921(port=DEVICE, timeout=0.1, connection_callback=initialize)
 
 
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
