@@ -49,16 +49,20 @@ log = logging.getLogger()
 
 
 class LakeShore240(agent.SerialDevice):
-    def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
-        super().__init__(port, baudrate, timeout, name='lakeshore240')
-        if connect:
-            self.connect(raise_errors=False, post_connect_sleep=1)
+    def __init__(self, name, port, baudrate=115200, timeout=0.1, connect=True):
+        super().__init__(port, baudrate, timeout, name=name)
+
         self._monitor_thread = None  # Maybe not even necessary since this only queries
         self.last_he_temp = None
         self.last_ln2_temp = None
         self.terminator = '\n'
 
-        self.model = None
+        self.sn = None
+        self.firmware = None
+        self.enabled_channels = None
+
+        if connect:
+            self.connect(raise_errors=False)
 
     def format_msg(self, msg:str):
         """
@@ -66,6 +70,40 @@ class LakeShore240(agent.SerialDevice):
         *NOTE: By choice, using .upper(), if we manually store a name of a curve/module, it will be in all caps.
         """
         return f"{msg.strip().upper()}{self.terminator}"
+
+    def _postconnect(self):
+        VALID_MODELS = ("MODEL240-2P", "MODEL240-8P")
+
+        id_msg = self.query("*IDN?")
+        try:
+            manufacturer, model, self.sn, self.firmware = id_msg.split(",")
+        except ValueError:
+            log.debug(f"Unable to parse IDN response: '{id_msg}'")
+            manufacturer, model, self.sn, self.firmware = [None]*4
+
+        if not (manufacturer == "LSCI") and (model in VALID_MODELS):
+            msg = f"Unsupported device: {manufacturer}/{model} (idn response = '{id_msg}')"
+            log.critical(msg)
+            raise IOError(msg)
+
+        enabled = []
+        for channel in range(1, int(model[-2]) + 1):
+            try:
+                _, _, enabled_status = self.query(f"INTYPE? {channel}").rpartition(',')
+                if enabled_status == "1":
+                    enabled.append(channel)
+            except IOError as e:
+                log.error(f"Serial error: {e}")
+                raise IOError(f"Serial error: {e}")
+            except ValueError:
+                log.critical(f"Channel {channel} returned and unknown value from channel information query")
+                raise IOError(f"Channel {channel} returned and unknown value from channel information query")
+        self.enabled_channels = tuple(enabled)
+
+    @property
+    def device_info(self):
+        self.connect()
+        return dict(model=self.name, firmware=self.firmware, sn=self.sn, enabled=self.enabled_channels)
 
     def read_temperatures(self):
         """Queries the temperature of all enabled channels on the LakeShore 240. LakeShore reports values of temperature
@@ -81,46 +119,6 @@ class LakeShore240(agent.SerialDevice):
         temps = {tanks[i]: readings[i] for i in range(len(self.enabled_channels))}
         return temps
 
-    @property
-    def idn(self):
-        """
-        Queries the LakeShore240 for its ID information.
-        Raise IOError if serial connection isn't working or if invalid values (from an unexpected module) are received
-        ID return string is "<manufacturer>,<model>,<instrument serial>,<firmware version>\n"
-        Format of return string is "s[4],s[11],s[7],float(#.#)"
-        :return: Dict
-        """
-        try:
-            id_string = self.query("*IDN?")
-            manufacturer, model, sn, firmware = id_string.split(",")  # See manual p.43
-            firmware = float(firmware)
-            # TODO JB IMO it is bad practice for a property to have a sideeffect that alters the functionality of
-            #  an object, and especially when it does not document it. Morover since other class members use this
-            #  function they too have the sideeffect (and also do not disclose it).
-            #  This really should be set at initialization, or at what ever step must be completed before functions
-            #  using it can be meaningfully called. Here i think the solution is a post connect hook, wich will come
-            #  naturally as we integrate device checking with the connection process.
-            self.model = int(model[-2])
-            return {'manufacturer': manufacturer,
-                    'model': model,
-                    'model-no': self.model,
-                    'sn': sn,
-                    'firmware': firmware}
-        except IOError as e:
-            log.error(f"Serial error: {e}")
-            raise e
-        except ValueError as e:
-            log.error(f"Bad firmware format: {firmware}. Error: {e}")
-            raise IOError(f"Bad firmware format: {firmware}. Error: {e}")
-
-    def manufacturer_ok(self):
-        """Returns true if the manufacturer for the lakeshore is valid. Otherwise false"""
-        return self.idn['manufacturer'] == "LSCI"
-
-    def model_ok(self):
-        """Returns true if the model number for the lakeshore is valid. Otherwise false"""
-        return self.idn['model-no'] in [2, 8]
-
     def _set_curve_name(self, channel: int, name: str):
         """Engineering function to set the name of a curve on the LakeShore240. Convenient since both thermometers are
         DT-670A-CU style, and so this can clear any ambiguity. Does not need to be used in normal operation. Logs
@@ -132,40 +130,12 @@ class LakeShore240(agent.SerialDevice):
             log.error(f"Unable to set channel {channel}'s name to '{name}'. "
                       f"Check to make sure the LakeShore USB is connected!")
 
-    @property
-    def enabled_channels(self):
-        """
-        'INTYPE? <channel>' query returns channel configuration info with
-        returns '<sensor type>,<autorange>,<range>,<current reversal>,<units>\n'
-        with format '#,#,#,#,#\n'. Raise IOError for any serial errors. Otherwise returns a list of enabled channels.
-        If model number is not determined (i.e. IDN has not been queried), return None and report that the model number
-        must be determined.
-        """
-        #TODO JB see comment in idn
-        if not self.model:
-            log.warning("enabled_channels() called yet model not set")
-            raise RuntimeError('idn must be checked prior to use of enabled_channels() ')
-        enabled = []
-        for channel in range(1, self.model + 1):
-            try:
-                _, _, enabled_status = self.query(f"INTYPE? {channel}").rpartition(',')
-                if enabled_status == "1":
-                    enabled.append(channel)
-            except IOError as e:
-                log.error(f"Serial error: {e}")
-                raise IOError(f"Serial error: {e}")
-            #TODO why is this commented
-            # except ValueError:
-            #     log.critical(f"Channel {channel} returned and unknown value from channel information query")
-            #     raise IOError(f"Channel {channel} returned and unknown value from channel information query")
-        return enabled
-
 
 if __name__ == "__main__":
 
     util.setup_logging()
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
-    lakeshore = LakeShore240(port='/dev/lakeshore', baudrate=115200, timeout=0.1)
+    lakeshore = LakeShore240(name='LAKESHORE240', port='/dev/lakeshore', baudrate=115200, timeout=0.1)
 
     try:
         info = lakeshore.idn
