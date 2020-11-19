@@ -155,8 +155,7 @@ class SimDevice(agent.SerialDevice):
         self.send("*RST")
 
     def format_msg(self, msg: str):
-        super(self).format_msg(msg.strip().upper())
-        return super(self).format_msg(msg.strip().upper())
+        return super().format_msg(msg.strip().upper())
 
     def _simspecificconnect(self):
         pass
