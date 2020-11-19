@@ -1,9 +1,6 @@
 """
 Author: Noah Swimmer, 21 July 2020
 
-NOTE: Unlike the SIM921, the SIM960 supports different baudrates. These need to be tested outside of the mainframe
-before settling on the most appropriate one.
-
 TODO: Measure output voltage-to-current conversion. Should be ~1 V/A (from the hc boost board)
 TODO: Also measure magnet-current-to-currentduino-measurement conversion (does the currentduino report the same thing we
  measure with an ammeter?)
