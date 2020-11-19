@@ -297,8 +297,8 @@ class SIM960(SimDevice):
 
 
 class SIM921(SimDevice):
-    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, connection_callback=None):
-        super().__init__('SIM921', port, baudrate, timeout, connect=connect, connection_callback = connection_callback)
+    def __init__(self, port, timeout=0.1, connect=True, connection_callback=None):
+        super().__init__('SIM921', port, baudrate=9600, timeout=timeout, connect=connect, connection_callback = connection_callback)
         self.scale_units = 'resistance'
         self.last_voltage = None
         self.last_monitored_values = None
