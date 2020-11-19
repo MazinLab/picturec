@@ -86,6 +86,8 @@ class LakeShore240(agent.SerialDevice):
             log.critical(msg)
             raise IOError(msg)
 
+        self.name += f"-{model[-2:]}"
+
         enabled = []
         for channel in range(1, int(model[-2]) + 1):
             try:
