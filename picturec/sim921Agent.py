@@ -6,11 +6,7 @@ is monitoring the temperature of the thermometer on the MKID device stage in the
 responsible for properly conditioning its output signal so that the SIM960 (PID Controller) can properly regulate
 the device temperature.
 
-TODO: Do we want a 'confirm' ability with the command to make sure it sent?
- - I think no, because the only case I have seen infidelity with commands is if they're invalid (taken care of already)
- or there is a physical disconnect (IOError from serial port).
-
-TODO: Add value caching? (self.output_mode = 'manual', self.curve_number = 1)
+TODO JB: Add value caching? (self.output_mode = 'manual', self.curve_number = 1)
 
 TODO NS: Add 'resetting' to last stable state to SIM960
 
