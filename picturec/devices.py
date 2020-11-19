@@ -337,16 +337,16 @@ class SIM921(SimDevice):
         return res
 
     def output_voltage(self):
-        voltage = None
-        if self.query("AMAN?") == "1":
+        aman = self.query("AMAN?")
+        if aman == "1":
             log.debug("SIM921 voltage output is in manual mode!")
             voltage = self.query("AOUT?")
-        elif self.query("AMAN?") == "0":
+        elif aman == "0":
             log.debug("SIM921 voltage output is in scaled mode!")
             voltage = float(self.query("VOHM?")) * float(self.query("RDEV?"))
-        #TODO can AMAN take on other values? There isn't harm in this (it protects you from SRS not adhering to THEIR
-        # API, another option would be to raise an error if it took another value since that probably means
-        # something major is wrong.
+        else:
+            log.critical(f"SIM921 voltage output is in an unknown mode! -> {aman}")
+            raise ValueError(f"SIM921 voltage output is in an unknown mode! -> {aman}")
         self.last_voltage_read = voltage
         return voltage
 
