@@ -111,18 +111,20 @@ if __name__ == "__main__":
         try:
             for key, val in redis.listen(SETTING_KEYS):
                 log.debug(f"sim960agent received {key}, {val}. Trying to send a command.")
-                cmd = SimCommand(key, val)
-                if cmd.valid_value():
-                    try:
-                        log.info(f'Sending command "{cmd.escaped}"')
-                        sim.send(f"{cmd.format_command()}")
-                        redis.store({cmd.setting: cmd.value})
-                        redis.store({STATUS_KEY: "OK"})
-                    except IOError as e:
-                        redis.store({STATUS_KEY: f"Error {e}"})
-                        log.error(f"Some error communicating with the SIM960! {e}")
-                else:
-                    log.warning(f'Not a valid value. Can\'t send key:value pair "{key} / {val}" to the SIM960!')
+                try:
+                    cmd = SimCommand(key, val)
+                except ValueError as e:
+                    log.warning(f"Ignoring invalid command ('{key}={val}'): {e}")
+                    continue
+
+                try:
+                    log.info(f"Processing command '{cmd}'")
+                    sim.send(cmd.sim_string)
+                    redis.store({cmd.setting: cmd.setting_value})
+                    redis.store({STATUS_KEY: "OK"})
+                except IOError as e:
+                    redis.store({STATUS_KEY: f"Error {e}"})
+                    log.error(f"Some error communicating with the SIM960! {e}")
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
             sys.exit(1)

@@ -10,18 +10,18 @@ import picturec.util as util
 
 log = logging.getLogger(__name__)
 
-COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {20e-3: '0', 200e-3: '1', 2: '2',
-                                                                                        20: '3', 200: '4', 2e3: '5',
-                                                                                        20e3: '6', 200e3: '7',
-                                                                                        2e6: '8', 20e6: '9'}},
-                'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {0: '-1', 3e-6: '0', 10e-6: '1',
-                                                                                        30e-6: '2', 100e-6: '3',
-                                                                                        300e-6: '4', 1e-3: '5',
-                                                                                        3e-3: '6', 10e-3: '7', 30e-3: '8'}},
+COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {'20e-3': '0', '200e-3': '1', '2': '2',
+                                                                                        '20': '3', '200': '4', '2e3': '5',
+                                                                                        '20e3': '6', '200e3': '7',
+                                                                                        '2e6': '8', '20e6': '9'}},
+                'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {'0': '-1', '3e-6': '0', '10e-6': '1',
+                                                                                        '30e-6': '2', '100e-6': '3',
+                                                                                        '300e-6': '4', '1e-3': '5',
+                                                                                        '3e-3': '6', '10e-3': '7', '30e-3': '8'}},
                 'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1',
                                                                                        'voltage': '2', 'power': '3'}},
-                'device-settings:sim921:time-constant': {'command': 'TCON', 'vals': {0.3: '0', 1: '1', 3: '2', 10: '3',
-                                                                                     30: '4', 100: '5', 300: '6'}},
+                'device-settings:sim921:time-constant': {'command': 'TCON', 'vals': {'0.3': '0', '1': '1', '3': '2', '10': '3',
+                                                                                     '30': '4', '100': '5', '300': '6'}},
                 'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0.050, 40]},
                 'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [1049.08, 63765.1]},
                 'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
@@ -53,65 +53,47 @@ COMMAND_DICT.update(COMMANDS921)
 
 
 class SimCommand(object):
-    def __init__(self, redis_setting, value):
+    def __init__(self, schema_key, value):
         """
         Initializes a SimCommand. Takes in a redis device-setting:* key and desired value an evaluates it for its type,
         the mapping of the command, and appropriately sets the mapping|range for the command. If the setting is not
         supported, raise a ValueError.
         """
-        self.value = value
+        self.setting_value = value
 
-        if redis_setting not in COMMAND_DICT.keys():
-            raise ValueError('Mapping dict or range tuple required')
+        if schema_key not in COMMAND_DICT.keys():
+            raise ValueError(f'Unknown command: {schema_key}')
 
-        self.setting = redis_setting
+        self.range = None
+        self.mapping = None
+        self.setting = schema_key
+
         self.command = COMMAND_DICT[self.setting]['command']
         setting_vals = COMMAND_DICT[self.setting]['vals']
 
         if isinstance(setting_vals, dict):
             self.mapping = setting_vals
-            self.range = None
-            mapping_type = type(list(self.mapping.keys())[0])
-            try:
-                if mapping_type == str:
-                    self.value = str(self.value)
-                elif (mapping_type == float) or (mapping_type == int):
-                    self.value = float(self.value)
-            except ValueError as e:
-                log.warning(f"The value sent was not the correct type! {e}")
-        elif isinstance(setting_vals, list):
-            self.range = setting_vals
-            self.mapping = None
-            self.value = float(self.value)
-
-    def valid_value(self):
-        """Return True or False if the desired value to command is valid or not."""
-        if self.range is not None:
-            return self.range[0] <= self.value <= self.range[1]
+            if value not in self.mapping:
+                raise ValueError(f'Invalid value {value}. Options are: {list(self.mapping.keys())}.')
         else:
-            return self.value in self.mapping.keys()
+            self.range = setting_vals
+            try:
+                self.value = float(value)
+            except ValueError:
+                ValueError(f'Invalid value {value}, must be castable to float.')
+            if not self.range[0] <= self.value <= self.range[1]:
+                raise ValueError(f'Invalid value {value}, must in {self.range}.')
 
     def __str__(self):
-        return self.format_command()
+        return f"{self.setting}->{self.setting_value}: {self.sim_string}"
 
     @property
-    def escaped(self):
-        """Return a string of the command with newlines and carriage returns escaped"""
-        return str(self).replace('\n','\\n').replace('\r','\\r')
-
-    def format_command(self):
+    def sim_string(self):
         """
-        Returns a string that can then be sent to format_msg in SIM960Agent for appropriate command syntax. Logs an
-        error in the case the value is not valid and does not return anything.
-        # TODO: Return None for an invalid command?
+        Returns the command string for the SIM.
         """
-        if self.valid_value():
-            if self.range is not None:
-                return f"{self.command} {self.value}"
-            else:
-                return f"{self.command} {self.mapping[self.value]}"
-        else:
-            log.info(f"Trying to set the SIM960 to an invalid value! Setting {self.setting} to {self.value} is not allowed")
+        v = self.mapping[self.value] if self.range is None else self.value
+        return f"{self.command} {v}"
 
 
 class SimDevice(agent.SerialDevice):
@@ -172,7 +154,8 @@ class SimDevice(agent.SerialDevice):
         self.send("*RST")
 
     def format_msg(self, msg: str):
-        return f"{msg.strip().upper()}{self.terminator}"
+        super(self).format_msg(msg.strip().upper())
+        return super(self).format_msg(msg.strip().upper())
 
     def _simspecificconnect(self):
         pass
@@ -218,8 +201,8 @@ class SimDevice(agent.SerialDevice):
         """
         for setting, value in settings_to_load.items():
             cmd = SimCommand(setting, value)
-            log.debug(cmd.format_command())
-            self.send(cmd.format_command())
+            log.debug(cmd)
+            self.send(cmd.sim_string)
             time.sleep(0.1)
         return settings_to_load
 
@@ -310,6 +293,7 @@ class SIM960(SimDevice):
         ov = self.query("OMON?")
         self.last_output_voltage = ov
         return ov
+
 
 class SIM921(SimDevice):
     def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, connection_callback=None):

@@ -91,7 +91,9 @@ class SerialDevice:
 
     def format_msg(self, msg:str):
         """Subclass may implement to apply hardware specific formatting"""
-        return f"{msg}{self.terminator}"
+        if msg and msg[-1] != self.terminator:
+            msg = msg+self.terminator
+        return msg.encode('utf-8')
 
     def send(self, msg: str, connect=True):
         """
@@ -102,15 +104,13 @@ class SerialDevice:
         with self._rlock:
             if connect:
                 self.connect()
-
             msg = self.format_msg(msg)
-
             try:
-                getLogger(__name__).debug(f"Sending '{escapeString(msg)}'")  # Note: '' allows clear logging of empty sends
-                self.ser.write(msg.encode("utf-8"))
+                getLogger(__name__).debug(f"Sending '{msg}'")
+                self.ser.write(msg)
             except (serial.SerialException, IOError) as e:
                 self.disconnect()
-                getLogger(__name__).error(f"Send failed: {e}")
+                getLogger(__name__).error(f"...failed: {e}")
                 raise e
 
     def receive(self):
