@@ -59,13 +59,12 @@ class SimCommand(object):
         the mapping of the command, and appropriately sets the mapping|range for the command. If the setting is not
         supported, raise a ValueError.
         """
-        self.setting_value = value
-
         if schema_key not in COMMAND_DICT.keys():
             raise ValueError(f'Unknown command: {schema_key}')
 
         self.range = None
         self.mapping = None
+        self.value = None
         self.setting = schema_key
 
         self.command = COMMAND_DICT[self.setting]['command']
@@ -75,6 +74,8 @@ class SimCommand(object):
             self.mapping = setting_vals
             if value not in self.mapping:
                 raise ValueError(f'Invalid value {value}. Options are: {list(self.mapping.keys())}.')
+            else:
+                self.value = value
         else:
             self.range = setting_vals
             try:
@@ -85,7 +86,7 @@ class SimCommand(object):
                 raise ValueError(f'Invalid value {value}, must in {self.range}.')
 
     def __str__(self):
-        return f"{self.setting}->{self.setting_value}: {self.sim_string}"
+        return f"{self.setting}->{self.value}: {self.sim_string}"
 
     @property
     def sim_string(self):
