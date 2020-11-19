@@ -9,12 +9,6 @@ the device temperature.
 TODO JB: Add value caching? (self.output_mode = 'manual', self.curve_number = 1)
 
 TODO NS: Add 'resetting' to last stable state to SIM960
-
-
-SimDevice(SerialDevice)
-Sim960(SimDevice)
-Sim921(SimDevice)
-
 """
 import logging
 import sys
