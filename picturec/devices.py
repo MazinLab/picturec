@@ -391,10 +391,8 @@ class SIM921(SimDevice):
 
         log.info(f"Attempting to initialize curve {curve_num}, type {curve_type}")
         try:
-            # curve_init_str = "CINI "+str(curve_num)+", "+str(CURVE_TYPE_DICT[curve_type]+", "+curve_name)
             self.send(f"CINI {curve_num}, {CURVE_TYPE_DICT[curve_type]}, {curve_name}")
             for t, r in zip(temp_data, res_data):
-                # self.send("CAPT"+str(curve_num)+", "+str(r)+", "+str(t))
                 self.send(f"CAPT {curve_num}, {r}, {t}")
                 time.sleep(0.1)
         except IOError as e:
