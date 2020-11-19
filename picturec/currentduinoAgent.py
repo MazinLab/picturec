@@ -72,6 +72,13 @@ class Currentduino(agent.SerialDevice):
             raise ValueError(f"Could not parse '{response}' into a float")
         return current
 
+    def _postconnect(self):
+        """
+        Overwrites SerialDevice _postconnect function. The default 2 * timeout is not sufficient to let the arduino to
+        set up, so a slightly longer pause is implemented here
+        """
+        time.sleep(2)
+
     def format_msg(self, msg: str):
         """
         Overwrites function from SerialDevice superclass. Follows the communication model we made where the arduinos in
