@@ -12,8 +12,6 @@ TODO: Do we want a 'confirm' ability with the command to make sure it sent?
 
 TODO: Add value caching? (self.output_mode = 'manual', self.curve_number = 1)
 
-TODO JB: Much of the 960 and 921 code has overlap. I'd suggest (after agent becomes SerialDevice)
-
 TODO NS: Add 'resetting' to last stable state to SIM960
 
 
@@ -77,8 +75,8 @@ if __name__ == "__main__":
 
 
     # TODO JB The whole point of not erroring out on a connection failure in __init__ is to allow
-    # execution to start without the device online. These calls here in main, that are required for operation,
-    # completely defeats that
+    #  execution to start without the device online. These calls here in main, that are required for operation,
+    #  completely defeats that
     def initialize(sim):
         try:
             info = sim.device_info
