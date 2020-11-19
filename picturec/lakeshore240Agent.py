@@ -140,22 +140,17 @@ if __name__ == "__main__":
     lakeshore = LakeShore240(name='LAKESHORE240', port='/dev/lakeshore', baudrate=115200, timeout=0.1)
 
     try:
-        info = lakeshore.idn
+        info = lakeshore.device_info
         # TODO JB: Note that placing the store before exit makes this program behave differently in an abort
         #  than both of the sims, which would not alter the database. I like this better.
         redis.store({FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['firmware']})
-        if not lakeshore.manufacturer_ok() or not lakeshore.model_ok():
-            msg = f'Unsupported manufacture/device: {info["manufacturer"]}/{info["model"]}'
-            redis.store({STATUS_KEY: msg})  #TODO JB: note that no status ever gets set in the event of normal operation
-            log.critical(msg)
-            sys.exit(1)
     except IOError as e:
-        log.error(f"Serial error in querying LakeShore identification information: {e}")
+        log.error(f"When checking device info: {e}")
         redis.store({FIRMWARE_KEY: '',  MODEL_KEY: '', SN_KEY: ''})
         sys.exit(1)
-
-    #TODO note that by moving the firmware (and other sim init settings) into the devices class, one is always
-    # guranateed that these checks are made, even if the connection is lost
+    except RedisError as e:
+        log.critical(f"Redis server error! {e}")
+        sys.exit(1)
 
     while True:
         try:
