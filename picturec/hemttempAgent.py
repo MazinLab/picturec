@@ -24,6 +24,7 @@ import numpy as np
 from picturec.pcredis import PCRedis, RedisError
 import picturec.agent as agent
 import picturec.util as util
+import time
 
 DEVICE = "/dev/hemtduino"
 REDIS_DB = 0
@@ -41,14 +42,21 @@ log = logging.getLogger(__name__)
 
 
 class Hemtduino(agent.SerialDevice):
-    VALID_FIRMWARES = (0.0, 0.1)  #TODO JB Tuples are immutable
+    VALID_FIRMWARES = (0.0, 0.1)
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='hemtduino')
         if connect:
-            self.connect(raise_errors=False, post_connect_sleep=2)
+            self.connect(raise_errors=False)
 
         self.terminator = ''
+
+    def _postconnect(self):
+        """
+        Overwrites serialDevice _postconnect function. Sleeps for an appropriate amount of time to let the arduino get
+        booted up properly so the first queries don't return nonsense (or nothing)
+        """
+        time.sleep(1)
 
     def format_msg(self, msg:str):
         """

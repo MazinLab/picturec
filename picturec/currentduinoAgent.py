@@ -54,7 +54,7 @@ class Currentduino(agent.SerialDevice):
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='currentduino')
         if connect:
-            self.connect(raise_errors=False, post_connect_sleep=2)
+            self.connect(raise_errors=False)
         self.heat_switch_position = None
         self._monitor_thread = None
         self.last_current = None
