@@ -151,7 +151,7 @@ class SimDevice(agent.SerialDevice):
         If you do perform a reset, it will then be helpful to restore the 'default settings' which we have determined
         to be the optimal to read out the hardware we have.
         """
-        log.info(f"Resetting the SIM921!")
+        log.info(f"Resetting the {self.name}!")
         self.send("*RST")
 
     def format_msg(self, msg: str):
