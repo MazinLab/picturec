@@ -33,8 +33,6 @@ SETTING_KEYS = ['device-settings:sim921:output-mode',
                 'device-settings:sim921:time-constant']
 
 # TODO: Consider if default keys are even necessary
-# A note -> in any case, the only time default keys are necessary are for when settings must be initialized on the
-# device that's being controlled
 default_key_factory = lambda key: f"default:{key}"
 DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
 
@@ -56,11 +54,6 @@ log = logging.getLogger(__name__)
 if __name__ == "__main__":
 
     util.setup_logging()
-
-    #TODO if the mainframe isn't going to be used in the field but is in the lab then it needs to be an argument to this
-    # program, its not a good idea to need to dive into multiple code files and change defaults just to get something
-    # into test mode in the lab
-    # NS: Will update. -Make a flag for this program that sets connect-mainframe to true (or something akin to it)
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
 
 
