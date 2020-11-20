@@ -126,11 +126,16 @@ class SimDevice(agent.SerialDevice):
 
         for slot in range(1, 9):
             self.send(f"CONN {slot}, '{self.mainframe_exitstring}'")
+            time.sleep(.1)
             id_msg = self.query("*IDN?", connect=False)
             try:
                 manufacturer, model, _, _ = id_msg.split(",")
             except Exception:
-                raise IOError(f"Bad response to *IDN?: '{id_msg}'")
+                if id_msg == '':
+                    log.debug(f"No device in mainframe at slot {slot}")
+                    pass
+                else:
+                    raise IOError(f"Bad response to *IDN?: '{id_msg}'")
             if model == name:
                 self.mainframe_slot=slot
                 return slot
