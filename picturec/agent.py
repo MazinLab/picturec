@@ -136,6 +136,7 @@ class SerialDevice:
         with self._rlock:
             try:
                 self.send(cmd, **kwargs)
+                time.sleep(.1)
                 return self.receive()
             except Exception as e:
                 raise IOError(e)
