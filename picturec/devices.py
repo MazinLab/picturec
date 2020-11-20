@@ -165,6 +165,7 @@ class SimDevice(agent.SerialDevice):
 
     def _postconnect(self):
         try:
+            self.send(self.mainframe_exitstring)
             self._walk_mainframe(self.name)
         except RuntimeError:
             pass
