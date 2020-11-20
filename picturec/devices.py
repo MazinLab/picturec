@@ -28,7 +28,7 @@ COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'v
                 'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-5]},
                 'device-settings:sim921:output-mode': {'command': 'AMAN', 'vals': {'scaled': '0', 'manual': '1'}},
                 'device-settings:sim921:manual-vout': {'command': 'AOUT', 'vals': [-10, 10]},
-                'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {1: '1', 2: '2', 3: '3'}},
+                'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {'1': '1', '2': '2', '3': '3'}},
                 }
 
 COMMANDS960 = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'manual': '0', 'pid': '1'}},
