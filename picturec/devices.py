@@ -160,6 +160,9 @@ class SimDevice(agent.SerialDevice):
     def _simspecificconnect(self):
         pass
 
+    def _preconnect(self):
+        time.sleep(1)
+
     def _postconnect(self):
         try:
             self._walk_mainframe(self.name)
