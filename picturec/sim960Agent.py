@@ -122,7 +122,7 @@ if __name__ == "__main__":
                 try:
                     log.info(f"Processing command '{cmd}'")
                     sim.send(cmd.sim_string)
-                    redis.store({cmd.setting: cmd.setting_value})
+                    redis.store({cmd.setting: cmd.value})
                     redis.store({STATUS_KEY: "OK"})
                 except IOError as e:
                     redis.store({STATUS_KEY: f"Error {e}"})
