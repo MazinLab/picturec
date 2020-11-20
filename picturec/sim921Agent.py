@@ -76,7 +76,8 @@ if __name__ == "__main__":
         try:
             settings_to_load = redis.read(keys, error_missing=True)
             # settings_to_load = {setting.lstrip('default:'): value for setting, value in settings_to_load.items()}
-            settings_to_load = {setting[8:]: value for setting, value in settings_to_load.items()}
+            if from_state == 'defaults':
+                settings_to_load = {setting[8:]: value for setting, value in settings_to_load.items()}
             initialized_settings = sim.initialize_sim(settings_to_load)
             redis.store(initialized_settings)  # TODO JB Exception handling
         except IOError:
