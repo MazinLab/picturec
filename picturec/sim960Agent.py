@@ -60,91 +60,258 @@ SN_KEY = 'status:device:sim960:sn'
 
 log = logging.getLogger(__name__)
 
-# TODO: Split ramp and PID control?
-def ramp(sim, ramp_rate=0.005, soak_time=60, quick=False, max_current=9.4, **kwargs):
+
+def prepare_magnet():
     """
-    :param sim: SIM960 object. Responsible for controlling the ramp and pid control
-    :param ramp_rate: <Float> Ramp up/down rate in A/s. Cannot exceed a magnitude of 5 mA/s.
-    :param soak_time: <Float> Soak time in minutes. Time at the top of the ramp.
-    :param quick: <Bool> Creates a quick ramp. Overrides soak time
-    :return: None
+    BEFORE READING: Some of the information contained here might not be strictly under the purview of the sim960Agent.
+    This docstring is purely to describe the process and expected operation of the magnet preparation.
 
-    The ramp function is the first part of temperature control for the PICTURE-C MKID Camera. The desire is to properly
-    manage the increasing, maintaining, and decreasing of current through the magnet and appropriately communicating
-    with the proper fiducial devices (heat switch and current monitor primarily, SIM921 is not as important here) in
-    order to configure the ADR to be ready to regulate the temperature on the device stage.
+    Prepare magnet describes the process of preparing the magnet (ADR) so it is properly ready for temperature
+    regulation of the MKID device stage.
 
-    The goal of the ramp is to steadily increase the current through the ADR to it's maximum value. This max value is
-    9.4 A, but can be configured to be lower. Nominally, the magnet will soak for 1 hour, but that can be increased or
-    decreased as desired. Longer soak times can help increase the hold time, and shorter ramps will decrease it. The
-    ramp will operate by manually increasing the output voltage that the SIM960 sends to the high-current boost board
-    slowly so that the current through the magnet doesn't increase more than 5 mA/s. While this is going on, the agent
-    should be querying the current from the currentduino to make sure that it doesn't drop precipitously out of nowhere.
-    That would mean the magnet has gone normal and the SIM960 must drop the voltage down to 0 immediately so as to not
-    try to put any more current through the magnet (immediately is operative - as fast as possible is probably more
-    feasible logistically).
+    First, prepare_magnet should be initialized with a few parameters.
+    :param Ramp Rate: <float> The rate in A/s at which the current should be increased and decreased in the ADR
+    :param Soak Time: <float|int> The duration at which the maximum current will be sent through the ADR
+    :param Max Current: <float|int> The maximum current value that the magnet should attain.
+    With these parameters come a few caveats, namely that Ramp Rate and Max Current are both values that need to be
+    selected carefully so as not to damage the ADR. When initializing the ramp, the first check should be to make sure
+    these values are not exceeded. For the ramp rate, that is dI/dt > 5 mA/s (0.005 A/s) and for max current, it is
+    I > 9.4 A (note: We usually call this 10 A, but it is not a full 10 A).
 
-    During the ramp, the agent must also be able to communicate to the heatswitch that it needs to open. During the ramp
-    up and soaking phases, the heat switch should be closed so that the salt pills in the ADR can reach thermal
-    equilibrium with the LN2 bath that they are in (or with the 4K stage of the pulse tube, if the pulse tube is
-    installed). Just before the ramp down begins from soaking the magnet, the heat switch needs to be opened so that the
-    salt pills are no longer in thermal contact with the 4K bath.
+    In order to prepare the magnet for PID control, a coordinated set of processes must be run so that the magnet
+    current is increased up to the maximum value, soaks at that maximum value, and then is decreased back down to 0 A.
 
-    Over the course of the ramp, it must be ensured that the output mode of the SIM960 stays 'manual' and does not
-    change to 'PID'. The 'PID' control should only ever be changed after the ramp has concluded and we desire to start
-    regulating the temperature. Otherwise, there are no settings that cannot be changed within the SIM960. It is not
-    recommended to try to reconfigure the internal setpoint, P, I, and D values, but that should not be restricted, just
-    done with caution and thought. The manual output voltage is required to change, as that is what controls the current
-    value through the ADR.
+    In addition to performing these tasks, preparing the magnet properly also means that the heatswitch (which thermally
+    connects the ADR to the LN2 tank) most be opened prior to decreasing the current from the max value back to 0 A.
 
-    The value of current reported by the SIM960 will only be the output voltage times a conversion factor, and the
-    method for determining if the magnet has quenched (gone normal) is if the currentduinoAgent (ArudinoUNO measuring
-    the output current from the high-current boost board) reports a sudden drop in current.
+    What the prepare_magnet process will look like is as follows:
+    check_magnet_prep_parameters()
+    increase_current_to_max()
+    soak_magnet_at_max_current()
+    open_heat_switch()
+    decrease_current_to_zero()
 
-    The ramp operates by creating a list of voltage values to feed to the SIM960 to fit the parameters of the ramp
-    specified when the function is called. If any of the parameters are unnacceptable, they will default to the most
-    extreme allowable level (max current, ramp rate, etc.) and notify the user that their choice was too high.
+    During this process, the device stage temperature should be monitored as always. Before the heat switch is opened,
+    it should remain around the temperature of LN2 (still in thermal contact) and after the heat switch is opened it
+    should fall below the LN2 temperature all the way down to below the operating temperature of the device*.
+
+    It is also important to monitor the current through the magnet for 2 reasons. The first is to ensure that it is
+    progressing as expected (smoothly increasing up to max, maintaining the max current with little noise, smoothly
+    decreasing down) and the second is to ensure that a quench has not occurred.
+
+    In the case of a quench (which would manifest as a sudden, sharp decrease in current), it is necessary to instantly
+    (or as close to instantly as possible) reduce the current being pushed through the ADR to 0. A quench occurs when
+    the superconducting magnet 'goes normal', which is to say it is no longer superconducting.
+    TODO: (Just so this is specifically highlighted) A QUENCH IS POTENTIALLY THE MOST DAMAGING FAILURE THAT CAN OCCUR
+     DURING MAGNET OPERATION.
+
+    This will necessitate 1 of 2 things:
+    1) Proper monitoring to account for a quench in any situation in the SIM960 agent
+    2) A 'watcher' thread in the prepare_magnet() function.
+    Either way, a function is needed (1 is more powerful and is realistically the best choice):
+    monitor_for_and_handle_quench()
+
+    What changes during the magnet preparation?:
+    - The output voltage from the SIM960 that controls the high current boost board output
+    - The position of the heatswitch (controlled by the currentduinoAgent)
+
+    What does not (cannot) change during the magnet preparation?:
+    - The output mode from the SIM960 <manual|PID> must remain manual
+    - PID polarity <negative|positive> must remain negative (this can never change outside of massive structural change
+     in the cryostat/readout)
+    - Setpoint reference mode <internal|external> must remain internal (this can never change unless the electronics
+     rack is completely changed so that an external reference voltage is added)
+
+    What is prepare_magnet() agnostic to? (Note: just because it won't hurt the magnet preparation does not mean that it
+    is wise or recommended to change these values):
+    - PID control setpoint reference value
+    - P, I, D values
+    - Setpoint ramp value (how fast the setpoint changes)
+    - Setpoint ramp enabling (does the setpoint value slew or 'jump')
     """
     pass
 
-# TODO: See note with ramp(). Should ramp and PID be separate?
-def pid_control(control_temp=0.100, p=-16.0, i=.2, d=0, **kwargs):
+
+def check_magnet_prep_parameters():
     """
-    PID control works after the ramp has terminated. With the setup of the system, it would not work to run the PID if
-    the ramp hadn't been run before (it is predicated on the idea that increasing current through the ADR increases the
-    temperature of the device stage and vise versa). If the PID control is started and the temperature is greater than
-    the desired regulation temperature and the current in the magnet is 0, the PID control won't be able to run (there's
-    no current to decrease to decrease the device stage). For these reasons, we need to be able to monitor the
-    temperature of the device stage and the current through the magnet.
+    A function that assesses the parameters selected for the ADR preparation and ensures that they are safe to use and
+    will not cause damage to the magnet.
 
-    During the PID control portion of the temperature regulation, it will be necessary to have control over the state of
-    the SIM960 output, meaning it's necessary to be able to flip from manual to PID control or the other way around.
-    This is because we control the magnet output current by providing voltage to the high current boost board, and in
-    normal operation, PID control output will suffice, but in the case of a quench or termination of control before the
-    magnet runs out (no longer observing, etc.) we want to be able to drop the current to 0 reliably.
+    The parameters that will be assessed are ramp_rate, max_current, and soak_time. These are discussed below
 
-    We must also ensure that the proper control signal is being sent to the SIM960 from the SIM921. Typically, the
-    SIM921 will attempt to send 0V to the SIM960 input monitor, but during PID regulation the error signal (scaled
-    output) is required for PID to properly run, and so the PID control is responsible for letting the SIM921 know when
-    it needs to change its output mode.
+    :param ramp_rate: The ramp rate is the rate at which current will be increased/decreased in the magnet during the
+    prepare_magnet() process. From experience using this magnet and the manual, the highest safe value to use is 5 mA/s.
+    If a higher value than that is requested, it has two choices, set the ramp_rate to the highest allowable value or
+    cause the prepare_magnet() process to fail and report/warn the user that they requested a dangerous value.
+    NOTE: The ramp_rate holds for increasing the current AND decreasing, the only difference is that in the decreasing
+    step, it will be negative.
 
-    Because we are dealing with changing environments (on the balloon) it's also necessary to be able to change/enable
-    the P, I, and D values so that the PID control loop can be tuned during operation (e.g. decreasing P if the signal
-    starts oscillating). In that vein, it's still necessary to keep P, I, D values safe and in valid ranges. This means
-    enforcing the allowable values from the SIM960 manual and ensuring the polarity (which is defined by the
-    architecture of the control loop) is not changed. NOTE: The polarity should only ever change if the control loop
-    goes through a major overhaul and the thermometry/temperature control/ADR is massively changed.
+    :param max_current: The max current is the highest current the magnet will attain during the prepare_magnet()
+    process. Physically this is limited by the voltage (which controls the current via the high current boost board) the
+    SIM960 is capable of outputting (10 V). However, the magnet can also only safely have a certain current flowing
+    through it. This value is 9.4 A. If a higher value is requested, two choices can be made: set the max_current to its
+    highest allowable value or cause prepare_magnet() to fail and report/warn the user that they requested a dangerous
+    value.
 
-    Additionally, in the case it is desirable to raise/lower the temperature of the device during regulation (e.g. 90 mK
-    is normal operating temperature and we want 100 mK for this run), that should be a configurable parameter. This
-    involves telling the SIM921 that a new resistance/temperature offset is needed. Because the SIM921 outputs the
-    conditioned signal from the device thermometer, this is the parameter that must be changed for temperature
-    regulation. Since the output is scaled to the resistance measurement deviation (not temperature), a change in
-    desired control temperature must be converted to the corresponding resistance value.
+    :param soak_time: This value will not damage the magnet, but for practical reasons should be checked. If the soak
+    time is <1 hour the hold time at base temperature risks being drastically decreased. If the soak time is >4 hours
+    it will no longer lead to an increase in hold time and simply becomes a waste of power. Within 1-4 hours, the hold
+    time will increase proportionally with the soak time, although 1 hour has been shown to be more than enough for a
+    night of observing. For these reasons, a check on soak_time is warranted and any value that are short (<1 hour) or
+    quite long (>4 hours) should be reported to the user (give them an 'Are you sure?' message).
 
-    Values that should not change during PID control are the upper and lower output limits, the setpoint mode (always
-    should be internal), and the setpoint ramping parameters (enabling setpoint ramping and the ramping rate).
-    :return: None
+    One potential idea is to have a configuration parameter that says 'change_to_safe_values'. If true, then the program
+    could report an unsafe value selection and modify it accordingly. If false, the program would not modify the values
+    and fail instead, so that the magnet preparation is not able to go on.
+    :return:
+    """
+    pass
+
+
+def ramp():
+    """
+    A general function which will allow the SIM960 agent to iteratively update its output voltage (and thus the current
+    through the ADR).
+
+    The ramp function specified here can increase, hold, or decrease the current in the magnet by modifying (or holding)
+    the voltage value output from the SIM960. This is the 'base' of increase_current_to_max(),
+    soak_magnet_at_max_current(), and decrease_current_to_zero().
+
+    It can be configured by giving it the starting value, the desired value, and the ramp rate. It needs to be smart
+    enough to determine from the endpoints the direction of the ramp (e.g. start=5 A, stop=0 A, rate=1 A/s should
+    recognize the need for a negative slope and handle it gracefully).
+
+    As this will get called after the check_magnet_prep_parameters(), it is assumed that the ramp will progress at a
+    safe level.
+
+    The way that this will function is by creating a list of values of voltages to send to the SIM960 device for it to
+    output. With that list of voltages, the SIM960 will iteratively command the voltage to change at an appropriate
+    interval.
+    NOTE: Since the ramp rates are going to be given in A/s, updating the value once per second is the natural choice
+    for this. At the same time, since the SIM960 has a .001 V resolution on its output and the highest ramp value that
+    is safe is .005 A/s, you could in principle increase the voltage by .001 V, 5 times per second for the same result
+    (with a 1 A/V conversion between output voltage and resulting current)
+
+    See prepare_magnet() for what DOES change, what CANNOT change, and what MAY change (but doesn't have to) during
+    the use of this function (since the bulk of of prepare_magnet is ramping, those values hold within the ramp
+    function). This behavior of what does/does not/may change is inherited by increase_...(), soak_...(), and
+    decrease_...() processes.
+    :return:
+    """
+    pass
+
+
+def increase_current_to_max():
+    """
+    Increase_current_to_max() is a specific use case of the ramp function. It is assumed that it will start at 0 A and
+    increase until it has reached the maximum specified current value.
+
+    This is used as the first piece of the magnet preparation. It encompasses the ramping of the magnet from 0 A to its
+    maximum value, then hands off its responsibility to soak_magnet_at_max_current().
+
+    This is the stage at which it is most likely for the magnet to quench! Because the current is steadily increasing,
+    a spike in current that is too great may cause a quench. For that reason, the monitoring program must be 'extra-
+    vigilant' (it should always be the same amount vigilant, but for emphasis here) in regards to the state of the
+    magnet current.
+    :return:
+    """
+    pass
+
+
+def soak_magnet_at_max_current():
+    """
+    soak_magnet_at_max_current is another specific use case of the ramp function. In this case, it will hold the magnet
+    at the max current value once increase_current_to_max() has ramped up the current value sufficiently. In this case
+    we are running a ramp with slope=0 (essentially I=const).
+
+    It should try to dynamically (using continual updates) keep the current at its max value (within reason, a few mA
+    of drift over the duration of the soak is not a problem) rather than statically (setting the value once and then
+    just waiting around for a set time).
+
+    A quench is unlikely at this stage, but it is important here to be monitoring the SIM960, high current boost board,
+    and magnet itself since there is a HUGE current being pushed through it.
+
+    After completing the soak, the heat switch for the ADR must be flipped from closed to an open position. It remains
+    to be decided who/what agent is responsible for that, which leaves three options:
+    1) SIM960Agent reports 'Soak Done!' via redis pubsub, and that triggers the currentduino to flip the heatswitch. In
+    the meantime, the SIM960 agent is monitoring the heat switch position and once it is open, can progress further.
+    2) The SIM960Agent sends a message saying 'soak done!' up the ladder to a higher level program. That coordinating
+    program then sends a message to the currentduino to open. Once the 'coordinator' is aware that the switch was opened
+    it tells the SIM960 as much, and it can proceed.
+
+    Once the soak is completed, open_heat_switch() is run.
+    :return:
+    """
+    pass
+
+
+def open_heat_switch():
+    """
+    See discussion in soak_magnet_at_max_current().
+
+    After the soak duration is reached, the heatswitch must be opened before the current can be decreased in the magnet.
+    If the heatswitch is not opened, then the salt pills (heat sinks) will remain in thermal contact with the LN2 bath
+    and the device stage will be unable to drop below that temperature.
+    :return:
+    """
+    pass
+
+
+def decrease_current_to_zero():
+    """
+    The inverse of increase_current_to_max(). A specific use case of the ramp function. In this case, it is assumed that
+    it will start at the max current value and decrease the current until it has reached 0 A again.
+    NOTE: There is a potential option here to smoothly transition to PID regulation once the temperature has reached the
+    operating value. It is not clear if this is recommended or useful, but instead of dropping current to 0 A and then
+    starting PID control, it may be desirable to - once the device stage is at its operating temperature - just flip
+    over to PID control.
+
+    This is the final stage of the magnet preparation before PID control. Afterwards it does not hand over
+    responsibility to the next step in the prepare_magnet() process. Optionally, it can log a successful completion of
+    the process.
+
+    It is not recommended to drop the value very fast, because to sharp a change in current can cause a quench (even
+    when decreasing current in the ADR)! For this reason, still remain extra-vigilant with respect to the possibility
+    of a quench during this stage.
+
+    :return:
+    """
+    pass
+
+
+def monitor_for_and_handle_quench():
+    """
+    This process is one that should be running at all times which continually reads the current measured by the high
+    current boost board, cache the last few values, and checkup with those values to make sure that a quench has not
+    occurred.
+
+    If it is determined that a quench has occurred, it also needs to have the capability to tell the SIM960 to drop
+    everything and drop the current to 0 A.
+
+    This is essentially a simple process, compare the most recent current value to the previous. If there is a massive,
+    sharp drop between two measured values (especially during an increasing/holding step, but at any point) then it
+    reports "A QUENCH HAS HAPPENED" and EVERYTHING must stop what it's doing and handle it.
+
+    What handling a quench entails is (in the PICTURE-C electronics rack configuration), dropping the voltage output
+    from the SIM960 to 0 V, which in turn makes it so that the high current boost board is not attempting to drive any
+    current through the magnet.
+
+    Because a quench involves the magnet going normal (having a resistance as it stops superconducting) while a huge
+    current is being run through it, that will result in heating of the fridge. With this, one of the checks to make
+    sure that the magnet has returned to a 'post-quench' state is that the temperatures (especially the device stage and
+    LN2 thermometers) have returned to normal.
+
+    However, all that being said: A quench is ultimately damaging enough that it is likely not advisable to try another
+    prepare_magnet() cycle until the cryostat is inspected for damage.
+    :return:
+    """
+    pass
+
+def PID_control():
+    """
+    TODO: Create docstring re: pid control and what must occur during it
+
+    :return:
     """
     pass
 
