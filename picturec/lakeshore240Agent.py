@@ -69,7 +69,7 @@ class LakeShore240(agent.SerialDevice):
         Overrides agent.SerialDevice format_message() function. Commands to the LakeShore 240 are all upper-case.
         *NOTE: By choice, using .upper(), if we manually store a name of a curve/module, it will be in all caps.
         """
-        return f"{msg.strip().upper()}{self.terminator}".encode("utf-8")
+        return super().format_msg(msg.strip().upper())
 
     def _postconnect(self):
         VALID_MODELS = ("MODEL240-2P", "MODEL240-8P")
