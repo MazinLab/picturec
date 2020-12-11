@@ -1,8 +1,8 @@
 """posts table
 
-Revision ID: 9c2a0a2883d8
-Revises: 020379991a75
-Create Date: 2020-12-03 16:40:06.175145
+Revision ID: 780739b227a7
+Revises: e517276bb1c2
+Create Date: 2017-09-11 12:23:25.496587
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9c2a0a2883d8'
-down_revision = '020379991a75'
+revision = '780739b227a7'
+down_revision = 'e517276bb1c2'
 branch_labels = None
 depends_on = None
 
