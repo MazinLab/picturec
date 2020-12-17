@@ -1,0 +1,22 @@
+<html>
+    <head>
+      {% if title %}
+      <title>{{ title }} - PICTURE-C</title>
+      {% else %}
+      <title>PICTURE-C Control</title>
+      {% endif %}
+    </head>
+    <body>
+        <div>
+            <table>
+                <tr>
+                    <td> <a href="{{ url_for('index') }}"> Home </a> </td>
+                    <td> <a href="{{ url_for('settings') }}"> Settings </a> </td>
+                    <td> <a href="{{ url_for('info') }}"> Info </a></td>
+                </tr>
+            </table>
+        </div>
+        <hr>
+        {% block content %}{% endblock %}
+    </body>
+</html>
