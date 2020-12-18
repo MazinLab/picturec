@@ -4,6 +4,54 @@
     <h1>
         <div><p>Welcome to the PICTURE-C Dashboard</p></div>
     </h1>
+    <div>
+        <table style="border: 1px solid black; border-collapse: collapse; float: left">
+            <caption style="text-align: center">Thermometry</caption>
+            <thead>
+                {% for header in table_headers %}
+                    <th style="text-align:center; border: 1px solid black; padding:10px"> {{ header }} </th>
+                {% endfor %}
+            </thead>
+            <tbody>
+                {% for row in table_data %}
+                    <tr>
+                    {%for value in row %}
+                        <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
+                    {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table style="border: 1px solid black; border-collapse: collapse; display: inline-block">
+            <caption style="text-align:center; padding:10px"> Magnet </caption>
+            {% for row in current_tableh %}
+            <tr>
+                {% for value in row %}
+                <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+
+        <table style="border: 1px solid black; border-collapse: collapse; display: inline-block">
+            <caption style="text-align: center">HEMTs</caption>
+            <thead>
+                {% for header in hemt_tableh %}
+                    <th style="text-align:center; border: 1px solid black; padding:10px"> {{ header }} </th>
+                {% endfor %}
+            </thead>
+            <tbody>
+                {% for row in hemt_tablev %}
+                    <tr>
+                    {%for value in row %}
+                        <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
+                    {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     <h1>
         <a href="{{ url_for('index') }}"><button> Refresh </button></a>
     </h1>
