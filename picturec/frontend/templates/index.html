@@ -5,7 +5,7 @@
         <div><p>Welcome to the PICTURE-C Dashboard</p></div>
     </h1>
     <div>
-        <table style="border: 1px solid black; border-collapse: collapse; float: left">
+        <table style="border-collapse: collapse; display: inline">
             <caption style="text-align: center">Thermometry</caption>
             <thead>
                 {% for header in table_headers %}
@@ -23,8 +23,8 @@
             </tbody>
         </table>
 
-        <table style="border: 1px solid black; border-collapse: collapse; display: inline-block">
-            <caption style="text-align:center; padding:10px"> Magnet </caption>
+        <table style="border-collapse: collapse; display: inline">
+            <caption style="text-align: center"> Magnet </caption>
             {% for row in current_tableh %}
             <tr>
                 {% for value in row %}
@@ -34,7 +34,7 @@
             {% endfor %}
         </table>
 
-        <table style="border: 1px solid black; border-collapse: collapse; display: inline-block">
+        <table style="border-collapse: collapse; display: inline">
             <caption style="text-align: center">HEMTs</caption>
             <thead>
                 {% for header in hemt_tableh %}
