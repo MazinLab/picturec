@@ -1,10 +1,23 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>
-        <div><p>Settings will go here</p></div>
-    </h1>
-    <h1>
-        <a href="{{ url_for('index') }}"><button> Go Home </button></a>
-    </h1>
+    <form action="{{ url_for('settings') }}" method="post">
+        {{ form.hidden_tag() }}
+        {% for field in form %}
+            {% if field.type == "SelectField" %}
+                <div style="padding: 10px">
+                    {{ field.label}}
+                    {{ field() }}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        <div style="padding: 10px">
+            {{ form.submit() }}
+        </div>
+
+        <div style="padding: 10px">
+            {{ messages }}
+        </div>
+    </form>
 {% endblock %}
