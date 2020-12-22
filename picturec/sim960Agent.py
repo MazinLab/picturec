@@ -41,12 +41,13 @@ DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
 
 OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'  # Set by 'MOUT' in manual mode, monitored by 'OMON?' always
 INPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'  # This is the output from the sim921 to the sim960 for PID control
-MAGNET_CURRENT_KEY = 'status:magnet:current'  # To get the current from the sim960. We will need to run a calibration
-# test to figure out what the output voltage to current conversion is.
+MAGNET_CURRENT_KEY = 'status:magnet:current'  # To get the expected current from the sim960.
+# TODO: We will need to run a calibration test to figure out what the output voltage to current conversion is.
 MAGNET_STATE_KEY = 'status:magnet:state'  # OFF | RAMPING | SOAKING | QUENCH (DON'T QUENCH!)
 HEATSWITCH_STATUS_KEY = 'status:heatswitch'  # Needs to be read to determine its status, and set by the sim960agent during
 # normal operation so it's possible to run the ramp appropriately
 HC_BOARD_CURRENT = 'status:highcurrentboard:current'  # Current from HC Boost board.
+# TODO: Determine if the high current board measures the same current as an ammeter (or if we need a correction factor)
 
 
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY,
