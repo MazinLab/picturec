@@ -11,7 +11,19 @@ from picturec.devices import COMMAND_DICT
 app = flask.Flask(__name__)
 app.config.from_object(Config)
 REDIS_DB = 0
-redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB)
+
+TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', 'status:temps:lhetank',
+           'status:temps:ln2tank', 'status:feedline1:hemt:gate-voltage-bias',
+           'status:feedline2:hemt:gate-voltage-bias', 'status:feedline3:hemt:gate-voltage-bias',
+           'status:feedline4:hemt:gate-voltage-bias', 'status:feedline5:hemt:gate-voltage-bias',
+           'status:feedline1:hemt:drain-voltage-bias', 'status:feedline2:hemt:drain-voltage-bias',
+           'status:feedline3:hemt:drain-voltage-bias', 'status:feedline4:hemt:drain-voltage-bias',
+           'status:feedline5:hemt:drain-voltage-bias', 'status:feedline1:hemt:drain-current-bias',
+           'status:feedline2:hemt:drain-current-bias', 'status:feedline3:hemt:drain-current-bias',
+           'status:feedline4:hemt:drain-current-bias', 'status:feedline5:hemt:drain-current-bias',
+           'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current']
+
+redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -19,21 +31,23 @@ redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB)
 def index():
     form = FlaskForm()
     therm_headers = ['Thermometer', 'Value']
-    therm_data = [['Device', f"{np.random.uniform(97, 103):.3f} mK"],
-                  ['LHe Tank', f"{np.random.uniform(4.1,4.3):.2f} K"],
-                  ['LN2 Tank', f"{np.random.uniform(76.7, 77.3):.2f} K"]]
+    therm_data = [['Device', f"{redis.redis_ts.get('status:temps:mkidarray:temp')[1]:.3f} mK"],
+                  ['(resistance)', f"{redis.redis_ts.get('status:temps:mkidarray:resistance')[1]:.3f} Ohms"],
+                  ['LHe Tank', f"{redis.redis_ts.get('status:temps:lhetank')[1]:.2f} K"],
+                  ['LN2 Tank', f"{redis.redis_ts.get('status:temps:ln2tank')[1]:.2f} K"]]
 
     hemt_headers = ['Hemt', 'Vg', 'Id', 'Vd']
-    hemt_vals = [["1", f"{np.random.uniform(.05, .15):.3f} V", f"{np.random.uniform(6, 12):.3f} mA", f"{np.random.uniform(.6, .8):.3f} V"],
-            ["2", f"{np.random.uniform(-1.4, -1.2):.3f} V", f"{np.random.uniform(7, 13):.3f} mA", f"{np.random.uniform(.5, .7):.3f} V"],
-            ["3", f"{np.random.uniform(-1.21, -1.01):.3f} V", f"{np.random.uniform(7, 13):.3f} mA", f"{np.random.uniform(.5, .7):.3f} V"],
-            ["4", f"{np.random.uniform(-1.31, -1.11):.3f} V", f"{np.random.uniform(7, 13):.3f} mA", f"{np.random.uniform(.5, .7):.3f} V"],
-            ["5", f"{np.random.uniform(-1.11, -.91):.3f} V", f"{np.random.uniform(10, 16):.3f} mA", f"{np.random.uniform(.4, .6):.3f} V"]]
+    hemt_vals = [["1", f"{redis.redis_ts.get('status:feedline1:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"],
+            ["2", f"{redis.redis_ts.get('status:feedline2:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"],
+            ["3", f"{redis.redis_ts.get('status:feedline3:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"],
+            ["4", f"{redis.redis_ts.get('status:feedline4:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"],
+            ["5", f"{redis.redis_ts.get('status:feedline5:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"]]
 
-    magnet_vals = [['Magnet current', f"{np.random.uniform(0,.01):.3f} A"],
-                      ['SIM960 control voltage', f"{np.random.uniform(0,.001):.3f} V"],
-                      ['Control Mode', "Manual"],
-                      ['Heat Switch', 'Closed']]
+    magnet_vals = [['Magnet current', f"{redis.redis_ts.get('status:highcurrentboard:current')[1]:.3f} A"], # TODO: Add a 'predicted voltage' value (based on SIM960 output * conversion factor)?
+                   ['SIM960 control voltage', f"{redis.redis_ts.get('status:device:sim960:hcfet-control-voltage')[1]:.3f} V"],
+                   ['Control Mode', redis.read(['device-settings:sim960:mode'])],
+                   ['Heat Switch', redis.read(['status:heatswitch'])]]  # TODO: Allow flipping here?
+
     return flask.render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data,
                                  hemt_tableh=hemt_headers, hemt_tablev=hemt_vals, current_tableh=magnet_vals)
 
@@ -81,8 +95,6 @@ class SettingForm(FlaskForm):
     sim921_curve = SelectField('SIM921 Calibration Curve', choices=make_choices('device-settings:sim921:curve-number'))
 
     submit = SubmitField('Submit', [DataRequired()])
-
-
 
 
 if __name__ == "__main__":
