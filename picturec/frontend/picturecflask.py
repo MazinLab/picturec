@@ -45,8 +45,8 @@ def index():
 
     magnet_vals = [['Magnet current', f"{redis.redis_ts.get('status:highcurrentboard:current')[1]:.3f} A"], # TODO: Add a 'predicted voltage' value (based on SIM960 output * conversion factor)?
                    ['SIM960 control voltage', f"{redis.redis_ts.get('status:device:sim960:hcfet-control-voltage')[1]:.3f} V"],
-                   ['Control Mode', redis.read(['device-settings:sim960:mode'])],
-                   ['Heat Switch', redis.read(['status:heatswitch'])]]  # TODO: Allow flipping here?
+                   ['Control Mode', redis.read(['device-settings:sim960:mode'])['device-settings:sim960:mode']],
+                   ['Heat Switch', redis.read(['status:heatswitch'])['status:heatswitch']]]  # TODO: Allow flipping here?
 
     return flask.render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data,
                                  hemt_tableh=hemt_headers, hemt_tablev=hemt_vals, current_tableh=magnet_vals)
