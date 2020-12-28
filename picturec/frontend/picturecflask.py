@@ -107,10 +107,10 @@ class SettingForm(FlaskForm):
     sim921_output_mode = SelectField('SIM921 Output Mode', choices=make_choices('device-settings:sim921:output-mode'))
     sim921_curve = SelectField('SIM921 Calibration Curve', choices=make_choices('device-settings:sim921:curve-number'))
 
-    submit = SubmitField('Submit', [DataRequired()])
+    submit = SubmitField('Update', [DataRequired()])
 
 
 if __name__ == "__main__":
 
     app.debug=True
-    app.run()
+    app.run(port=8000)
