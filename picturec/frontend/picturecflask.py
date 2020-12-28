@@ -1,6 +1,6 @@
 import flask
 from flask_wtf import FlaskForm
-from flask import request
+from flask import request, redirect, url_for
 from wtforms import SelectField, SubmitField
 from wtforms.validators import DataRequired
 from picturec.frontend.config import Config
@@ -56,10 +56,23 @@ def index():
 def settings():
     form = SettingForm()
     if request.method == 'POST':
-        print('validated')
+        # TODO: There must be a different better way to do this (matching redis keys to field labels)
+        keys = ['device-settings:sim960:mode', 'device-settings:sim960:setpoint-mode',
+                'device-settings:sim960:setpoint-ramp-enable', 'device-settings:sim960:pid-p:enabled',
+                'device-settings:sim960:pid-i:enabled', 'device-settings:sim960:pid-d:enabled',
+                'device-settings:sim921:resistance-range', 'device-settings:sim921:excitation-value',
+                'device-settings:sim921:excitation-mode', 'device-settings:sim921:time-constant',
+                'device-settings:sim921:output-mode', 'device-settings:sim921:curve-number']
+        desired_vals = form.data
+        current_vals = redis.read(keys)
+        for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
+            if v1 != v2:
+                print(f"Change {k1} from {v1} to {v2}")
+                redis.publish(k1, v2)
+
+        return redirect(url_for('settings'))
     else:
-        print('unvalidated')
-    return flask.render_template('settings.html', title='Settings', form=form)
+        return flask.render_template('settings.html', title='Settings', form=form)
 
 
 @app.route('/info', methods=['GET', 'POST'])
