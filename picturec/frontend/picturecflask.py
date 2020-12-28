@@ -82,10 +82,10 @@ def info():
 
 
 def make_choices(key):
-    current_value = redis.read([key])
+    current_value = redis.read([key])[key]
     rest = list(COMMAND_DICT[key]['vals'].keys())
-    choice = [current_value[key]]
-    rest.remove(choice[0])
+    choice = [current_value]
+    rest.remove(current_value)
     for i in rest:
         choice.append(i)
     print(choice)
