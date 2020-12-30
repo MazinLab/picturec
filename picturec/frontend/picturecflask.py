@@ -36,12 +36,12 @@ def index():
                   ['LHe Tank', f"{redis.redis_ts.get('status:temps:lhetank')[1]:.2f} K"],
                   ['LN2 Tank', f"{redis.redis_ts.get('status:temps:ln2tank')[1]:.2f} K"]]
 
-    hemt_headers = ['Hemt', 'Vg', 'Id', 'Vd']
-    hemt_vals = [["1", f"{redis.redis_ts.get('status:feedline1:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"],
-            ["2", f"{redis.redis_ts.get('status:feedline2:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"],
-            ["3", f"{redis.redis_ts.get('status:feedline3:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"],
-            ["4", f"{redis.redis_ts.get('status:feedline4:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"],
-            ["5", f"{redis.redis_ts.get('status:feedline5:hemt:gate-voltage-bias')[1]:.3f} V", f"{redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1] / 0.1:.3f} mA", f"{redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]:.3f} V"]]
+    hemt_headers = ['HEMT', 'Vg', 'Id', 'Vd']
+    hemt_vals = [["1", 'status:feedline1:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias'],
+            ["2", 'status:feedline2:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias'],
+            ["3", 'status:feedline3:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias'],
+            ["4", 'status:feedline4:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias'],
+            ["5", 'status:feedline5:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias']]
 
     magnet_vals = [['Magnet current', f"{redis.redis_ts.get('status:highcurrentboard:current')[1]:.3f} A"], # TODO: Add a 'predicted voltage' value (based on SIM960 output * conversion factor)?
                    ['SIM960 control voltage', f"{redis.redis_ts.get('status:device:sim960:hcfet-control-voltage')[1]:.3f} V"],
@@ -51,6 +51,12 @@ def index():
     return render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data,
                                  hemt_tableh=hemt_headers, hemt_tablev=hemt_vals, current_tableh=magnet_vals)
 
+
+@app.route('/report', methods=['POST'])
+def report():
+    info = redis.redis_ts.get(request.form['key'])
+    return jsonify({'value': info[1],
+                    'time': info[0]})
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():

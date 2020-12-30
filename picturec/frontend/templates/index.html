@@ -45,7 +45,13 @@
                 {% for row in hemt_tablev %}
                     <tr>
                     {%for value in row %}
-                        <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
+                        <td style="text-align:center; border: 1px solid black; padding:10px">
+                            <span id="key{{value}}">
+                                <a href="javascript:refresh(
+                                    '#key{{value}}',
+                                    '{{value}}')">{{ value }}</a>
+                            </span>
+                        </td>
                     {% endfor %}
                     </tr>
                 {% endfor %}
@@ -55,4 +61,19 @@
     <h1>
         <a href="{{ url_for('index') }}"><button> Refresh </button></a>
     </h1>
+{% endblock %}
+
+
+{% block scripts %}
+    <script>
+        setInterval(function refresh(dest_elem, request_key) {
+            $.post('/report', {
+                key: request_key
+            }).done(function(response){
+                $(destElem).text(response['value'])
+            }).fail(function() {
+                $(destElem).text('No value available')
+            })
+        }, 1000)
+    </script>
 {% endblock %}
