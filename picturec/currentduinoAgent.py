@@ -67,6 +67,9 @@ class Currentduino(agent.SerialDevice):
         response = self.query('?', connect=True)
         try:
             value = float(response.split(' ')[0])
+            # TODO: The value of the current measured here assumes that there is no error (i.e. it's what an ammeter
+            #  would read). Measure the values read out compared to an ammeter to make sure this is true or account for
+            #  it if not
             current = (value * (5.0 / 1023.0) * ((R1 + R2) / R2))
         except ValueError:
             raise ValueError(f"Could not parse '{response}' into a float")

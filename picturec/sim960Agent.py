@@ -351,7 +351,7 @@ if __name__ == "__main__":
     sim = SIM960(port=DEVICE, baudrate=9600, timeout=0.1, connection_callback=initialize)
 
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
-    OUTPUT_TO_CURRENT_FACTOR = 1  # V/A (TODO: Measure this value)
+    OUTPUT_TO_CURRENT_FACTOR = 1  # 1 A/V (TODO: Measure this value)
     def callback(iv, ov):
         d = {}
         for k, val in zip((INPUT_VOLTAGE_KEY, OUTPUT_VOLTAGE_KEY), (iv, ov)):
