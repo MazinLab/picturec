@@ -1,10 +1,10 @@
 import flask
 from flask_wtf import FlaskForm
-from flask import request, redirect, url_for
+from flask import request, redirect, url_for, render_template, jsonify
 from wtforms import SelectField, SubmitField
 from wtforms.validators import DataRequired
+
 from picturec.frontend.config import Config
-import numpy as np
 from picturec.pcredis import PCRedis
 from picturec.devices import COMMAND_DICT
 
@@ -48,7 +48,7 @@ def index():
                    ['Control Mode', redis.read(['device-settings:sim960:mode'])['device-settings:sim960:mode']],
                    ['Heat Switch', redis.read(['status:heatswitch'])['status:heatswitch']]]  # TODO: Allow flipping here?
 
-    return flask.render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data,
+    return render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data,
                                  hemt_tableh=hemt_headers, hemt_tablev=hemt_vals, current_tableh=magnet_vals)
 
 
@@ -72,13 +72,13 @@ def settings():
 
         return redirect(url_for('settings'))
     else:
-        return flask.render_template('settings.html', title='Settings', form=form)
+        return render_template('settings.html', title='Settings', form=form)
 
 
 @app.route('/info', methods=['GET', 'POST'])
 def info():
     form = FlaskForm()
-    return flask.render_template('info.html', title='Info', form=form)
+    return render_template('info.html', title='Info', form=form)
 
 
 def make_choices(key):
