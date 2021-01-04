@@ -3,6 +3,7 @@ from flask_wtf import FlaskForm
 from flask import request, redirect, url_for, render_template, jsonify
 from wtforms import SelectField, SubmitField
 from wtforms.validators import DataRequired
+import numpy as np
 
 from picturec.frontend.config import Config
 from picturec.pcredis import PCRedis
@@ -37,11 +38,11 @@ def index():
                   ['LN2 Tank', f"{redis.redis_ts.get('status:temps:ln2tank')[1]:.2f} K"]]
 
     hemt_headers = ['HEMT', 'Vg', 'Id', 'Vd']
-    hemt_vals = [["1", 'status:feedline1:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias'],
-            ["2", 'status:feedline2:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias'],
-            ["3", 'status:feedline3:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias'],
-            ["4", 'status:feedline4:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias'],
-            ["5", 'status:feedline5:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias']]
+    hemt_vals = [["1", redis.redis_ts.get('status:feedline1:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]],
+            ["2", redis.redis_ts.get('status:feedline2:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline2:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline2:hemt:drain-voltage-bias')[1]],
+            ["3", redis.redis_ts.get('status:feedline3:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline3:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline3:hemt:drain-voltage-bias')[1]],
+            ["4", redis.redis_ts.get('status:feedline4:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline4:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline4:hemt:drain-voltage-bias')[1]],
+            ["5", redis.redis_ts.get('status:feedline5:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline5:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline5:hemt:drain-voltage-bias')[1]]]
 
     magnet_vals = [['Magnet current', f"{redis.redis_ts.get('status:highcurrentboard:current')[1]:.3f} A"], # TODO: Add a 'predicted voltage' value (based on SIM960 output * conversion factor)?
                    ['SIM960 control voltage', f"{redis.redis_ts.get('status:device:sim960:hcfet-control-voltage')[1]:.3f} V"],
@@ -51,12 +52,6 @@ def index():
     return render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data,
                                  hemt_tableh=hemt_headers, hemt_tablev=hemt_vals, current_tableh=magnet_vals)
 
-
-@app.route('/report', methods=['POST'])
-def report():
-    info = redis.redis_ts.get(request.form['key'])
-    return jsonify({'value': info[1],
-                    'time': info[0]})
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -85,6 +80,20 @@ def settings():
 def info():
     form = FlaskForm()
     return render_template('info.html', title='Info', form=form)
+
+
+@app.route('/report', methods=['POST'])
+def report():
+    # return jsonify({'value': grab_redis_value(request.form['key'])})
+    return jsonify({'value': np.random.randint(0, 100)})
+
+
+def grab_redis_value(key):
+    if key in redis.redis.key('*'):
+        info = redis.redis_ts.get(key)
+    else:
+        info = [0, key]
+    return info
 
 
 def make_choices(key):

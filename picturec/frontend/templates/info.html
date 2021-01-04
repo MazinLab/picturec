@@ -7,3 +7,16 @@
         <a href="{{ url_for('index') }}"><button> Home </button></a>
     </h1>
 {% endblock %}
+
+{% block scripts %}
+    <script>
+        function grab(sourceElem, destElem, r_key) {
+            $.post('/report', {
+                key: r_key
+            }).done(function(response) {
+                $(destElem).text(response['value'])
+                }
+            );
+        }
+    </script>
+{% endblock %}

@@ -4,6 +4,7 @@
     <h1>
         <div><p>Welcome to the PICTURE-C Dashboard</p></div>
     </h1>
+    <head><script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script></head>
     <div>
         <table style="border-collapse: collapse; display: inline">
             <caption style="text-align: center">Thermometry</caption>
@@ -46,11 +47,7 @@
                     <tr>
                     {%for value in row %}
                         <td style="text-align:center; border: 1px solid black; padding:10px">
-                            <span id="key{{value}}">
-                                <a href="javascript:refresh(
-                                    '#key{{value}}',
-                                    '{{value}}')">{{ value }}</a>
-                            </span>
+                            {{ value }}
                         </td>
                     {% endfor %}
                     </tr>
@@ -61,19 +58,4 @@
     <h1>
         <a href="{{ url_for('index') }}"><button> Refresh </button></a>
     </h1>
-{% endblock %}
-
-
-{% block scripts %}
-    <script>
-        setInterval(function refresh(dest_elem, request_key) {
-            $.post('/report', {
-                key: request_key
-            }).done(function(response){
-                $(destElem).text(response['value'])
-            }).fail(function() {
-                $(destElem).text('No value available')
-            })
-        }, 1000)
-    </script>
 {% endblock %}
