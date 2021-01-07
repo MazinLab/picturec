@@ -9,14 +9,10 @@
 
     <div>
         Here is the AJAX variable to test! ->
-        <span id="id{{ anim_var[0] }}">
-            {{ anim_var[0] }}
-        </span>
-        <span id="dest{{ anim_var[0] }}">
-            <a href="javascript:doStuff(
-            '#id{{ anim_var[0] }}',
-            '#dest{{ anim_var[0] }}',
-            '{{ anim_var[0] }}');"> Replace this </a>
+        <span id="id_{{anim_var[0]}}">
+            <body onload="javascript:doMore(
+            '#id_{{anim_var[0]}}',
+            '{{ anim_var[0] }}')"> {{ anim_var[0] }} </body>
         </span>
     </div>
 {% endblock %}

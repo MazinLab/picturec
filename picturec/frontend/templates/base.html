@@ -34,16 +34,19 @@
 {% block scripts %}
     {{ super() }}
     <script>
-        function doStuff(src, dest, opt) {
+        function doStuff(dest, opt) {
             $.post('/report', {
                 abcd: opt,
-                x: src,
                 d: dest
             }).done(function(response) {
                 $(dest).text(response['text'])
             }).fail(function() {
                 $(dest).text('Failure');
             });
+        }
+
+        function doMore(dest, opt) {
+            setInterval( function () { doStuff(dest, opt); }, 1000);
         }
     </script>
 {% endblock %}

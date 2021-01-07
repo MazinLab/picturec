@@ -81,7 +81,7 @@ def settings():
 @app.route('/info', methods=['GET', 'POST'])
 def info():
     form = FlaskForm()
-    anim_var = ['key!']
+    anim_var = ['key_key']
     return render_template('info.html', title='Info', form=form, anim_var=anim_var)
 
 
@@ -89,7 +89,7 @@ def info():
 def report():
     print('Ive been called')
     print(request.form['abcd'])
-    print(request.form['x'], request.form['d'])
+    print(request.form['d'])
     # return jsonify({'value': grab_redis_value(request.form['key'])})
     dictionary = {'text': str(np.random.randint(0, 100))}
     print(dictionary)
