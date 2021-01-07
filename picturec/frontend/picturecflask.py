@@ -1,5 +1,6 @@
 import flask
 from flask_wtf import FlaskForm
+from flask_bootstrap import Bootstrap
 from flask import request, redirect, url_for, render_template, jsonify
 from wtforms import SelectField, SubmitField
 from wtforms.validators import DataRequired
@@ -10,6 +11,7 @@ from picturec.pcredis import PCRedis
 from picturec.devices import COMMAND_DICT
 
 app = flask.Flask(__name__)
+bootstrap = Bootstrap(app)
 app.config.from_object(Config)
 REDIS_DB = 0
 
@@ -79,13 +81,19 @@ def settings():
 @app.route('/info', methods=['GET', 'POST'])
 def info():
     form = FlaskForm()
-    return render_template('info.html', title='Info', form=form)
+    anim_var = ['key!']
+    return render_template('info.html', title='Info', form=form, anim_var=anim_var)
 
 
 @app.route('/report', methods=['POST'])
 def report():
+    print('Ive been called')
+    print(request.form['abcd'])
+    print(request.form['x'], request.form['d'])
     # return jsonify({'value': grab_redis_value(request.form['key'])})
-    return jsonify({'value': np.random.randint(0, 100)})
+    dictionary = {'text': str(np.random.randint(0, 100))}
+    print(dictionary)
+    return jsonify(dictionary)
 
 
 def grab_redis_value(key):

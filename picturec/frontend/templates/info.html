@@ -6,17 +6,18 @@
     <h1>
         <a href="{{ url_for('index') }}"><button> Home </button></a>
     </h1>
+
+    <div>
+        Here is the AJAX variable to test! ->
+        <span id="id{{ anim_var[0] }}">
+            {{ anim_var[0] }}
+        </span>
+        <span id="dest{{ anim_var[0] }}">
+            <a href="javascript:doStuff(
+            '#id{{ anim_var[0] }}',
+            '#dest{{ anim_var[0] }}',
+            '{{ anim_var[0] }}');"> {{ anim_var[0] }} </a>
+        </span>
+    </div>
 {% endblock %}
 
-{% block scripts %}
-    <script>
-        function grab(sourceElem, destElem, r_key) {
-            $.post('/report', {
-                key: r_key
-            }).done(function(response) {
-                $(destElem).text(response['value'])
-                }
-            );
-        }
-    </script>
-{% endblock %}

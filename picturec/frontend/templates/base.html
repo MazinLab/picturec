@@ -1,22 +1,49 @@
-<html>
-    <head>
-      {% if title %}
-      <title>{{ title }} - PICTURE-C</title>
-      {% else %}
-      <title>PICTURE-C Control</title>
-      {% endif %}
-    </head>
-    <body>
-        <div>
-            <table>
-                <tr>
-                    <td> <a href="{{ url_for('index') }}"> Home </a> </td>
-                    <td> <a href="{{ url_for('settings') }}"> Settings </a> </td>
-                    <td> <a href="{{ url_for('info') }}"> Info </a></td>
-                </tr>
-            </table>
+{% extends 'bootstrap/base.html' %}
+
+{% block title %}
+  {% if title %}
+  {{ title }} - PICTURE-C
+  {% else %}
+  PICTURE-C Control
+  {% endif %}
+{% endblock %}
+
+{% block navbar %}
+    <nav class="navbar navbar-default">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="{{ url_for('index') }}">PICTURE-C</a>
+            </div>
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    <li><a href="{{ url_for('index') }}">Home</a></li>
+                    <li><a href="{{ url_for('settings') }}">Settings</a></li>
+                    <li><a href="{{ url_for('info') }}">Info</a></li>
+                </ul>
+            </div>
         </div>
-        <hr>
-        {% block content %}{% endblock %}
-    </body>
-</html>
+    </nav>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        function doStuff(src, dest, opt) {
+            $.post('/report', {
+                abcd: opt,
+                x: src,
+                d: dest
+            }).done(function(response) {
+                $(dest).text(response['text'])
+            }).fail(function() {
+                $(dest).text('Failure');
+            });
+        }
+    </script>
+{% endblock %}
