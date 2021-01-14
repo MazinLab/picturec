@@ -113,7 +113,7 @@ class MagnetController(Machine):
     BLOCKS = {}  # TODO This holds the sim960 commands that are blocked out in a given state i.e.
                  #  'regulating':('device-settings:sim960:setpoint-mode',)
 
-    def __init__(self, sim, initial='off'):
+    def __init__(self, statefile='./magnetstate.txt'):
         transitions = [
             #Allow aborting from any point, trigger will always succeed
             {'trigger': 'abort', 'source': '*', 'dest': 'deramping'},
@@ -199,15 +199,99 @@ class MagnetController(Machine):
                   # Entering ramping MUST succeed
                   State('deramping', on_enter='record_entry'))
 
+        sim = SIM960(port=DEVICE, baudrate=9600, timeout=0.1, initializer=self.initialize_sim)
+        # note that if the settings are not manufacturer defaults then the program is restarting. if the settings are
+        # manufacturer defaults then the sim960 had an upset
+
+        # Kick off a thread to run forever and just log data into redis
+        # TODO consider bundling these into a sim960.monitor_values function to simplify redundant serial comm.
+        sim.monitor(QUERY_INTERVAL, (sim.input_voltage, sim.output_voltage, sim.setpoint),
+                    value_callback=monitor_callback)
+
+        self.statefile = statefile
         self.sim = sim
+
+        initial = self.compute_initial_state()
+
         self.scheduled_cooldown = None
-        self.state_entry_time = {initial: time.time()}
         self._run = False  # Set to false to kill the main loop
         self._main = None
 
+        self.state_entry_time = {initial: time.time()}
         Machine.__init__(self, transitions=transitions, initial=initial, states=states)
-
         self.start_main()
+
+    def initialize_sim(self):
+        """
+        Callback run on connection to the sim whenever it is not initialized.
+        Any settings applied take immediate effect
+        """
+        sim = self.sim
+        log = getLogger(__name__)
+        # Grab and store device info
+        try:
+            info = sim.device_info
+            d = {FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['sn']}
+        except IOError as e:
+            log.error(f"When checking device info: {e}")
+            d = {FIRMWARE_KEY: '', MODEL_KEY: '', SN_KEY: ''}
+
+        try:
+            redis.store(d)
+        except RedisError:
+            log.warning('Storing device info to redis failed')
+
+        try:
+            settings_to_load = redis.read(SETTING_KEYS, error_missing=True)
+        except RedisError:
+            log.critical('Unable to pull settings from redis to initialize sim960')
+            raise IOError
+        except KeyError as e:
+            log.critical('Unable to pull setting {e} from redis to initialize sim960')
+            raise IOError
+
+        # TODO add self.BLOCKS[self.state] check here. The init chronology is pretty important so need to think
+        #  carefully
+        initialized_settings = sim.apply_schema_settings(settings_to_load)
+
+        try:
+            redis.store(initialized_settings)
+        except RedisError:
+            log.warning('Storing device settings to redis failed')
+
+    def compute_initial_state(self):
+        initial_state = 'deramping'
+        try:
+            if self.sim.initialized_at_last_connect:
+                mag_state = self.sim.mode
+                if mag_state == MagnetState.PID:
+                    initial_state = 'regulating'  # NB if HS wrong device won't stay cold and we'll transition to deramping
+                else:
+                    initial_state = load_persisted_state(self.statefile)
+                    current = self.sim.setpoint
+                    if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
+                        initial_state = 'ramping'  # we can recover
+
+                    # be sure the command is sent
+                    if initial_state in ('hs_closing',):
+                        heatswitch.close()
+
+                    if initial_state in ('hs_opening',):
+                        heatswitch.open()
+
+                    # failure cases
+                    if ((initial_state in ('ramping', 'soaking') and heatswitch.is_opened()) or
+                            (initial_state in ('cooling',) and heatswitch.is_closed()) or
+                            (initial_state in ('off', 'regulating'))):
+                        initial_state = 'deramping'  # deramp to off, we are out of sync with the hardware
+
+        except IOError:
+            getLogger(__name__).critical('Lost sim960 connection during agent startup. defaulting to deramping')
+            initial_state = 'deramping'
+        except RedisError:
+            getLogger(__name__).critical('Lost redis connection during agent startup. Exiting')
+            raise
+        return initial_state
 
     def start_main(self):
         self._run = True  # Set to false to kill the m
@@ -385,15 +469,19 @@ class MagnetController(Machine):
             msg = f'Command {cmd} not supported while in state {self.state}'
             getLogger(__name__).error(msg)
             raise StateError(msg)
-        sim.send(cmd)
+        self.sim.send(cmd)
 
     def record_entry(self, event):
         self.state_entry_time[self.state] = time.time()
-        try:
-            with open(STATEFILE_PATH_KEY, 'w') as f:
-                f.write(self.state)
-        except IOError:
-            getLogger(__name__).warning('Unable to log state entry', exc_info=True)
+        write_persisted_state(self.statefile, self.state)
+
+
+def write_persisted_state(statefile, state):
+    try:
+        with open(statefile, 'w') as f:
+            f.write(f'{time.time()}: {state}')
+    except IOError:
+        getLogger(__name__).warning('Unable to log state entry', exc_info=True)
 
 
 def load_persisted_state(statefile):
@@ -414,103 +502,11 @@ def monitor_callback(iv, ov, oc):
         getLogger(__name__).warning('Storing magnet status to redis failed')
 
 
-def initialize(sim):
-    """
-    Callback run on connection to the sim whenever it is not initialized.
-    Any settings applied take immediate effect
-    """
-    log = getLogger(__name__)
-    # Grab and store device info
-    try:
-        info = sim.device_info
-        d = {FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['sn']}
-    except IOError as e:
-        log.error(f"When checking device info: {e}")
-        d = {FIRMWARE_KEY: '', MODEL_KEY: '', SN_KEY: ''}
-
-    try:
-        redis.store(d)
-    except RedisError:
-        log.warning('Storing device info to redis failed')
-
-    try:
-        settings_to_load = redis.read(SETTING_KEYS, error_missing=True)
-    except RedisError:
-        log.critical('Unable to pull settings from redis to initialize sim960')
-        raise IOError
-    except KeyError as e:
-        log.critical('Unable to pull setting {e} from redis to initialize sim960')
-        raise IOError
-
-    initialized_settings = sim.apply_schema_settings(settings_to_load)
-
-    try:
-        redis.store(initialized_settings)
-    except RedisError:
-        log.warning('Storing device settings to redis failed')
-
-
 if __name__ == "__main__":
 
     util.setup_logging()
     redis.setup_redis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
-    sim = SIM960(port=DEVICE, baudrate=9600, timeout=0.1, initializer=initialize)
-    # note that if the settings are not manufacturer defaults then the program is restarting. if the settings are
-    # manufacturer defaults then the sim960 had an upset
-
-    # Kick off a thread to run forever and just log data into redis
-    # TODO consider bundling these into a sim960.monitor_values function to simplify redundant serial comm.
-    sim.monitor(QUERY_INTERVAL, (sim.input_voltage, sim.output_voltage, sim.setpoint), value_callback=monitor_callback)
-
-    initial_state = 'deramping'
-    try:
-        STATEFILE = redis.read(STATEFILE_PATH_KEY)
-        if sim.initialized_at_last_connect:
-            mag_state = sim.mode
-            if mag_state == MagnetState.PID:
-                initial_state = 'regulating'  # NB if HS wrong device won't stay cold and we'll transition to deramping
-            else:
-                initial_state = load_persisted_state(STATEFILE)
-                current = sim.setpoint
-                if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
-                    initial_state = 'ramping'  # we can recover
-
-                # be sure the command is sent
-                if initial_state in ('hs_closing',):
-                    heatswitch.close()
-
-                if initial_state in ('hs_opening',):
-                    heatswitch.open()
-
-                # failure cases
-                if ((initial_state in ('ramping', 'soaking') and heatswitch.is_opened()) or
-                        (initial_state in ('cooling',) and heatswitch.is_closed()) or
-                        (initial_state in ('off', 'regulating'))):
-                    initial_state = 'deramping'  # deramp to off, we are out of sync with the hardware
-
-    except IOError:
-        getLogger(__name__).critical('Lost sim960 connection during agent startup. Exiting')
-        sys.exit(1)
-    except RedisError:
-        getLogger(__name__).critical('Lost redis connection during agent startup. Exiting')
-        sys.exit(1)
-
-
-    # NB initial will not execute on entry callback, allowing jumping into regulating if device is cold. For example if
-    # the sim had an upset and was not configured we can't reliably pickup where we left off but we can avoid changing
-    # the HS state thereby allowing manual resumption
-    controller = MagnetController(sim, initial=initial_state)
-
-    # TODO At this point it is possible that the sim state and the settings keys are out of sync:
-    # Sim kept its initialization, program died, redis had updates, program came back up.
-    # initialize would not have been called. I'm not clear on where/how to handle this.
-    # if it is always safe to load all the settings keys regardless of state then we could just explicitly call
-    # initialize(sim) but if there are blocks initialize doesn't have the protection code
-
-    # TODO along those lines, if while running the sim goes down and loses its initialization the state machine will
-    # wind up with IO errors whihc it will just plow on through. When the sim comes back up it will self initialize
-    # to a very different internal configbut the machine will be none the wiser any may well need to transition to
-    # deramping
+    controller = MagnetController(statefile=redis.read(STATEFILE_PATH_KEY))
 
     # main loop, listen for commands and handle them
     try:
@@ -548,7 +544,7 @@ if __name__ == "__main__":
 
     except RedisError as e:
         getLogger(__name__).critical(f"Redis server error! {e}", exc_info=True)
-        # TODO insert something to supress the concomitant redis monitor thread errors that will spam logs?
+        # TODO insert something to suppress the concomitant redis monitor thread errors that will spam logs?
         controller.deramp()
 
         try:
