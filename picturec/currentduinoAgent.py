@@ -11,6 +11,8 @@ TODO: Add ability to compare current value from high current board ('status:high
  of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
 
 TODO: Test the heat switch touch signals to have an open/closed monitor (in lab)
+TODO: Also measure magnet-current-to-currentduino-measurement conversion (does the currentduino report the same thing we
+ measure with an ammeter?)
 """
 
 import sys
@@ -46,6 +48,26 @@ R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
 log = logging.getLogger(__name__)
+
+
+def close():
+    import picturec.pcredis as pcr
+    pcr.store(HEATSWITCH_MOVE_KEY, 'close')
+
+
+def open():
+    import picturec.pcredis as pcr
+    pcr.store(HEATSWITCH_MOVE_KEY, 'open')
+
+
+def is_opened():
+    import picturec.pcredis as pcr
+    return pcr.read(HEATSWITCH_STATUS_KEY) == 'opened'
+
+
+def is_closed():
+    import picturec.pcredis as pcr
+    return pcr.read(HEATSWITCH_STATUS_KEY) == 'closed'
 
 
 class Currentduino(agent.SerialDevice):
@@ -199,4 +221,3 @@ if __name__ == "__main__":
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
             break
-

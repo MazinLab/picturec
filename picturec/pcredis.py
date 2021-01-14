@@ -212,3 +212,15 @@ class PCRedis(object):
         :return: None.
         """
         print(f"Default message handler: {message}")
+
+
+pcredis = None
+store = None
+read = None
+listen = None
+def setup_redis(host='localhost', port=6379, db=0, create_ts_keys=tuple()):
+    global pcredis, store, read, listen
+    pcredis = PCRedis(host=host, port=port, db=db, create_ts_keys=create_ts_keys)
+    store = pcredis.store
+    read = pcredis.read
+    listen = pcredis.listen

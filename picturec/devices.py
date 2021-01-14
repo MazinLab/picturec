@@ -1,4 +1,5 @@
 import numpy as np
+import enum
 import logging
 import time
 import sys
@@ -11,41 +12,41 @@ import picturec.util as util
 log = logging.getLogger(__name__)
 
 COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {'20e-3': '0', '200e-3': '1', '2': '2',
-                                                                                        '20': '3', '200': '4', '2e3': '5',
-                                                                                        '20e3': '6', '200e3': '7',
-                                                                                        '2e6': '8', '20e6': '9'}},
-                'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {'0': '-1', '3e-6': '0', '10e-6': '1',
-                                                                                        '30e-6': '2', '100e-6': '3',
-                                                                                        '300e-6': '4', '1e-3': '5',
-                                                                                        '3e-3': '6', '10e-3': '7', '30e-3': '8'}},
-                'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1',
-                                                                                       'voltage': '2', 'power': '3'}},
-                'device-settings:sim921:time-constant': {'command': 'TCON', 'vals': {'0.3': '0', '1': '1', '3': '2', '10': '3',
-                                                                                     '30': '4', '100': '5', '300': '6'}},
-                'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0.050, 40]},
-                'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [1049.08, 63765.1]},
-                'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
-                'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-5]},
-                'device-settings:sim921:output-mode': {'command': 'AMAN', 'vals': {'scaled': '0', 'manual': '1'}},
-                'device-settings:sim921:manual-vout': {'command': 'AOUT', 'vals': [-10, 10]},
-                'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {'1': '1', '2': '2', '3': '3'}},
-                }
+                                                                                       '20': '3', '200': '4', '2e3': '5',
+                                                                                       '20e3': '6', '200e3': '7',
+                                                                                       '2e6': '8', '20e6': '9'}},
+               'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {'0': '-1', '3e-6': '0', '10e-6': '1',
+                                                                                       '30e-6': '2', '100e-6': '3',
+                                                                                       '300e-6': '4', '1e-3': '5',
+                                                                                       '3e-3': '6', '10e-3': '7', '30e-3': '8'}},
+               'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1',
+                                                                                      'voltage': '2', 'power': '3'}},
+               'device-settings:sim921:time-constant': {'command': 'TCON', 'vals': {'0.3': '0', '1': '1', '3': '2', '10': '3',
+                                                                                    '30': '4', '100': '5', '300': '6'}},
+               'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0.050, 40]},
+               'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [1049.08, 63765.1]},
+               'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
+               'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-5]},
+               'device-settings:sim921:output-mode': {'command': 'AMAN', 'vals': {'scaled': '0', 'manual': '1'}},
+               'device-settings:sim921:manual-vout': {'command': 'AOUT', 'vals': [-10, 10]},
+               'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {'1': '1', '2': '2', '3': '3'}},
+               }
 
 COMMANDS960 = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'manual': '0', 'pid': '1'}},
-                'device-settings:sim960:vout-value': {'command': 'MOUT', 'vals': [-10, 10]},
-                'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
-                'device-settings:sim960:vout-max-limit': {'command': 'ULIM', 'vals': [-10, 10]},
-                'device-settings:sim960:setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
-                'device-settings:sim960:pid-control-vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
-                'device-settings:sim960:pid-p:value': {'command': 'GAIN', 'vals': [-1e3, -1e-1]},
-                'device-settings:sim960:pid-i:value': {'command': 'INTG', 'vals': [1e-2, 5e5]},
-                'device-settings:sim960:pid-d:value': {'command': 'DERV', 'vals': [0, 1e1]},
-                'device-settings:sim960:setpoint-ramp-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},  # Note: Internal setpoint ramp, NOT magnet ramp
-                'device-settings:sim960:setpoint-ramp-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},  # Note: Internal setpoint ramp rate, NOT magnet ramp
-                'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
-                'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
-                'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
-                }
+               'device-settings:sim960:vout-value': {'command': 'MOUT', 'vals': [-10, 10]},
+               'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
+               'device-settings:sim960:vout-max-limit': {'command': 'ULIM', 'vals': [-10, 10]},
+               'device-settings:sim960:setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
+               'device-settings:sim960:pid-control-vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
+               'device-settings:sim960:pid-p:value': {'command': 'GAIN', 'vals': [-1e3, -1e-1]},
+               'device-settings:sim960:pid-i:value': {'command': 'INTG', 'vals': [1e-2, 5e5]},
+               'device-settings:sim960:pid-d:value': {'command': 'DERV', 'vals': [0, 1e1]},
+               'device-settings:sim960:setpoint-ramp-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},  # Note: Internal setpoint ramp, NOT magnet ramp
+               'device-settings:sim960:setpoint-ramp-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},  # Note: Internal setpoint ramp rate, NOT magnet ramp
+               'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
+               'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
+               'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
+               }
 
 COMMAND_DICT={}
 COMMAND_DICT.update(COMMANDS960)
@@ -96,17 +97,31 @@ class SimCommand(object):
         v = self.mapping[self.value] if self.range is None else self.value
         return f"{self.command} {v}"
 
+    @property
+    def sim_query_string(self):
+        """ Returns the corresponding command string to query for the setting if available"""
+        #TODO Noah is this right?
+        return f"{self.command} ?"
+
 
 class SimDevice(agent.SerialDevice):
-    def __init__(self, name, port, baudrate=9600, timeout=0.1, connect=True, connection_callback=None):
+    def __init__(self, name, port, baudrate=9600, timeout=0.1, connect=True, initilizer=None):
+        """The initialize callback is called after _simspecificconnect iff _initialized is false. The callback
+        will be passed this object and should raise IOError if the device can not be initialized. If it completes
+        without exception (or is not specified) the device will then be considered initialized
+        The .initialized_at_last_connect attribute may be checked to see if initilization ran.
+        """
+
         super().__init__(port, baudrate, timeout, name=name)
 
         self.sn = None
         self.firmware = None
         self.mainframe_slot = None
         self.mainframe_exitstring = 'XYZ'
-        self.connection_callback = connection_callback
+        self.initilizer = initilizer
         self._monitor_thread = None
+        self._initialized = False
+        self.initialized_at_last_connect = False
         if connect:
             self.connect(raise_errors=False)
 
@@ -189,31 +204,37 @@ class SimDevice(agent.SerialDevice):
 
         self._simspecificconnect()
 
-        if self.connection_callback is not None:
-            self.connection_callback(self)
+        if self.initilizer and not self._initialized:
+            self.initilizer(self)
+            self._initialized = True
 
     @property
     def device_info(self):
-        self.connect()
+        self.connect(reconnect=False)
         return dict(model=self.name, firmware=self.firmware, sn=self.sn)
 
-    def initialize_sim(self, settings_to_load):
-        """ Initialize the sim with the settings per the picturec schema keys
+    def apply_schema_settings(self, settings_to_load):
+        """
+        Configure the sim device with a dict of redis settings via SimCommand translation
 
-        In the event of an IO error during configuration XXX
-        In the even that a setting is not taken XXX
+        In the event of an IO error configuration is aborted and the IOError raised. Partial configuration is possible
+        In the even that a setting is not valid it is skipped
 
         Returns the sim settings and the values per the schema
-
-        #TODO JB: whats the return if they only get partially set? do we need to take action?
-        # what about if there are IO errors?
         """
+        ret = {}
         for setting, value in settings_to_load.items():
-            cmd = SimCommand(setting, value)
-            log.debug(cmd)
-            self.send(cmd.sim_string)
-            time.sleep(0.1)
-        return settings_to_load
+            try:
+                cmd = SimCommand(setting, value)
+                log.debug(cmd)
+                self.send(cmd.sim_string)
+                ret[setting] = value
+            except ValueError as e:
+                #TODO Noah is this ok?
+                log.warning(f"Skipping bad setting: {e}")
+                ret[setting] = self.query(cmd.sim_query_string)
+            time.sleep(0.1)  #TODO is this really necessary!?
+        return ret
 
     def monitor(self, interval: float, monitor_func: (callable, tuple), value_callback: (callable, tuple) = None):
         """
@@ -268,27 +289,56 @@ class SimDevice(agent.SerialDevice):
         self._monitor_thread.start()
 
 
+
+class MagnetState(enum.Enum):
+     PID = enum.auto()
+     MANUAL = enum.auto()
+
+
 class SIM960(SimDevice):
-    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, connection_callback=None):
+    MAX_CURRENT_SLOPE = .5
+    MAX_CURRENT = 10.0
+    OFF_SLOPE = 0.5
+
+    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, initializer=None):
         """
         Initializes SIM960 agent. First hits the superclass (SerialDevice) init function. Then sets class variables which
         will be used in normal operation. If connect mainframe is True, attempts to connect to the SIM960 via the SIM900
         in mainframe mode. Raise IOError if an invalid slot or exit string is given (or if no exit string is given).
         """
-        super().__init__('SIM960', port, baudrate, timeout, connect=connect, connection_callback=connection_callback)
         self.polarity = 'negative'
         self.last_input_voltage = None
         self.last_output_voltage = None
-        self._monitor_thread = None
+        self._initialized = False
+        super().__init__('SIM960', port, baudrate, timeout, connect=connect, connection_callback=initializer)
+
+    @property
+    def state(self):
+        """
+        Return offline, online, or configured
+
+        NB configured implies that settings have not been lost due to a power cycle
+        """
+        try:
+            polarity = self.query("APOL?", connect=True)
+            return 'configured' if int(polarity)==0 else 'online'
+        except IOError:
+            return 'offline'
 
     def _simspecificconnect(self):
-        # Set polarity to negative here. This is a non-redis controlled setting (not modifiable during normal operation).
-        self.send("APOL 0", connect=False)
         polarity = self.query("APOL?", connect=False)
-        if polarity != '0':
-            msg = f"Polarity query returned {polarity}. Setting PID loop polarity to negative failed."
-            log.critical(msg)
-            raise IOError(msg)
+        if int(polarity) == 1:
+            self.send("APOL 0", connect=False) # Set polarity to negative, fundamental to the wiring.
+            polarity = self.query("APOL?", connect=False)
+            if polarity != '0':
+                msg = f"Polarity query returned {polarity}. Setting PID loop polarity to negative failed."
+                log.critical(msg)
+                raise IOError(msg)
+            self._initialized = False
+            self.initialized_at_last_connect = False
+        else:
+            self._initialized = polarity == '0'
+            self.initialized_at_last_connect = self._initialized
 
     def input_voltage(self):
         """Read the voltage being sent to the input monitor of the SIM960 from the SIM921"""
@@ -302,6 +352,57 @@ class SIM960(SimDevice):
         ov = self.query("OMON?")
         self.last_output_voltage = ov
         return ov
+
+    @property
+    def setpoint(self):
+        """ return the currently commanded current"""
+        return 0.0
+
+    @property
+    def manual_current(selfs):
+        """ return the manual current setpoint"""
+        #TODO fetch the manual setpoint
+        current = 0
+        return current
+
+    @manual_current.setter
+    def manual_current(self, x: float):
+        """ will clip to the range 0,MAX_CURRENT and enforces a maximum absolute current derivative """
+        if not self._initialized:
+            raise ValueError('Sim is not initialized')
+        x = min(max(x, 0), self.MAX_CURRENT)
+        delta = abs((self.setpoint - x)/(time.time()-self._last_manual_change))
+        if delta > self.MAX_CURRENT_SLOPE:
+            raise ValueError('Requested current delta unsafe')
+        self.mode = MagnetState.MANUAL
+        # TODO set the output voltage to whatever is needed for that current
+        self._last_manual_change = time.time()
+
+    def kill_current(self):
+        """Immediately kill the current"""
+        #TODO command to immediately force current to 0
+        self.send()
+
+    @property
+    def mode(self):
+        """ Returns MagnetState or raises IOError (which means we don't know!) """
+        return MagnetState.MANUAL if self.query('AMAN') == '1' else MagnetState.PID
+
+    @mode.setter
+    def mode(self, value: MagnetState):
+        """ Set the magnet state, state may not be set of Off directly.
+        If transistioning to manual ensure that the manual current doesn't hiccup
+        """
+        with self._rlock:
+            mode = self.mode
+            if mode == value:
+                return
+            if value == MagnetState.MANUAL:
+                # TODO set the output voltage to whatever is needed for that current
+                self.send()  # TODO send the command to go into manual mode
+                #NB no need to set the _lat_manual_change time as we arent actually changing the current
+            else:
+                self.send()  # TODO send the command to go into pid mode
 
 
 class SIM921(SimDevice):
