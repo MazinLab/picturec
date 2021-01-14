@@ -34,18 +34,32 @@
 {% block scripts %}
     {{ super() }}
     <script>
+        function doSff(dest, opt) {
+            $.post('/reporter', {
+                abcd: opt,
+                destination: dest
+            }).done(function(response) {
+                $(dest).text(response['temps'])
+            }).fail(function() {
+                $(dest).text('Failure');
+            });
+        }
+    </script>
+
+    <script>
         function doStuff(dest, opt) {
             $.post('/report', {
-                abcd: opt,
-                d: dest
+                rediskey: opt,
+                destination: dest
             }).done(function(response) {
-                $(dest).text(response['text'])
+                $(dest).text(response['value'])
             }).fail(function() {
                 $(dest).text('Failure');
             });
         }
 
         function doMore(dest, opt) {
+            doStuff(dest, opt);
             setInterval( function () { doStuff(dest, opt); }, 1000);
         }
     </script>

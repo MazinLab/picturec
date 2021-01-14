@@ -40,11 +40,21 @@ def index():
                   ['LN2 Tank', f"{redis.redis_ts.get('status:temps:ln2tank')[1]:.2f} K"]]
 
     hemt_headers = ['HEMT', 'Vg', 'Id', 'Vd']
-    hemt_vals = [["1", redis.redis_ts.get('status:feedline1:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline1:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline1:hemt:drain-voltage-bias')[1]],
-            ["2", redis.redis_ts.get('status:feedline2:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline2:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline2:hemt:drain-voltage-bias')[1]],
-            ["3", redis.redis_ts.get('status:feedline3:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline3:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline3:hemt:drain-voltage-bias')[1]],
-            ["4", redis.redis_ts.get('status:feedline4:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline4:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline4:hemt:drain-voltage-bias')[1]],
-            ["5", redis.redis_ts.get('status:feedline5:hemt:gate-voltage-bias')[1], redis.redis_ts.get('status:feedline5:hemt:drain-current-bias')[1], redis.redis_ts.get('status:feedline5:hemt:drain-voltage-bias')[1]]]
+    hemt_ids = ['#id_feedline1_gate-voltage-bias', '#id_feedline1_drain-current-bias', '#id_feedline1_drain-voltage-bias',
+                '#id_feedline2_gate-voltage-bias', '#id_feedline2_drain-current-bias', '#id_feedline2_drain-voltage-bias',
+                '#id_feedline3_gate-voltage-bias', '#id_feedline3_drain-current-bias', '#id_feedline3_drain-voltage-bias',
+                '#id_feedline4_gate-voltage-bias', '#id_feedline4_drain-current-bias', '#id_feedline4_drain-voltage-bias',
+                '#id_feedline5_gate-voltage-bias', '#id_feedline5_drain-current-bias', '#id_feedline5_drain-voltage-bias']
+    hemt_keys = ['status:feedline1:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias',
+                 'status:feedline2:hemt:gate-voltage-bias', 'status:feedline2:hemt:drain-current-bias', 'status:feedline2:hemt:drain-voltage-bias',
+                 'status:feedline3:hemt:gate-voltage-bias', 'status:feedline3:hemt:drain-current-bias', 'status:feedline3:hemt:drain-voltage-bias',
+                 'status:feedline4:hemt:gate-voltage-bias', 'status:feedline4:hemt:drain-current-bias', 'status:feedline4:hemt:drain-voltage-bias',
+                 'status:feedline5:hemt:gate-voltage-bias', 'status:feedline5:hemt:drain-current-bias', 'status:feedline5:hemt:drain-voltage-bias',]
+    hemt_vals = [[["1",0], ['status:feedline1:hemt:gate-voltage-bias', 1], ['status:feedline1:hemt:drain-current-bias', 1], ['status:feedline1:hemt:drain-voltage-bias',1]],
+            [["2",0], ['status:feedline2:hemt:gate-voltage-bias', 1], ['status:feedline2:hemt:drain-current-bias', 1], ['status:feedline2:hemt:drain-voltage-bias',1]],
+            [["3",0], ['status:feedline3:hemt:gate-voltage-bias', 1], ['status:feedline3:hemt:drain-current-bias', 1], ['status:feedline3:hemt:drain-voltage-bias',1]],
+            [["4",0], ['status:feedline4:hemt:gate-voltage-bias', 1], ['status:feedline4:hemt:drain-current-bias', 1], ['status:feedline4:hemt:drain-voltage-bias',1]],
+            [["5",0], ['status:feedline5:hemt:gate-voltage-bias', 1], ['status:feedline5:hemt:drain-current-bias', 1], ['status:feedline5:hemt:drain-voltage-bias',1]]]
 
     magnet_vals = [['Magnet current', f"{redis.redis_ts.get('status:highcurrentboard:current')[1]:.3f} A"], # TODO: Add a 'predicted voltage' value (based on SIM960 output * conversion factor)?
                    ['SIM960 control voltage', f"{redis.redis_ts.get('status:device:sim960:hcfet-control-voltage')[1]:.3f} V"],
@@ -52,7 +62,22 @@ def index():
                    ['Heat Switch', redis.read(['status:heatswitch'])['status:heatswitch']]]  # TODO: Allow flipping here?
 
     return render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data,
-                                 hemt_tableh=hemt_headers, hemt_tablev=hemt_vals, current_tableh=magnet_vals)
+                           hemt_tableh=hemt_headers, hemt_tablev=hemt_vals, current_tableh=magnet_vals,
+                           hemt_ids=hemt_ids, hemt_keys=hemt_keys)
+
+# TODO: Figure out how to update many things at once!
+@app.route('/report', methods=['POST'])
+def report():
+    print('Ive been called')
+    print(f"Redis Key : {request.form['rediskey']}")
+    print(f"Destination:{request.form['destination']}")
+    info = grab_redis_value(request.form['rediskey'])
+    return jsonify({'value': info[1]})
+
+
+def grab_redis_value(key):
+    info = redis.redis_ts.get(key)
+    return info
 
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -81,27 +106,27 @@ def settings():
 @app.route('/info', methods=['GET', 'POST'])
 def info():
     form = FlaskForm()
-    anim_var = ['key_key']
-    return render_template('info.html', title='Info', form=form, anim_var=anim_var)
+    return render_template('info.html', title='Info', form=form)
 
 
-@app.route('/report', methods=['POST'])
-def report():
-    print('Ive been called')
-    print(request.form['abcd'])
-    print(request.form['d'])
-    # return jsonify({'value': grab_redis_value(request.form['key'])})
-    dictionary = {'text': str(np.random.randint(0, 100))}
-    print(dictionary)
-    return jsonify(dictionary)
+@app.route('/reportertime', methods=['POST'])
+def reportertime():
+    # resp = np.array(redis.redis_ts.range("status:temps:lhetank", '-', '+'))[0]
+    resp = np.array(redis.redis_ts.range("test_key", '-', '+'))[-1]
+    return jsonify({'times': int(resp[0])})
 
+@app.route('/reportertemp', methods=['POST'])
+def reportertemp():
+    # resp = np.array(redis.redis_ts.range("status:temps:lhetank", '-', '+'))[0]
+    resp = np.array(redis.redis_ts.range("test_key", '-', '+'))[-1]
+    return jsonify({'temps': resp[1]})
 
-def grab_redis_value(key):
-    if key in redis.redis.key('*'):
-        info = redis.redis_ts.get(key)
-    else:
-        info = [0, key]
-    return info
+@app.route('/reporter', methods=['POST'])
+def reporter():
+    resp = np.array(redis.redis_ts.range("test_key", '-', '+'))[-1]
+    print(resp)
+    # resp = np.array(redis.redis_ts.range("status:temps:lhetank", '-', '+'))[-1:]
+    return jsonify({'times': int(resp[0]), 'temps': resp[1]})
 
 
 def make_choices(key):

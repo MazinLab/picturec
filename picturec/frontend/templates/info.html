@@ -1,19 +1,88 @@
 {% extends 'base.html' %}
 
 {% block content %}
+    <head>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    </head>
+
     <div>Here's where the PICTURE-C Info will go. </div>
     <div>Hope it's good!</div>
     <h1>
         <a href="{{ url_for('index') }}"><button> Home </button></a>
     </h1>
 
-    <div>
-        Here is the AJAX variable to test! ->
-        <span id="id_{{anim_var[0]}}">
-            <body onload="javascript:doMore(
-            '#id_{{anim_var[0]}}',
-            '{{ anim_var[0] }}')"> {{ anim_var[0] }} </body>
-        </span>
-    </div>
+    <div id="tester" style="width:600px;height:250px;"></div>
+    <script>
+        function rand() {
+            return Math.random();
+        }
+
+        function init_temp() {
+            var temp = 0;
+            $.ajax({
+                url: '/reportertemp',
+                type: 'post',
+                async: false,
+                success: function(response) {
+                    console.log(response)
+                    temp = response['temps'];
+                },
+                error: function() {
+                    temp = -1;
+                }
+            });
+            return temp;
+        }
+
+        function init_time() {
+            var time = 0;
+            $.ajax({
+                url: '/reportertime',
+                type: 'post',
+                async: false,
+                success: function(response) {
+                    console.log(response)
+                    temp = response['times'];
+                },
+                error: function() {
+                    time = -1;
+                }
+            });
+            return time;
+        }
+
+        function grab() {
+            var time = 0;
+            var temp = 0;
+            $.ajax({
+                url: '/reporter',
+                type: 'post',
+                async: false,
+                success: function(response) {
+                    console.log(response)
+                    temp = response['temps'];
+                    time = response['times'];
+                },
+                error: function() {
+                    temp = -1;
+                    time = -1;
+                }
+            });
+            return [time, temp];
+        }
+
+        Plotly.newPlot('tester', [{
+            x: [].map(init_time),
+            y: [].map(init_temp),
+            mode: 'lines',
+            line: {color: '#80CAF6'}
+        }]);
+
+        var interval = setInterval(function() {
+            Plotly.extendTraces('tester', {x: [[grab()[0]]], y: [[grab()[1]]]
+            }, [0], 120)
+        }, 1000);
+    </script>
+
 {% endblock %}
 
