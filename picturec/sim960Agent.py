@@ -9,7 +9,8 @@ from logging import getLogger
 import time
 from datetime import datetime, timedelta
 import threading
-from transitions import Machine, MachineError, State, Transition
+from transitions import MachineError, State, Transition
+from transitions.extensions import LockedMachine
 
 import picturec.util as util
 from picturec.devices import SIM960, SimCommand, MagnetState
@@ -136,7 +137,7 @@ def monitor_callback(iv, ov, oc):
         getLogger(__name__).warning('Storing magnet status to redis failed')
 
 
-class MagnetController(Machine):
+class MagnetController(LockedMachine):
     LOOP_INTERVAL = 1
     BLOCKS = defaultdict(set)  # TODO This holds the sim960 commands that are blocked out in a given state i.e.
                                  #  'regulating':('device-settings:sim960:setpoint-mode',)
@@ -178,7 +179,7 @@ class MagnetController(Machine):
             {'trigger': 'next', 'source': 'soaking', 'dest': None, 'unless': 'soak_time_expired',
              'conditions': 'current_at_soak'},
             {'trigger': 'next', 'source': 'soaking', 'dest': 'hs_opening', 'prepare': 'open_heatswitch',
-             'conditions': ('current_at_soak', 'soak_time_expired')},  #condition repeated ito preclude call passing due to IO hiccup
+             'conditions': ('current_at_soak', 'soak_time_expired')},  #condition repeated to preclude call passing due to IO hiccup
             {'trigger': 'next', 'source': 'soaking', 'dest': 'deramping'},
 
             # stay in hs_opening until it is open then transition to cooling
@@ -238,13 +239,14 @@ class MagnetController(Machine):
 
         self.statefile = statefile
         self.sim = sim
+        self.lock = lock = threading.RLock()
         self.scheduled_cooldown = None
         self._run = False  # Set to false to kill the main loop
         self._main = None
 
         initial = self.compute_initial_state()
         self.state_entry_time = {initial: time.time()}
-        Machine.__init__(self, transitions=transitions, initial=initial, states=states)
+        LockedMachine.__init__(self, transitions=transitions, initial=initial, states=states, machine_context=self.lock)
 
         if sim.initialized_at_last_connect:
             self.firmware_pull()
@@ -513,11 +515,12 @@ class MagnetController(Machine):
 
     def sim_command(self, cmd):
         """ Directly execute a SimCommand if if possible. May raise IOError or StateError"""
-        if cmd.setting in self.BLOCKS.get(self.state, tuple()):
-            msg = f'Command {cmd} not supported while in state {self.state}'
-            getLogger(__name__).error(msg)
-            raise StateError(msg)
-        self.sim.send(cmd)
+        with self.lock:
+            if cmd.setting in self.BLOCKS.get(self.state, tuple()):
+                msg = f'Command {cmd} not supported while in state {self.state}'
+                getLogger(__name__).error(msg)
+                raise StateError(msg)
+            self.sim.send(cmd)
 
     def record_entry(self, event):
         self.state_entry_time[self.state] = time.time()
