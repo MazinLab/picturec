@@ -233,7 +233,14 @@ class SimDevice(agent.SerialDevice):
                 #TODO Noah is this ok?
                 log.warning(f"Skipping bad setting: {e}")
                 ret[setting] = self.query(cmd.sim_query_string)
-            time.sleep(0.1)  #TODO is this really necessary!?
+        return ret
+
+    def read_schema_settings(self, settings):
+        ret = {}
+        for setting in settings:
+            cmd = SimCommand(setting, '?')  #TODO make into a valid query
+            log.debug(cmd)
+            ret[setting] = self.query(cmd.sim_query_string)
         return ret
 
     def monitor(self, interval: float, monitor_func: (callable, tuple), value_callback: (callable, tuple) = None):

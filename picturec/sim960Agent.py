@@ -4,7 +4,7 @@ TODO: Measure output voltage-to-current conversion. Should be ~1 V/A (from the h
 """
 import logging
 import sys
-
+from collections import defaultdict
 from logging import getLogger
 import time
 from datetime import datetime, timedelta
@@ -108,10 +108,38 @@ from transitions import Machine, State
 machine = Machine(foo, states=( State('off'), State('ramping'), State('soaking')),
                        transitions=transitions, initial='ramping', send_event=True)
 
+
+
+def write_persisted_state(statefile, state):
+    try:
+        with open(statefile, 'w') as f:
+            f.write(f'{time.time()}: {state}')
+    except IOError:
+        getLogger(__name__).warning('Unable to log state entry', exc_info=True)
+
+
+def load_persisted_state(statefile):
+    try:
+        with open(statefile, 'r') as f:
+            persisted_state_time, persisted_state = f.readline().split(':')
+    except Exception:
+        persisted_state_time, persisted_state = None, None
+    return persisted_state_time, persisted_state
+
+
+def monitor_callback(iv, ov, oc):
+    d = {k: v for k, v in zip((INPUT_VOLTAGE_KEY, OUTPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY), (iv, ov, oc))
+         if v is not None}  # NB 'if is not None' - > so we don't store bad data
+    try:
+        redis.store(d, timeseries=True)
+    except RedisError:
+        getLogger(__name__).warning('Storing magnet status to redis failed')
+
+
 class MagnetController(Machine):
     LOOP_INTERVAL = 1
-    BLOCKS = {}  # TODO This holds the sim960 commands that are blocked out in a given state i.e.
-                 #  'regulating':('device-settings:sim960:setpoint-mode',)
+    BLOCKS = defaultdict(set)  # TODO This holds the sim960 commands that are blocked out in a given state i.e.
+                                 #  'regulating':('device-settings:sim960:setpoint-mode',)
 
     def __init__(self, statefile='./magnetstate.txt'):
         transitions = [
@@ -200,37 +228,45 @@ class MagnetController(Machine):
                   State('deramping', on_enter='record_entry'))
 
         sim = SIM960(port=DEVICE, baudrate=9600, timeout=0.1, initializer=self.initialize_sim)
-        # note that if the settings are not manufacturer defaults then the program is restarting. if the settings are
-        # manufacturer defaults then the sim960 had an upset
+        # NB If the settings are manufacturer defaults then the sim960 had a major upset, generally initialize_sim
+        # will not be called
 
         # Kick off a thread to run forever and just log data into redis
-        # TODO consider bundling these into a sim960.monitor_values function to simplify redundant serial comm.
+        # TODO bundling these into a sim960.monitor_values if necessary to simplify redundant serial comm.
         sim.monitor(QUERY_INTERVAL, (sim.input_voltage, sim.output_voltage, sim.setpoint),
                     value_callback=monitor_callback)
 
         self.statefile = statefile
         self.sim = sim
-
-        initial = self.compute_initial_state()
-
         self.scheduled_cooldown = None
         self._run = False  # Set to false to kill the main loop
         self._main = None
 
+        initial = self.compute_initial_state()
         self.state_entry_time = {initial: time.time()}
         Machine.__init__(self, transitions=transitions, initial=initial, states=states)
+
+        if sim.initialized_at_last_connect:
+            self.firmware_pull()
+            self.set_redis_settings(init_blocked=False)  #allow IO and Redis errors to shut things down.
+
         self.start_main()
 
     def initialize_sim(self):
         """
-        Callback run on connection to the sim whenever it is not initialized.
-        Any settings applied take immediate effect
+        Callback run on connection to the sim whenever it is not initialized. This will only happen if the sim loses all
+        of its settings, which should never every happen. Any settings applied take immediate effect
         """
-        sim = self.sim
-        log = getLogger(__name__)
+        self.firmware_pull()
+        try:
+            self.set_redis_settings(init_blocked=True) # If called the sim is in a blank state and needs everything!
+        except (RedisError, KeyError) as e:
+            raise IOError(e) #we can't initialize!
+
+    def firmware_pull(self):
         # Grab and store device info
         try:
-            info = sim.device_info
+            info = self.sim.device_info
             d = {FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['sn']}
         except IOError as e:
             log.error(f"When checking device info: {e}")
@@ -241,26 +277,38 @@ class MagnetController(Machine):
         except RedisError:
             log.warning('Storing device info to redis failed')
 
+    def set_redis_settings(self, init_blocked=False):
+        """may raise IOError, if so sim can be in a partially configured state"""
         try:
             settings_to_load = redis.read(SETTING_KEYS, error_missing=True)
         except RedisError:
             log.critical('Unable to pull settings from redis to initialize sim960')
-            raise IOError
+            raise
         except KeyError as e:
             log.critical('Unable to pull setting {e} from redis to initialize sim960')
-            raise IOError
+            raise
 
-        # TODO add self.BLOCKS[self.state] check here. The init chronology is pretty important so need to think
-        #  carefully
-        initialized_settings = sim.apply_schema_settings(settings_to_load)
+        blocks = self.BLOCKS[self.state]
+        blocked_init = blocks.intersection(settings_to_load.keys())
 
+        current_settings = {}
+        if blocked_init:
+            if init_blocked:
+                log.warning(f'Initializing {"\n\t".join(blocked_init)}\n\t  despite being blocked by current state.')
+            else:
+                log.warning(f'Skipping settings {"\n\t".join(blocked_init)}\n  as they are blocked by current state.')
+                settings_to_load = {k: v for k, v in settings_to_load if k not in blocks}
+                current_settings = self.sim.read_schema_settings(blocked_init)  #keep redis in sync
+
+        initialized_settings = self.sim.apply_schema_settings(settings_to_load)
+        initialized_settings.update(current_settings)
         try:
             redis.store(initialized_settings)
         except RedisError:
             log.warning('Storing device settings to redis failed')
 
     def compute_initial_state(self):
-        initial_state = 'deramping'
+        initial_state = 'deramping'  #always safe to start here
         try:
             if self.sim.initialized_at_last_connect:
                 mag_state = self.sim.mode
@@ -289,7 +337,7 @@ class MagnetController(Machine):
             getLogger(__name__).critical('Lost sim960 connection during agent startup. defaulting to deramping')
             initial_state = 'deramping'
         except RedisError:
-            getLogger(__name__).critical('Lost redis connection during agent startup. Exiting')
+            getLogger(__name__).critical('Lost redis connection during compute_initial_state startup.')
             raise
         return initial_state
 
@@ -474,32 +522,6 @@ class MagnetController(Machine):
     def record_entry(self, event):
         self.state_entry_time[self.state] = time.time()
         write_persisted_state(self.statefile, self.state)
-
-
-def write_persisted_state(statefile, state):
-    try:
-        with open(statefile, 'w') as f:
-            f.write(f'{time.time()}: {state}')
-    except IOError:
-        getLogger(__name__).warning('Unable to log state entry', exc_info=True)
-
-
-def load_persisted_state(statefile):
-    try:
-        with open(statefile, 'r') as f:
-            persisted_state_time, persisted_state = f.readline().split(':')
-    except Exception:
-        persisted_state_time, persisted_state = None, None
-    return persisted_state_time, persisted_state
-
-
-def monitor_callback(iv, ov, oc):
-    d = {k: v for k, v in zip((INPUT_VOLTAGE_KEY, OUTPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY), (iv, ov, oc))
-         if v is not None}  # NB 'if is not None' - > so we don't store bad data
-    try:
-        redis.store(d, timeseries=True)
-    except RedisError:
-        getLogger(__name__).warning('Storing magnet status to redis failed')
 
 
 if __name__ == "__main__":
