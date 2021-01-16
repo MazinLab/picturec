@@ -19,6 +19,8 @@ import sys
 import time
 import logging
 import threading
+
+import picturec.devices
 from picturec.pcredis import PCRedis, RedisError
 import picturec.agent as agent
 import picturec.util as util
@@ -70,7 +72,7 @@ def is_closed():
     return pcr.read(HEATSWITCH_STATUS_KEY) == 'closed'
 
 
-class Currentduino(agent.SerialDevice):
+class Currentduino(picturec.devices.SerialDevice):
     VALID_FIRMWARES = (0.0, 0.1, 0.2)
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):

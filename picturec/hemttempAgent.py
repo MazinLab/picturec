@@ -21,6 +21,8 @@ import sys
 import time
 import logging
 import numpy as np
+
+import picturec.devices
 from picturec.pcredis import PCRedis, RedisError
 import picturec.agent as agent
 import picturec.util as util
@@ -41,7 +43,7 @@ FIRMWARE_KEY = "status:device:hemtduino:firmware"
 log = logging.getLogger(__name__)
 
 
-class Hemtduino(agent.SerialDevice):
+class Hemtduino(picturec.devices.SerialDevice):
     VALID_FIRMWARES = (0.0, 0.1)
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):

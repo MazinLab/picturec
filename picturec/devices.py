@@ -1,13 +1,12 @@
+from logging import getLogger
 import numpy as np
 import enum
 import logging
 import time
-import sys
-import picturec.agent as agent
-from picturec.pcredis import PCRedis, RedisError
 import threading
-import os
-import picturec.util as util
+from collections import defaultdict
+import serial
+from serial import SerialException
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +50,57 @@ COMMANDS960 = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'manu
 COMMAND_DICT={}
 COMMAND_DICT.update(COMMANDS960)
 COMMAND_DICT.update(COMMANDS921)
+
+
+def escapeString(string):
+    """
+    Takes a string and escapes newline characters so they can be logged and display the newline characters in that string
+    """
+    return string.replace('\n', '\\n').replace('\r', '\\r')
+
+
+
+
+SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': defaultdict(str)}
+#NB: The responses should be a list of sent strings and their exact responses eg 'foo\n':'barr\r' or sent strings
+# and a callable that given the sent string returns the response string 'foo\n':barr('foo\n') -> 'barr\r'
+
+class SimSerial:
+    def __init__(self, *args, **kwargs):
+        self._lastwrite=''
+
+    def close(self):
+        pass
+
+    def write(self, msg):
+        if SERIAL_SIM_CONFIG['write_error']:
+            raise SerialException('')
+        self._lastwrite = msg
+
+    def readline(self):
+        if SERIAL_SIM_CONFIG['read_error']:
+            raise SerialException('')
+
+        resp = SERIAL_SIM_CONFIG['responses'][self._lastwrite]
+        try:
+            return resp(self._lastwrite).encode('utf-8')
+        except TypeError:
+            resp.encode('utf-8')
+
+    def isOpen(self):
+        return SERIAL_SIM_CONFIG['open']
+
+Serial = serial.Serial
+def enable_simulator():
+    global Serial
+    Serial = SimSerial
+
+def disable_simulator():
+    global Serial
+    Serial = serial.Serial
+
+
+
 
 
 class SimCommand(object):
@@ -104,7 +154,134 @@ class SimCommand(object):
         return f"{self.command} ?"
 
 
-class SimDevice(agent.SerialDevice):
+class SerialDevice:
+    def __init__(self, port, baudrate=115200, timeout=0.1, name=None, terminator='\n'):
+        self.ser = None
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
+        self.name = name if name else self.port
+        self.terminator = terminator
+        self._rlock = threading.RLock()
+
+    def _preconnect(self):
+        """
+        Override to perform an action immediately prior to connection.
+        Function should raise IOError if the serial device should not be opened.
+        """
+        pass
+
+    def _postconnect(self):
+        """
+        Override to perform an action immediately after connection. Default is to sleep for twice the timeout
+        Function should raise IOError if there are issues with the connection.
+        Function will not be called if a connection can not be established or already exists.
+        """
+        time.sleep(2*self.timeout)
+
+    def _predisconnect(self):
+        """
+        Override to perform an action immediately prior to disconnection.
+        Function should raise IOError if the serial device should not be opened.
+        """
+        pass
+
+    def connect(self, reconnect=False, raise_errors=True):
+        """
+        Connect to a serial port. If reconnect is True, closes the port first and then tries to reopen it. First asks
+        the port if it is already open. If so, returns nothing and allows the calling function to continue on. If port
+        is not already open, first attempts to create a serial.Serial object and establish the connection.
+        Raises an IOError if the serial connection is unable to be established.
+        """
+        if reconnect:
+            self.disconnect()
+
+        try:
+            if self.ser.isOpen():
+                return
+        except Exception:
+            pass
+
+        getLogger(__name__).debug(f"Connecting to {self.port} at {self.baudrate}")
+        try:
+            self._preconnect()
+            self.ser = Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+            self._postconnect()
+            getLogger(__name__).info(f"port {self.port} connection established")
+            return True
+        except (serial.SerialException, IOError) as e:
+            self.ser = None
+            getLogger(__name__).error(f"Conntecting to port {self.port} failed: {e}")
+            if raise_errors:
+                raise e
+            return False
+
+    def disconnect(self):
+        """
+        First closes the existing serial connection and then sets the ser attribute to None. If an exception occurs in
+        closing the port, log the error but do not raise.
+        """
+        try:
+            self._predisconnect()
+            self.ser.close()
+            self.ser = None
+        except Exception as e:
+            getLogger(__name__).info(f"Exception during disconnect: {e}")
+
+    def format_msg(self, msg:str):
+        """Subclass may implement to apply hardware specific formatting"""
+        if msg and msg[-1] != self.terminator:
+            msg = msg+self.terminator
+        return msg.encode('utf-8')
+
+    def send(self, msg: str, connect=True):
+        """
+        Send a message to a serial port. If connect is True, try to connect to the serial port before sending the
+        message. Formats message according to the class's format_msg function before attempting to write to serial port.
+        If IOError or SerialException occurs, first disconnect from the serial port, then log and raise the error.
+        """
+        with self._rlock:
+            if connect:
+                self.connect()
+            msg = self.format_msg(msg)
+            try:
+                getLogger(__name__).debug(f"Sending '{msg}'")
+                self.ser.write(msg)
+            except (serial.SerialException, IOError) as e:
+                self.disconnect()
+                getLogger(__name__).error(f"...failed: {e}")
+                raise e
+
+    def receive(self):
+        """
+        Receives a message from a serial port. Assumes that the message consists of a single line. If a message is
+        received, decode it and strip it of any newline characters. In the case of an error or serialException,
+        disconnects from the serial port and raises an IOError.
+        """
+        with self._rlock:
+            try:
+                data = self.ser.readline().decode("utf-8").strip()
+                getLogger(__name__).debug(f"read {escapeString(data)} from {self.name}")
+                return data
+            except (IOError, serial.SerialException) as e:
+                self.disconnect()
+                getLogger(__name__).debug(f"Send failed {e}")
+                raise IOError(e)
+
+    def query(self, cmd: str, **kwargs):
+        """
+        Send command and wait for a response, kwargs passed to send, raises only IOError
+        """
+        with self._rlock:
+            try:
+                self.send(cmd, **kwargs)
+                time.sleep(.1)
+                return self.receive()
+            except Exception as e:
+                raise IOError(e)
+
+
+class SimDevice(SerialDevice):
     def __init__(self, name, port, baudrate=9600, timeout=0.1, connect=True, initilizer=None):
         """The initialize callback is called after _simspecificconnect iff _initialized is false. The callback
         will be passed this object and should raise IOError if the device can not be initialized. If it completes
@@ -307,7 +484,7 @@ class SIM960(SimDevice):
     MAX_CURRENT = 10.0
     OFF_SLOPE = 0.5
 
-    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, initializer=None):
+    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, initializer=None, simulator=None):
         """
         Initializes SIM960 agent. First hits the superclass (SerialDevice) init function. Then sets class variables which
         will be used in normal operation. If connect mainframe is True, attempts to connect to the SIM960 via the SIM900
@@ -316,8 +493,8 @@ class SIM960(SimDevice):
         self.polarity = 'negative'
         self.last_input_voltage = None
         self.last_output_voltage = None
-        self._initialized = False
-        super().__init__('SIM960', port, baudrate, timeout, connect=connect, connection_callback=initializer)
+        super().__init__('SIM960', port, baudrate, timeout, connect=connect, initilizer=initializer,
+                         simulator=simulator)
 
     @property
     def state(self):
