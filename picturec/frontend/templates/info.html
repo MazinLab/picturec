@@ -17,43 +17,29 @@
             return Math.random();
         }
 
-        function init_temp() {
-            var temp = 0;
+        function init_vals() {
+            var temp = [];
+            var time = [];
             $.ajax({
-                url: '/reportertemp',
+                url: '/reporterinit',
                 type: 'post',
                 async: false,
                 success: function(response) {
                     console.log(response)
                     temp = response['temps'];
-                },
-                error: function() {
-                    temp = -1;
-                }
-            });
-            return temp;
-        }
-
-        function init_time() {
-            var time = 0;
-            $.ajax({
-                url: '/reportertime',
-                type: 'post',
-                async: false,
-                success: function(response) {
-                    console.log(response)
-                    temp = response['times'];
+                    time = response['times'];
                 },
                 error: function() {
                     time = -1;
+                    time = -1;
                 }
             });
-            return time;
+            return [time, temp];
         }
 
         function grab() {
-            var time = 0;
-            var temp = 0;
+            var time = [];
+            var temp = [];
             $.ajax({
                 url: '/reporter',
                 type: 'post',
@@ -68,19 +54,20 @@
                     time = -1;
                 }
             });
-            return [time, temp];
+            var ts = new Date(time).toLocaleTimeString("en-US")
+            return [ts, temp];
         }
 
         Plotly.newPlot('tester', [{
             x: [].map(init_time),
             y: [].map(init_temp),
             mode: 'lines',
-            line: {color: '#80CAF6'}
+            // line: {color: '#80CAF6'}
         }]);
 
         var interval = setInterval(function() {
             Plotly.extendTraces('tester', {x: [[grab()[0]]], y: [[grab()[1]]]
-            }, [0], 120)
+            }, [0])
         }, 1000);
     </script>
 
