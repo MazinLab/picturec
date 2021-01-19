@@ -50,7 +50,7 @@ class PCRedis(object):
         for k in keys:
             try:
                 self.redis_ts.create(k)
-            except ResponseError
+            except ResponseError:
                 logging.getLogger(__name__).debug(f"Redistimeseries key '{k}' already exists.")
 
     def store(self, data, timeseries=False):
