@@ -51,7 +51,7 @@ R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
 log = logging.getLogger(__name__)
 
-
+# TODO: close/open/is_opened/is_closed are currently placeholders. Make them usable/follow the schema
 def close():
     import picturec.pcredis as pcr
     pcr.publish(HEATSWITCH_MOVE_KEY, 'close')  # Change from store to publish. Publish will encompass storage and pubsub
@@ -64,12 +64,13 @@ def open():
 
 def is_opened():
     import picturec.pcredis as pcr
-    return pcr.read(HEATSWITCH_STATUS_KEY) == 'opened'
+    return pcr.read(HEATSWITCH_STATUS_KEY) == 'open' #TODO: Note - Currently the value that gets stored is the same as
+                                                     # in the close()/open() methods. This could be changed if desired.
 
 
 def is_closed():
     import picturec.pcredis as pcr
-    return pcr.read(HEATSWITCH_STATUS_KEY) == 'closed'
+    return pcr.read(HEATSWITCH_STATUS_KEY) == 'close'
 
 
 class Currentduino(picturec.devices.SerialDevice):
