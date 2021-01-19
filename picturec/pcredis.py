@@ -4,6 +4,8 @@ Author: Noah Swimmer 29 June 2020
 A wrapper class to conveniently use redis-py and redistimeseries with PICTURE-C. This includes but is not limited to
 inter-program communication (using pubsub), information storage (of device settings), and data storage (thermometry,
 current, etc.).
+
+TODO: Remake PCRedis.publish into a function that can store to DB, publish using pubsub, or both
 """
 
 from redis import Redis as _Redis
@@ -76,6 +78,7 @@ class PCRedis(object):
         Publishes message to channel. Channels need not have been previously created nor must there be a subscriber.
 
         returns the number of listeners of the channel
+        TODO: (Rehashing todo from top of file) Make this robust for not just publishing but also storing data
         """
         return self.redis.publish(channel, message)
 

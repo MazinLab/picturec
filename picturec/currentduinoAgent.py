@@ -54,12 +54,12 @@ log = logging.getLogger(__name__)
 
 def close():
     import picturec.pcredis as pcr
-    pcr.store(HEATSWITCH_MOVE_KEY, 'close')
+    pcr.publish(HEATSWITCH_MOVE_KEY, 'close')  # Change from store to publish. Publish will encompass storage and pubsub
 
 
 def open():
     import picturec.pcredis as pcr
-    pcr.store(HEATSWITCH_MOVE_KEY, 'open')
+    pcr.publish(HEATSWITCH_MOVE_KEY, 'open')
 
 
 def is_opened():
