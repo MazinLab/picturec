@@ -40,6 +40,7 @@ FIRMWARE_KEY = "status:device:hemtduino:firmware"
 
 # TODO Note that this way of using logging throughout the file means that Hemtduino (and all the othrs)
 #  would be better off in their own picturec.devices module
+#  Noah (18 January 2020) - I think this^ is how everything is logged and I just haven't updated the comment.
 log = logging.getLogger(__name__)
 
 
