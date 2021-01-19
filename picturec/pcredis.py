@@ -129,65 +129,6 @@ class PCRedis(object):
             logging.getLogger(__name__).warning(f"Cannot create and subscribe to redis pubsub. Check to make sure redis is running! {e}")
             raise e
 
-    def _ps_unsubscribe(self):
-        """
-        Unsubscribe from all of the channels that self.ps is currently subscribed to. Sets self.ps to None
-        :return: No return. Will raise an error if the program cannot communicate with redis.
-        """
-        try:
-            self.ps.unsubscribe()
-            self.ps = None
-        except RedisError as e:
-            logging.getLogger(__name__).warning(f"Some new error with redis. Check the logs and try restaring! {e}")
-            raise e
-
-    def ps_listen(self, channels: list, message_handler, status_key=None, loop_interval=0.001, ignore_sub_msg=False):
-        """
-        This is the heart of redis pubsub communication between programs. The ps_listen() function is designed to
-        incorporate (un)subscribing, message handling, and error handling.
-        Tries first to subscribe to the channels passed to the function.
-        If able to successfully subscribe, wait for messages to be published and then handle them accordingly. As a
-        first pass this means determining message type and logging it properly, then passing it to the message handler.
-        The default message handler ( PCRedis.handler() ) simply prints the message. Each agent will overwrite this
-        default handler to best suit its own needs.
-        :param channels: List of channels to subscribe to
-        :param message_handler: Function which properly handles the data in the message and manipulates it accordingly.
-        :param status_key: Any status_key required by the program/agent to write to the redis db to record that it is
-        working as expected (e.g. "status:device:currentduino:status":"error: could not send message to currentduino")
-        :param loop_interval: Float. Time between message queries. This should not be longer than the fastest publishing
-        rate in the system
-        :param ignore_sub_msg: Bool. See PCRedis._pc_subscribe() for details.
-        :return: None. Raises errors in the case of inability to communicate with redis or with a serial port.
-        """
-        try:
-            self._ps_subscribe(channels=channels, ignore_sub_msg=ignore_sub_msg)
-        except RedisError as e:
-            logging.getLogger(__name__).warning(f"Redis can't subscribe to {channels}. Check to make sure redis is running")
-            raise e
-
-        while True:
-            try:
-                msg = self.ps.get_message()
-                if msg:
-                    if msg['type'] == 'message':
-                        logging.getLogger(__name__).info(f"Redis pubsub client received a message")
-                        message_handler(msg)
-                    elif msg['type'] == 'subscribe':
-                        logging.getLogger(__name__).debug(f"Redis pubsub received subscribe message:\n {msg}")
-                    else:
-                        logging.getLogger(__name__).info(f"New type of message received! You're on your own now:\n {msg}")
-                    if status_key:
-                        self.store({status_key: 'okay'})
-            except RedisError as e:
-                logging.getLogger(__name__).warning(f"Exception in pubsub operation has occurred! Check to make sure "
-                                                    f"redis is still running! {e}")
-                raise e
-            except IOError as e:
-                logging.getLogger(__name__).error(f"Error: {e}")
-                if status_key:
-                    self.store({status_key: f"Error: {e}"})
-            time.sleep(loop_interval)
-
     def listen(self, channels):
         """
         Sets up a subscription for the iterable keys, yielding decoded messages as (k,v) strings.
@@ -224,9 +165,11 @@ pcredis = None
 store = None
 read = None
 listen = None
+publish = None
 def setup_redis(host='localhost', port=6379, db=0, create_ts_keys=tuple()):
     global pcredis, store, read, listen
     pcredis = PCRedis(host=host, port=port, db=db, create_ts_keys=create_ts_keys)
     store = pcredis.store
     read = pcredis.read
     listen = pcredis.listen
+    publish = pcredis.publish
