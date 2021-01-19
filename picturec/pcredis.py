@@ -9,7 +9,9 @@ TODO: Remake PCRedis.publish into a function that can store to DB, publish using
 """
 
 from redis import Redis as _Redis
-from redis import RedisError
+from redis import RedisError, ConnectionError, TimeoutError, AuthenticationError, BusyLoadingError, \
+    InvalidResponse, ResponseError, DataError, PubSubError, WatchError, \
+    ReadOnlyError, ChildDeadlockedError, AuthenticationWrongNumberOfArgsError
 from redistimeseries.client import Client as _RTSClient
 import logging
 import time
@@ -48,8 +50,8 @@ class PCRedis(object):
         for k in keys:
             try:
                 self.redis_ts.create(k)
-            except RedisError:  # TODO can this be more explicit
-                logging.getLogger(__name__).debug(f"'{k}' already exists")
+            except ResponseError
+                logging.getLogger(__name__).debug(f"Redistimeseries key '{k}' already exists.")
 
     def store(self, data, timeseries=False):
         """
