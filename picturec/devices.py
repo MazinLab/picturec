@@ -150,8 +150,7 @@ class SimCommand(object):
     @property
     def sim_query_string(self):
         """ Returns the corresponding command string to query for the setting if available"""
-        #TODO Noah is this right?
-        return f"{self.command} ?"
+        return f"{self.command}?"
 
 
 class SerialDevice:
@@ -408,6 +407,8 @@ class SimDevice(SerialDevice):
                 ret[setting] = value
             except ValueError as e:
                 #TODO Noah is this ok?
+                # 1/19 Response (NS) - Yes! This essentially catches typos in the setting keys (or keys that aren't
+                # implemented). It also catches invalid values (__init__ function in line 107 of this program)
                 log.warning(f"Skipping bad setting: {e}")
                 ret[setting] = self.query(cmd.sim_query_string)
         return ret
@@ -415,7 +416,7 @@ class SimDevice(SerialDevice):
     def read_schema_settings(self, settings):
         ret = {}
         for setting in settings:
-            cmd = SimCommand(setting, '?')  #TODO make into a valid query
+            cmd = SimCommand(setting, '?')  #TODO make into a valid query (NS 1/19) Seems like this has been done below.
             log.debug(cmd)
             ret[setting] = self.query(cmd.sim_query_string)
         return ret
