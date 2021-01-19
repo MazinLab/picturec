@@ -45,7 +45,7 @@ HEATSWITCH_STATUS_KEY = 'status:heatswitch'
 HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
 CURRENT_VALUE_KEY = 'status:highcurrentboard:current'
 
-
+# TODO: These (R1, R2) could be moved to a config if desired
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
