@@ -581,7 +581,7 @@ if __name__ == "__main__":
 
         try:
             while not controller.is_off():
-                getLogger(__name__).info(f'Waiting (10s) for magnet to deramp from ({sim.setpoint}) before exiting...')
+                getLogger(__name__).info(f'Waiting (10s) for magnet to deramp from ({controller.sim.setpoint}) before exiting...')
                 time.sleep(10)
         except IOError:
             pass
