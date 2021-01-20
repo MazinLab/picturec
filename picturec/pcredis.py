@@ -84,8 +84,9 @@ class PCRedis(object):
         """
         return self.redis.publish(channel, message)
 
-    def read(self, keys, return_dict=True, error_missing=True):
+    def read(self, keys:list, return_dict=True, error_missing=True):
         """
+        Note on read. Keys param MUST be type(list) EVEN IF ONLY READING A SINGLE KEY
         Function for reading values from corresponding keys in the redis database.
         :param error_missing: raise an error if a key isn't in redis, else silently omit it. Forced true if not
          returning a dict.

@@ -443,7 +443,7 @@ class MagnetController(LockedMachine):
         limit = self.sim.MAX_CURRENT_SLOPE
         interval = self.LOOP_INTERVAL
         try:
-            slope = abs(float(redis.read(RAMP_SLOPE_KEY)))
+            slope = abs(float(redis.read([RAMP_SLOPE_KEY])))
         except RedisError:
             getLogger(__name__).warning(f'Unable to pull {RAMP_SLOPE_KEY} using {limit}.')
             slope = limit
@@ -508,7 +508,7 @@ class MagnetController(LockedMachine):
     def device_regulatable(self, event):
         #TODO
         try:
-            return float(redis.read(DEVICE_TEMP_KEY)) <= MAX_REGULATE_TEMP
+            return float(redis.read([DEVICE_TEMP_KEY])) <= MAX_REGULATE_TEMP
         except RedisError:
             return False
 
