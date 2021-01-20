@@ -630,6 +630,7 @@ class SIM921(SimDevice):
             raise IOError(msg)
 
     def temp(self):
+        # TODO: Make this (and resistance) more amenable to the SimCommand.sim_query_string property?
         temp = self.query("TVAL?")
         self.last_temp_read = temp
         return temp
