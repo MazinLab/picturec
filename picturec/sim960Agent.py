@@ -527,7 +527,7 @@ class MagnetController(LockedMachine):
                 msg = f'Command {cmd} not supported while in state {self.state}'
                 getLogger(__name__).error(msg)
                 raise StateError(msg)
-            self.sim.send(cmd)
+            self.sim.send(cmd.sim_string)
 
     def record_entry(self, event):
         self.state_entry_time[self.state] = time.time()
