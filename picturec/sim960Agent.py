@@ -26,11 +26,12 @@ STATEFILE = ''
 REDIS_DB = 0
 
 
-#'device-settings:sim960:mode',  #TODO remove from schema
-#'device-settings:sim960:vout-value', #TODO remove from schema
+#'device-settings:sim960:mode',  #TODO remove from schema - (NS response) I don't think this can be removed
+#'device-settings:sim960:vout-value', #TODO remove from schema - (NS response) I don't think this can be removed
 
 #TODO these 4 settings don't really follow the schema pattern that is used below as they do want discovery but don't
 # control the device directly
+# NS (Response 1/19) device-settings -> instrument-settings(or magnet-settings/instrument-settings:magnet/...) ?
 RAMP_SLOPE_KEY = 'device-settings:sim960:ramp-rate'#TODO
 DERAMP_SLOPE_KEY = 'device-settings:sim960:deramp-rate' #TODO
 SOAK_TIME_KEY = 'device-settings:sim960:soak-time'#TODO
@@ -54,9 +55,8 @@ SETTING_KEYS = ['device-settings:sim960:vout-min-limit',
 
 
 OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'  # Set by 'MOUT' in manual mode, monitored by 'OMON?' always
-INPUT_VOLTAGE_KEY = 'status:device:sim960:sim921-vout'  # This is the output from the sim921 to the sim960 for PID control #TODO update in the schema
-MAGNET_CURRENT_KEY = 'status:device:sim960:current-setpoint'  # To get the current from the sim960. We will need to run a calibration #TODO update in the schema
-# test to figure out what the output voltage to current conversion is.
+INPUT_VOLTAGE_KEY = 'status:device:sim960:vin'  # This is the measured input to sim960 from sim921 for PID control
+MAGNET_CURRENT_KEY = 'status:device:sim960:current-setpoint'  # TODO: TALK WITH JB. Is this the 'predicted' current (info only from 960) or measured (from currentduino)?
 MAGNET_STATE_KEY = 'status:magnet:state'  # OFF | RAMPING | SOAKING | QUENCH (DON'T QUENCH!)
 
 STATUS_KEY = 'status:device:sim960:status'
