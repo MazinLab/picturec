@@ -543,7 +543,9 @@ class SIM960(SimDevice):
 
     @property
     def setpoint(self):
-        """ return the currently commanded current"""
+        """ return the currently commanded current
+        TODO: Question - Does currently commanded mean 'expected from SIM960 output voltage' or 'measured from HC board?'
+        """
         return 0.0
 
     @property

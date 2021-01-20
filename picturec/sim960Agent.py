@@ -1,6 +1,8 @@
 """
 Author: Noah Swimmer, 21 July 2020
 TODO: Measure output voltage-to-current conversion. Should be ~1 V/A (from the hc boost board)
+
+TODO: MAGNET_CURRENT_KEY - Is this the key for the measured value from HC Board?
 """
 import logging
 import sys
@@ -73,8 +75,8 @@ COLD_NOW_CMD = 'command:get-cold'#TODO
 ABORT_CMD = 'command:abort-cooldown'#TODO
 QUENCH_KEY = 'event:quenching'#TODO
 
-DEVICE_TEMP_KEY = 'status:device:array:temperature:value'  #TODO
-MAX_REGULATE_TEMP = .5 #TODO
+DEVICE_TEMP_KEY = 'status:device:array:temperature:value'  #TODO ( currently 'status:temps:mkidarray:temp'. Which is better )
+MAX_REGULATE_TEMP = .5 #TODO NS: probably want this to be 100 mK +/- a few mK. ('A few' depends on our control level)
 
 COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD)
 
@@ -199,6 +201,7 @@ class MagnetController(LockedMachine):
             # stay in regulating until the device is too warm to regulate
             # if it somehow leaves PID mode (or we can't verify it is in PID mode: IOError) move to deramping
             # if we cant pull the temp from redis then device is assumed unregulatable and we move to deramping
+            # TODO (having not yet gone past here): Is not being able to pull temp immediately unregulateable or can it be tried a few times?
             {'trigger': 'next', 'source': 'regulating', 'dest': None, 'conditions': ['device_regulatable', 'in_pid_mode']},  # TODO
             {'trigger': 'next', 'source': 'regulating', 'dest': 'deramping'},
 
@@ -236,7 +239,7 @@ class MagnetController(LockedMachine):
 
         self.statefile = statefile
         self.sim = sim
-        self.lock = lock = threading.RLock()
+        self.lock = lock = threading.RLock() # TODO: Is this a typo/not done?
         self.scheduled_cooldown = None
         self._run = False  # Set to false to kill the main loop
         self._main = None
@@ -293,6 +296,7 @@ class MagnetController(LockedMachine):
         current_settings = {}
         if blocked_init:
             if init_blocked:
+                # TODO: Error below?
                 log.warning(f'Initializing {"\n\t".join(blocked_init)}\n\t  despite being blocked by current state.')
             else:
                 log.warning(f'Skipping settings {"\n\t".join(blocked_init)}\n  as they are blocked by current state.')
@@ -362,7 +366,13 @@ class MagnetController(LockedMachine):
     @property
     def min_time_until_cool(self):
         """return an estimate of the time to cool from the current state """
-        return timedelta(minutes=30)  # TODO just a bunch of redis.read current state and math
+        # TODO (Updated) MATH:
+        #   If RAMPING -> Time = ((SOAK_CURRENT - CURRENT_CURRENT)/ RAMP_RATE) + SOAK_TIME + (SOAK_CURRENT / DERAMP_RATE)
+        #   If SOAKING -> Time = TIME_LEFT_IN_SOAK + (SOAK_CURRENT / DERAMP_RATE)
+        #   If DERAMPING -> Time = CURRENT_CURRENT / DERAMP_RATE
+        #  Note: This doesn't take into account (1) Heatswitch failures/time to close (2) Starting regulation on the tail of deramping
+        return timedelta(minutes=30)
+
 
     def schedule_cooldown(self, time):
         """time specifies the time by which to be cold"""
@@ -377,7 +387,7 @@ class MagnetController(LockedMachine):
             raise ValueError(f'Time travel not possible, specify a time at least {time_needed} in the future')
 
         self.cancel_scheduled_cooldown()
-        t = threading.Timer(time - time_needed - now, self.start)
+        t = threading.Timer(time - time_needed - now, self.start) # TODO (For JB): self.start?
         self.scheduled_cooldown = (time - time_needed, t)
         t.daemon = True
         t.start()
@@ -455,7 +465,7 @@ class MagnetController(LockedMachine):
 
     def decrement_current(self, event):
         limit = self.sim.MAX_CURRENT_SLOPE
-        interval = 0  # TODO
+        interval = self.LOOP_INTERVAL # No need to do this faster than increment current.
         try:
             slope = abs(float(redis.read(DERAMP_SLOPE_KEY)))
         except RedisError:

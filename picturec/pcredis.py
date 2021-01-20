@@ -86,7 +86,6 @@ class PCRedis(object):
 
     def read(self, keys, return_dict=True, error_missing=True):
         """
-        TODO: I (NS) don't know how I feel about the return_dict=T/F anymore. I don't see why we would ever want anything other than a dict.
         Function for reading values from corresponding keys in the redis database.
         :param error_missing: raise an error if a key isn't in redis, else silently omit it. Forced true if not
          returning a dict.
