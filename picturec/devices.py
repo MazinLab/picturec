@@ -589,11 +589,14 @@ class SIM960(SimDevice):
             if mode == value:
                 return
             if value == MagnetState.MANUAL:
-                # TODO set the output voltage to whatever is needed for that current
-                self.send()  # TODO send the command to go into manual mode
+                # TODO set the output voltage to whatever is needed for that current <- What? I don't follow (NS)
+                #  Is this supposed to be output voltage MODE ?
+                cmd = SimCommand('device-settings:sim960:mode', 'manual')
+                self.send(cmd.sim_string)
                 #NB no need to set the _lat_manual_change time as we arent actually changing the current
             else:
-                self.send()  # TODO send the command to go into pid mode
+                cmd = SimCommand('device-settings:sim960:mode', 'pid')
+                self.send(cmd.sim_string)
 
 
 class SIM921(SimDevice):
