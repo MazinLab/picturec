@@ -106,6 +106,7 @@ def disable_simulator():
 class SimCommand(object):
     def __init__(self, schema_key, value):
         """
+        TODO: Make this smart enough so that if value=='?' it knows to do query rather than try to figure if a value is allowed.
         Initializes a SimCommand. Takes in a redis device-setting:* key and desired value an evaluates it for its type,
         the mapping of the command, and appropriately sets the mapping|range for the command. If the setting is not
         supported, raise a ValueError.
@@ -487,6 +488,7 @@ class SIM960(SimDevice):
 
     def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, initializer=None, simulator=None):
         """
+        TODO: Simulator parameter is not yet a parameter in SerialDevice superclass
         Initializes SIM960 agent. First hits the superclass (SerialDevice) init function. Then sets class variables which
         will be used in normal operation. If connect mainframe is True, attempts to connect to the SIM960 via the SIM900
         in mainframe mode. Raise IOError if an invalid slot or exit string is given (or if no exit string is given).
@@ -511,6 +513,7 @@ class SIM960(SimDevice):
             return 'offline'
 
     def _simspecificconnect(self):
+        # TODO: Jeb - Use SIM960.state here for clarity?
         polarity = self.query("APOL?", connect=False)
         if int(polarity) == 1:
             self.send("APOL 0", connect=False) # Set polarity to negative, fundamental to the wiring.
