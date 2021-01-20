@@ -482,7 +482,7 @@ class MagnetState(enum.Enum):
 
 
 class SIM960(SimDevice):
-    MAX_CURRENT_SLOPE = .5
+    MAX_CURRENT_SLOPE = .005  # 5 mA/s
     MAX_CURRENT = 10.0
     OFF_SLOPE = 0.5
 
