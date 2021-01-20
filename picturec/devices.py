@@ -563,13 +563,16 @@ class SIM960(SimDevice):
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
-        # TODO set the output voltage to whatever is needed for that current
+        # TODO set the output voltage to whatever is needed for that current.
+        #  NS - proper command below. May change based on conversion between SIM960 Vout and Current.
+        #  cmd = SimCommand('device-settings:sim960:vout-value', x)
         self._last_manual_change = time.time()
 
     def kill_current(self):
         """Immediately kill the current"""
         #TODO command to immediately force current to 0
-        self.send()
+        cmd = SimCommand('device-settings:sim960:vout-value', 0)
+        self.send(cmd.sim_string)
 
     @property
     def mode(self):
