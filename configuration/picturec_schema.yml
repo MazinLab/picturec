@@ -1,5 +1,5 @@
-defaults:
-  device-settings:
+settings:
+  device:
     hemtduino:
       hemts-enabled: False
     currentduino:
@@ -22,63 +22,31 @@ defaults:
       manual-vout: 0
       output-mode: 'manual'
     sim960:
-      mode: 'manual'
+      mode: 'manual' # To be removed?
+      vout-value: 0 # To be removed?
       vout-min-limit: -0.1
       vout-max-limit: 10
-      pid:
-        polarity: '-'
-        p:
-          value: 1.6e1
-          enabled: True
-        i:
-          value: 0.2
-          enabled: True
-        d:
-          value: 0
-          enabled: False
-      setpoint-mode: 'internal'
-      pid-control-vin-setpoint: 0
-      ramp-rate: 1e-3
-      ramp-enable: True
-      vout-value: 0
-
-device-settings:
-  hemtduino:
-    hemts-enabled: False
-  currentduino:
-    highcurrentboard: 'off'
-    heatswitch: 'close'
-  ls240:
-    lhe-profile: 'linear'
-    ln2-profile: 'linear'
-  sim921:
-    resistance-range: 20e3
-    excitation-value: 100e-6
-    excitation-mode: 'voltage'
-    time-constant: 3
-    temp-offset: 100e-3
-    temp-slope: 1e-2
-    resistance-offset: 19400.5
-    resistance-slope: 1e-5
-    curve-profile: 'linear'
-    curve-channel: 1
-    manual-vout: 0
-    output-mode: 'manual'
-  sim960:
-    mode: 'manual'
-    vout-min-limit: -0.1
-    vout-max-limit: 10
-    pid:
-      polarity: '-'
-      mode: 'pi'
-      p: 1.6e1
-      i: 0.2
-      d: 0
-    setpoint-mode: 'internal'
-    pid-control-vin-setpoint: 0
-    ramp-rate: 1e-3
-    ramp-enable: True
-    vout-value: 0
+      pid-polarity: 'negative' # Not a key anymore ('Uncommandable'), BUT needs confirmation
+      pid-p:
+        value: 1.6e1
+        enabled: True
+      pid-i:
+        value: 0.2
+        enabled: True
+      pid-d:
+        value: 0
+        enabled: False
+      vin-setpoint-mode: 'internal'
+      vin-setpoint: 0
+      vin-setpoint-slew-rate: 1e-3
+      vin-setpoint-slew-enable: True
+  instrument:
+    magnet:
+      ramp-rate: 0.005 # A/s (5 mA/s)
+      deramp-rate: -0.005 # A/s
+      soak-time: 1800 # seconds (30 min)
+      soak-current: 9.4 # A
+    statefile: './statefile.txt'
 
 status:
   feedline1:
@@ -156,8 +124,6 @@ status:
   highcurrentboard:
     powered: 'OFF'
     current: 0
-
-user-intent: 'COLD'
 
 site:
   observatory: 'Las Campanas Observatory'

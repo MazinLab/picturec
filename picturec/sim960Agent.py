@@ -25,9 +25,10 @@ DEVICE = '/dev/sim960'
 STATEFILE = ''
 REDIS_DB = 0
 
-
-#'device-settings:sim960:mode',  #TODO remove from schema - (NS response) I don't think this can be removed
-#'device-settings:sim960:vout-value', #TODO remove from schema - (NS response) I don't think this can be removed
+# TODO: I (NS) don't think these should be removed from the schema. They are both stored (for state info) but also
+#  necessary to command
+#'device-settings:sim960:mode',
+#'device-settings:sim960:vout-value',
 
 #TODO these 4 settings don't really follow the schema pattern that is used below as they do want discovery but don't
 # control the device directly
