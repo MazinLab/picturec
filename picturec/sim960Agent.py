@@ -139,7 +139,7 @@ def monitor_callback(iv, ov, oc):
 class MagnetController(LockedMachine):
     LOOP_INTERVAL = 1
     BLOCKS = defaultdict(set)  # TODO This holds the sim960 commands that are blocked out in a given state i.e.
-                                 #  'regulating':('device-settings:sim960:setpoint-mode',)
+                               #  'regulating':('device-settings:sim960:setpoint-mode',)
 
     def __init__(self, statefile='./magnetstate.txt'):
         transitions = [
@@ -316,7 +316,7 @@ class MagnetController(LockedMachine):
             if self.sim.initialized_at_last_connect:
                 mag_state = self.sim.mode
                 if mag_state == MagnetState.PID:
-                    initial_state = 'regulating'  # NB if HS wrong device won't stay cold and we'll transition to deramping
+                    initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
                 else:
                     initial_state = load_persisted_state(self.statefile)
                     current = self.sim.setpoint
