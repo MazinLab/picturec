@@ -35,6 +35,8 @@ SOAK_TIME_KEY = 'device-settings:sim960:soak-time'#TODO
 SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'#TODO
 STATEFILE_PATH_KEY = 'device-settings:sim960:statefile'
 
+# TODO (NS Response 1/19) SETTING_KEYS has been updated in devices.py -> COMMANDS960.
+#  It's time for an overhaul doc of the updated schema. A lot has changed since last updated.
 SETTING_KEYS = ['device-settings:sim960:vout-min-limit',
                 'device-settings:sim960:vout-max-limit',
                 'device-settings:sim960:pid-p:enabled',
@@ -43,15 +45,10 @@ SETTING_KEYS = ['device-settings:sim960:vout-min-limit',
                 'device-settings:sim960:pid-p:value',
                 'device-settings:sim960:pid-i:value',
                 'device-settings:sim960:pid-d:value',
-                'device-settings:sim960:vin-setpoint-mode',        #TODO update in the schema
-                'device-settings:sim960:vin-setpoint',             #TODO update in the schema
-                'device-settings:sim960:vin-setpoint-slew-rate',   #TODO update in the schema
-                'device-settings:sim960:vin-setpoint-slew-enable'] #TODO update in the schema
-
-
-default_key_factory = lambda key: f"default:{key}"
-DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
-
+                'device-settings:sim960:vin-setpoint-mode',
+                'device-settings:sim960:vin-setpoint',
+                'device-settings:sim960:vin-setpoint-slew-rate',
+                'device-settings:sim960:vin-setpoint-slew-enable']
 
 
 OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'  # Set by 'MOUT' in manual mode, monitored by 'OMON?' always

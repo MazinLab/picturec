@@ -35,13 +35,13 @@ COMMANDS960 = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'manu
                'device-settings:sim960:vout-value': {'command': 'MOUT', 'vals': [-10, 10]},
                'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
                'device-settings:sim960:vout-max-limit': {'command': 'ULIM', 'vals': [-10, 10]},
-               'device-settings:sim960:setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
-               'device-settings:sim960:pid-control-vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
+               'device-settings:sim960:vin-setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
+               'device-settings:sim960:vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
                'device-settings:sim960:pid-p:value': {'command': 'GAIN', 'vals': [-1e3, -1e-1]},
                'device-settings:sim960:pid-i:value': {'command': 'INTG', 'vals': [1e-2, 5e5]},
                'device-settings:sim960:pid-d:value': {'command': 'DERV', 'vals': [0, 1e1]},
-               'device-settings:sim960:setpoint-ramp-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},  # Note: Internal setpoint ramp, NOT magnet ramp
-               'device-settings:sim960:setpoint-ramp-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},  # Note: Internal setpoint ramp rate, NOT magnet ramp
+               'device-settings:sim960:vin-setpoint-slew-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},  # Note: Internal setpoint ramp, NOT magnet ramp
+               'device-settings:sim960:vin-setpoint-slew-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},  # Note: Internal setpoint ramp rate, NOT magnet ramp
                'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
                'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
                'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
