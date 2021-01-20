@@ -64,13 +64,13 @@ def open():
 
 def is_opened():
     import picturec.pcredis as pcr
-    return pcr.read(HEATSWITCH_STATUS_KEY) == 'open' #TODO: Note - Currently the value that gets stored is the same as
+    return pcr.read([HEATSWITCH_STATUS_KEY]) == 'open' #TODO: Note - Currently the value that gets stored is the same as
                                                      # in the close()/open() methods. This could be changed if desired.
 
 
 def is_closed():
     import picturec.pcredis as pcr
-    return pcr.read(HEATSWITCH_STATUS_KEY) == 'close'
+    return pcr.read([HEATSWITCH_STATUS_KEY]) == 'close'
 
 
 class Currentduino(picturec.devices.SerialDevice):
