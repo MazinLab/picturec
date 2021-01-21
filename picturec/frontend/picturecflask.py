@@ -108,7 +108,7 @@ def reporterinit():
     for i in TSK:
         resp.append(redis.redis_ts.get(i))
     resp =np.array(resp)
-    return jsonify({'keys': TSK, 'times': resp[:, 0], 'temps': resp[:, 1]})
+    return jsonify({'keys': TSK, 'times': list(resp[:, 0]), 'temps': list(resp[:, 1])})
 
 
 @app.route('/reporter', methods=['POST'])
@@ -117,7 +117,7 @@ def reporter():
     for i in TSK:
         resp.append(redis.redis_ts.get(i))
     resp =np.array(resp)
-    return jsonify({'keys': TSK, 'times': resp[:, 0], 'temps': resp[:, 1]})
+    return jsonify({'keys': TSK, 'times': list(resp[:, 0]), 'temps': list(resp[:, 1])})
 
 
 def make_choices(key):
