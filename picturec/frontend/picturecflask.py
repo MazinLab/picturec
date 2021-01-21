@@ -94,30 +94,31 @@ def info():
     form = FlaskForm()
     return render_template('info.html', title='Info', form=form)
 
-
-TSK = ['status:feedline1:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias',
-                 'status:feedline2:hemt:gate-voltage-bias', 'status:feedline2:hemt:drain-current-bias', 'status:feedline2:hemt:drain-voltage-bias',
-                 'status:feedline3:hemt:gate-voltage-bias', 'status:feedline3:hemt:drain-current-bias', 'status:feedline3:hemt:drain-voltage-bias',
-                 'status:feedline4:hemt:gate-voltage-bias', 'status:feedline4:hemt:drain-current-bias', 'status:feedline4:hemt:drain-voltage-bias',
-                 'status:feedline5:hemt:gate-voltage-bias', 'status:feedline5:hemt:drain-current-bias', 'status:feedline5:hemt:drain-voltage-bias']
-
-
-@app.route('/reportertime', methods=['POST'])
-def reporterinit():
-    resp = []
-    for i in TSK:
-        resp.append(redis.redis_ts.get(i))
-    resp =np.array(resp)
-    return jsonify({'keys': TSK, 'times': list(resp[:, 0]), 'temps': list(resp[:, 1])})
-
-
 @app.route('/reporter', methods=['POST'])
 def reporter():
-    resp = []
-    for i in TSK:
-        resp.append(redis.redis_ts.get(i))
-    resp =np.array(resp)
-    return jsonify({'keys': TSK, 'times': list(resp[:, 0]), 'temps': list(resp[:, 1])})
+    vg_keys = [f'status:feedline{i}:hemt:gate-voltage-bias' for i in [1, 2, 3, 4, 5]]
+    id_keys = [f'status:feedline{i}:hemt:drain-current-bias' for i in [1, 2, 3, 4, 5]]
+    vd_keys = [f'status:feedline{i}:hemt:drain-voltage-bias' for i in [1, 2, 3, 4, 5]]
+
+    vgs = []
+    for i in vg_keys:
+        vgs.append(redis.redis_ts.get(i))
+    vgs = np.array(vgs)
+
+    ids = []
+    for i in id_keys:
+        ids.append(redis.redis_ts.get(i))
+    ids = np.array(ids)
+
+    vds = []
+    for i in vd_keys:
+        vds.append(redis.redis_ts.get(i))
+    vds = np.array(vds)
+
+    print(vgs[:,1], ids[:, 1], vds[:, 1])
+    return jsonify({'vg_times': list(vgs[:, 0]), 'gate_voltages': list(vgs[:, 1]),
+                    'id_times': list(ids[:, 0]), 'drain_currents': list(ids[:, 1]),
+                    'vd_times': list(vds[:, 0]), 'drain_voltages': list(vds[:, 1])})
 
 
 def make_choices(key):
