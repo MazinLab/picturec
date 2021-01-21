@@ -2,7 +2,6 @@
 Author: Noah Swimmer, 21 July 2020
 TODO: Measure output voltage-to-current conversion. Should be ~1 V/A (from the hc boost board)
 
-TODO: MAGNET_CURRENT_KEY - Is this the key for the measured value from HC Board?
 """
 import logging
 import sys
@@ -15,7 +14,7 @@ from transitions import MachineError, State, Transition
 from transitions.extensions import LockedMachine
 
 import picturec.util as util
-from picturec.devices import SIM960, SimCommand, MagnetState
+from picturec.devices import SIM960, SimCommand, MagnetState, COMMANDS960
 import picturec.pcredis as redis
 from picturec.pcredis import RedisError
 import picturec.currentduinoAgent as heatswitch
@@ -25,10 +24,6 @@ DEVICE = '/dev/sim960'
 STATEFILE = ''
 REDIS_DB = 0
 
-# TODO: I (NS) don't think these should be removed from the schema. They are both stored (for state info) but also
-#  necessary to command
-#'device-settings:sim960:mode',
-#'device-settings:sim960:vout-value',
 
 #TODO these 4 settings don't really follow the schema pattern that is used below as they do want discovery but don't
 # control the device directly
@@ -39,25 +34,11 @@ SOAK_TIME_KEY = 'device-settings:sim960:soak-time'#TODO
 SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'#TODO
 STATEFILE_PATH_KEY = 'device-settings:sim960:statefile'
 
-# TODO (NS Response 1/19) SETTING_KEYS has been updated in devices.py -> COMMANDS960.
-#  It's time for an overhaul doc of the updated schema. A lot has changed since last updated.
-SETTING_KEYS = ['device-settings:sim960:vout-min-limit',
-                'device-settings:sim960:vout-max-limit',
-                'device-settings:sim960:pid-p:enabled',
-                'device-settings:sim960:pid-i:enabled',
-                'device-settings:sim960:pid-d:enabled',
-                'device-settings:sim960:pid-p:value',
-                'device-settings:sim960:pid-i:value',
-                'device-settings:sim960:pid-d:value',
-                'device-settings:sim960:vin-setpoint-mode',
-                'device-settings:sim960:vin-setpoint',
-                'device-settings:sim960:vin-setpoint-slew-rate',
-                'device-settings:sim960:vin-setpoint-slew-enable']
-
+SETTING_KEYS = tuple(COMMANDS960.keys())
 
 OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'  # Set by 'MOUT' in manual mode, monitored by 'OMON?' always
 INPUT_VOLTAGE_KEY = 'status:device:sim960:vin'  # This is the measured input to sim960 from sim921 for PID control
-MAGNET_CURRENT_KEY = 'status:device:sim960:current-setpoint'  # TODO: TALK WITH JB. Is this the 'predicted' current (info only from 960) or measured (from currentduino)?
+MAGNET_CURRENT_KEY = 'status:device:sim960:current-setpoint'
 MAGNET_STATE_KEY = 'status:magnet:state'  # OFF | RAMPING | SOAKING | QUENCH (DON'T QUENCH!)
 
 STATUS_KEY = 'status:device:sim960:status'
@@ -76,8 +57,8 @@ COLD_NOW_CMD = 'command:get-cold'#TODO
 ABORT_CMD = 'command:abort-cooldown'#TODO
 QUENCH_KEY = 'event:quenching'#TODO
 
-DEVICE_TEMP_KEY = 'status:device:array:temperature:value'  #TODO ( currently 'status:temps:mkidarray:temp'. Which is better )
-MAX_REGULATE_TEMP = .5 #TODO NS: probably want this to be 100 mK +/- a few mK. ('A few' depends on our control level)
+DEVICE_TEMP_KEY = 'status:temps:mkidarray:temp'
+MAX_REGULATE_TEMP = .105 #TODO NS: probably want this to be 100 mK +/- a few mK. ('A few' depends on our control level)
 
 COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD)
 
@@ -202,7 +183,6 @@ class MagnetController(LockedMachine):
             # stay in regulating until the device is too warm to regulate
             # if it somehow leaves PID mode (or we can't verify it is in PID mode: IOError) move to deramping
             # if we cant pull the temp from redis then device is assumed unregulatable and we move to deramping
-            # TODO (having not yet gone past here): Is not being able to pull temp immediately unregulateable or can it be tried a few times?
             {'trigger': 'next', 'source': 'regulating', 'dest': None, 'conditions': ['device_regulatable', 'in_pid_mode']},  # TODO
             {'trigger': 'next', 'source': 'regulating', 'dest': 'deramping'},
 
@@ -240,7 +220,7 @@ class MagnetController(LockedMachine):
 
         self.statefile = statefile
         self.sim = sim
-        self.lock = lock = threading.RLock() # TODO: Is this a typo/not done?
+        self.lock = threading.RLock()
         self.scheduled_cooldown = None
         self._run = False  # Set to false to kill the main loop
         self._main = None

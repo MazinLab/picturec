@@ -82,11 +82,11 @@ class PCRedis(object):
         returns the number of listeners of the channel
         TODO: (Rehashing todo from top of file) Make this robust for not just publishing but also storing data
         """
+        self.store(channel, message)
         return self.redis.publish(channel, message)
 
-    def read(self, keys:list, return_dict=True, error_missing=True):
+    def read(self, keys: (list, tuple, str), return_dict=True, error_missing=True):
         """
-        Note on read. Keys param MUST be type(list) EVEN IF ONLY READING A SINGLE KEY
         Function for reading values from corresponding keys in the redis database.
         :param error_missing: raise an error if a key isn't in redis, else silently omit it. Forced true if not
          returning a dict.
@@ -97,8 +97,10 @@ class PCRedis(object):
         than one key you are looking for the value of)
         :return: Dict. {'key1':'value1', 'key2':'value2', ...}
         """
+        if isinstance(keys, str):
+            keys = [keys]
         vals = [self.redis.get(k) for k in keys]
-        missing = [k for k,v in zip(keys, vals) if v is None]
+        missing = [k for k, v in zip(keys, vals) if v is None]
         keys, vals = list(zip(*filter(lambda x: x[1] is not None, zip(keys, vals))))
 
         if (error_missing or not return_dict) and missing:
@@ -166,8 +168,10 @@ store = None
 read = None
 listen = None
 publish = None
+
+
 def setup_redis(host='localhost', port=6379, db=0, create_ts_keys=tuple()):
-    global pcredis, store, read, listen
+    global pcredis, store, read, listen, publish
     pcredis = PCRedis(host=host, port=port, db=db, create_ts_keys=create_ts_keys)
     store = pcredis.store
     read = pcredis.read

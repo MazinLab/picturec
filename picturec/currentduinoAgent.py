@@ -21,8 +21,8 @@ import logging
 import threading
 
 import picturec.devices
+import picturec.pcredis
 from picturec.pcredis import PCRedis, RedisError
-import picturec.agent as agent
 import picturec.util as util
 
 REDIS_DB = 0
@@ -51,26 +51,28 @@ R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
 log = logging.getLogger(__name__)
 
-# TODO: close/open/is_opened/is_closed are currently placeholders. Make them usable/follow the schema
+
+class HeatswitchPosition:
+    OPEN = 'open'
+    CLOSE = 'close'
+
+
 def close():
-    import picturec.pcredis as pcr
-    pcr.publish(HEATSWITCH_MOVE_KEY, 'close')  # Change from store to publish. Publish will encompass storage and pubsub
+    picturec.pcredis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.CLOSE)
 
 
 def open():
-    import picturec.pcredis as pcr
-    pcr.publish(HEATSWITCH_MOVE_KEY, 'open')
+    picturec.pcredis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.OPEN )
 
 
 def is_opened():
-    import picturec.pcredis as pcr
-    return pcr.read([HEATSWITCH_STATUS_KEY]) == 'open' #TODO: Note - Currently the value that gets stored is the same as
-                                                     # in the close()/open() methods. This could be changed if desired.
+    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY) == HeatswitchPosition.OPEN
 
 
 def is_closed():
-    import picturec.pcredis as pcr
-    return pcr.read([HEATSWITCH_STATUS_KEY]) == 'close'
+    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY) == HeatswitchPosition.OPEN
+
+
 
 
 class Currentduino(picturec.devices.SerialDevice):
@@ -119,8 +121,9 @@ class Currentduino(picturec.devices.SerialDevice):
         with the serial port.
         """
         pos = pos.lower()
-        if pos not in ('open', 'close'):
-            raise ValueError(f"'{pos} is not a vaild (open, close) heat switch position")
+        if pos not in (HeatswitchPosition.OPEN, HeatswitchPosition.CLOSE):
+            raise ValueError(f"'{pos} is not a vaild ({HeatswitchPosition.OPEN}, {HeatswitchPosition.CLOSE})'"
+                             f"' heat switch position")
 
         try:
             log.info(f"Commanding heat switch to {pos}")

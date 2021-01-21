@@ -31,9 +31,7 @@ COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'v
                'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {'1': '1', '2': '2', '3': '3'}},
                }
 
-COMMANDS960 = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'manual': '0', 'pid': '1'}},
-               'device-settings:sim960:vout-value': {'command': 'MOUT', 'vals': [-10, 10]},
-               'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
+COMMANDS960 = {'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
                'device-settings:sim960:vout-max-limit': {'command': 'ULIM', 'vals': [-10, 10]},
                'device-settings:sim960:vin-setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
                'device-settings:sim960:vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
@@ -59,13 +57,12 @@ def escapeString(string):
     return string.replace('\n', '\\n').replace('\r', '\\r')
 
 
-
-
 SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': defaultdict(str)}
 #NB: The responses should be a list of sent strings and their exact responses eg 'foo\n':'barr\r' or sent strings
 # and a callable that given the sent string returns the response string 'foo\n':barr('foo\n') -> 'barr\r'
 
-class SimSerial:
+
+class SimulatedSerial:
     def __init__(self, *args, **kwargs):
         self._lastwrite=''
 
@@ -90,33 +87,34 @@ class SimSerial:
     def isOpen(self):
         return SERIAL_SIM_CONFIG['open']
 
+
 Serial = serial.Serial
 def enable_simulator():
     global Serial
-    Serial = SimSerial
+    Serial = SimulatedSerial
+
 
 def disable_simulator():
     global Serial
     Serial = serial.Serial
 
 
-
-
-
-class SimCommand(object):
-    def __init__(self, schema_key, value):
+class SimCommand:
+    def __init__(self, schema_key, value=None):
         """
-        TODO: Make this smart enough so that if value=='?' it knows to do query rather than try to figure if a value is allowed.
         Initializes a SimCommand. Takes in a redis device-setting:* key and desired value an evaluates it for its type,
         the mapping of the command, and appropriately sets the mapping|range for the command. If the setting is not
         supported, raise a ValueError.
+
+        If no value is specified it will create the command as a query
+
         """
         if schema_key not in COMMAND_DICT.keys():
             raise ValueError(f'Unknown command: {schema_key}')
 
         self.range = None
         self.mapping = None
-        self.value = None
+        self.value = value
         self.setting = schema_key
 
         self.command = COMMAND_DICT[self.setting]['command']
@@ -124,12 +122,20 @@ class SimCommand(object):
 
         if isinstance(setting_vals, dict):
             self.mapping = setting_vals
-            if value not in self.mapping:
-                raise ValueError(f'Invalid value {value}. Options are: {list(self.mapping.keys())}.')
-            else:
-                self.value = value
         else:
             self.range = setting_vals
+        self._vet()
+
+    def _vet(self):
+        """Verifies value agaisnt papping or range and handles necessary casting"""
+        if self.value is None:
+            return True
+
+        value = self.value
+        if self.mapping is not None:
+            if value not in self.mapping:
+                raise ValueError(f'Invalid value {value}. Options are: {list(self.mapping.keys())}.')
+        else:
             try:
                 self.value = float(value)
             except ValueError:
@@ -141,16 +147,22 @@ class SimCommand(object):
         return f"{self.setting}->{self.value}: {self.sim_string}"
 
     @property
+    def is_query(self):
+        return self.value is None
+
+    @property
     def sim_string(self):
         """
         Returns the command string for the SIM.
         """
+        if self.is_query:
+            return self.sim_query_string
         v = self.mapping[self.value] if self.range is None else self.value
         return f"{self.command} {v}"
 
     @property
     def sim_query_string(self):
-        """ Returns the corresponding command string to query for the setting if available"""
+        """ Returns the corresponding command string to query for the setting"""
         return f"{self.command}?"
 
 
@@ -407,9 +419,6 @@ class SimDevice(SerialDevice):
                 self.send(cmd.sim_string)
                 ret[setting] = value
             except ValueError as e:
-                #TODO Noah is this ok?
-                # 1/19 Response (NS) - Yes! This essentially catches typos in the setting keys (or keys that aren't
-                # implemented). It also catches invalid values (__init__ function in line 107 of this program)
                 log.warning(f"Skipping bad setting: {e}")
                 ret[setting] = self.query(cmd.sim_query_string)
         return ret
@@ -417,15 +426,12 @@ class SimDevice(SerialDevice):
     def read_schema_settings(self, settings):
         ret = {}
         for setting in settings:
-            cmd = SimCommand(setting, '?')  #TODO make into a valid query (NS 1/19) Seems like this has been done below.
-            log.debug(cmd)
+            cmd = SimCommand(setting)
             ret[setting] = self.query(cmd.sim_query_string)
         return ret
 
     def monitor(self, interval: float, monitor_func: (callable, tuple), value_callback: (callable, tuple) = None):
         """
-        TODO JB: This is a first stab at a quasi-general purpose monitoring function that fixes some of the issues we
-         discussed.
         Given a monitoring function (or is of the same) and either one or the same number of optional callback
         functions call the monitors every interval. If one callback it will get all the values in the order of the
         monitor funcs, if a list of the same number as of monitorables each will get a single value.
@@ -475,20 +481,19 @@ class SimDevice(SerialDevice):
         self._monitor_thread.start()
 
 
-
 class MagnetState(enum.Enum):
      PID = enum.auto()
      MANUAL = enum.auto()
 
 
 class SIM960(SimDevice):
+
     MAX_CURRENT_SLOPE = .005  # 5 mA/s
     MAX_CURRENT = 10.0
     OFF_SLOPE = 0.5
 
-    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, initializer=None, simulator=None):
+    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, initializer=None):
         """
-        TODO: Simulator parameter is not yet a parameter in SerialDevice superclass
         Initializes SIM960 agent. First hits the superclass (SerialDevice) init function. Then sets class variables which
         will be used in normal operation. If connect mainframe is True, attempts to connect to the SIM960 via the SIM900
         in mainframe mode. Raise IOError if an invalid slot or exit string is given (or if no exit string is given).
@@ -496,8 +501,7 @@ class SIM960(SimDevice):
         self.polarity = 'negative'
         self.last_input_voltage = None
         self.last_output_voltage = None
-        super().__init__('SIM960', port, baudrate, timeout, connect=connect, initilizer=initializer,
-                         simulator=simulator)
+        super().__init__('SIM960', port, baudrate, timeout, connect=connect, initilizer=initializer)
 
     @property
     def state(self):
@@ -513,7 +517,6 @@ class SIM960(SimDevice):
             return 'offline'
 
     def _simspecificconnect(self):
-        # TODO: Jeb - Use SIM960.state here for clarity?
         polarity = self.query("APOL?", connect=False)
         if int(polarity) == 1:
             self.send("APOL 0", connect=False) # Set polarity to negative, fundamental to the wiring.
@@ -541,19 +544,22 @@ class SIM960(SimDevice):
         self.last_output_voltage = ov
         return ov
 
-    @property
-    def setpoint(self):
-        """ return the currently commanded current
-        TODO: Question - Does currently commanded mean 'expected from SIM960 output voltage' or 'measured from HC board?'
-        """
-        return 0.0
+    @staticmethod
+    def _out_volt_2_current(volt, inverse=False):
+        if inverse:
+            return volt/1.0
+        else:
+            return 1.0*volt
 
     @property
-    def manual_current(selfs):
+    def setpoint(self):
+        """ return the currently commanded current """
+        return self._out_volt_2_current(self.output_voltage)
+
+    @property
+    def manual_current(self):
         """ return the manual current setpoint"""
-        #TODO fetch the manual setpoint
-        current = 0
-        return current
+        return self._out_volt_2_current(self.send("MOUT?"))
 
     @manual_current.setter
     def manual_current(self, x: float):
@@ -565,16 +571,13 @@ class SIM960(SimDevice):
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
-        # TODO set the output voltage to whatever is needed for that current.
-        #  NS - proper command below. May change based on conversion between SIM960 Vout and Current.
-        #  cmd = SimCommand('device-settings:sim960:vout-value', x)
+        self.send(f'MOUT {self._out_volt_2_current(x ,inverse=True):.0f}')  #TODO how many decimals
         self._last_manual_change = time.time()
 
     def kill_current(self):
         """Immediately kill the current"""
-        #TODO command to immediately force current to 0
-        cmd = SimCommand('device-settings:sim960:vout-value', 0)
-        self.send(cmd.sim_string)
+        self.mode=MagnetState.MANUAL
+        self.send("MOUT 0")
 
     @property
     def mode(self):
@@ -591,16 +594,11 @@ class SIM960(SimDevice):
             if mode == value:
                 return
             if value == MagnetState.MANUAL:
-                cmd = SimCommand('device-settings:sim960:mode', 'manual')
-                self.send(cmd.sim_string)
-                # TODO: Alternatively (if this is no longer in the schema)
-                #  self.send("AMAN 0")
+                self.manual_current = self.setpoint
+                self.send("AMAN 0")
                 #NB no need to set the _lat_manual_change time as we arent actually changing the current
             else:
-                cmd = SimCommand('device-settings:sim960:mode', 'pid')
-                self.send(cmd.sim_string)
-                # TODO: Alternatively (if this is no longer in the schema)
-                #  self.send("AMAN 1")
+                self.send("AMAN 1")
 
 
 class SIM921(SimDevice):
