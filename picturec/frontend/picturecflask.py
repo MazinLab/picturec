@@ -100,25 +100,21 @@ def reporter():
     id_keys = [f'status:feedline{i}:hemt:drain-current-bias' for i in [1, 2, 3, 4, 5]]
     vd_keys = [f'status:feedline{i}:hemt:drain-voltage-bias' for i in [1, 2, 3, 4, 5]]
 
-    vgs = []
-    for i in vg_keys:
-        vgs.append(redis.redis_ts.get(i))
-    vgs = np.array(vgs)
-
-    ids = []
-    for i in id_keys:
-        ids.append(redis.redis_ts.get(i))
-    ids = np.array(ids)
-
-    vds = []
-    for i in vd_keys:
-        vds.append(redis.redis_ts.get(i))
-    vds = np.array(vds)
+    vgs = np.array([redis.redis_ts.get(i) for i in vg_keys])
+    ids = np.array([redis.redis_ts.get(i) for i in id_keys])
+    vds = np.array([redis.redis_ts.get(i) for i in vd_keys])
 
     print(vgs[:,1], ids[:, 1], vds[:, 1])
     return jsonify({'vg_times': list(vgs[:, 0]), 'gate_voltages': list(vgs[:, 1]),
                     'id_times': list(ids[:, 0]), 'drain_currents': list(ids[:, 1]),
                     'vd_times': list(vds[:, 0]), 'drain_voltages': list(vds[:, 1])})
+
+
+@app.route('/tempvals', methods=['POST'])
+def tempvals():
+    temperature_keys = ['status:temps:lhetank', 'status:temps:ln2tank']
+    vals = np.array([redis.redis_ts.get(i) for i in temperature_keys])
+    return jsonify({'times': list(vals[:, 0]), 'temps': list(vals[:, 1])})
 
 
 def make_choices(key):
