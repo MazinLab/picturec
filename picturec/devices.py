@@ -60,7 +60,53 @@ def escapeString(string):
 SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': defaultdict(str)}
 #NB: The responses should be a list of sent strings and their exact responses eg 'foo\n':'barr\r' or sent strings
 # and a callable that given the sent string returns the response string 'foo\n':barr('foo\n') -> 'barr\r'
-
+responses921 = {b'*IDN?\n': b'Stanford_Research_Systems,SIM921,s/n006241,ver3.6\r\n',
+                b'TVAL?\n': b"+3.426272E-01\r\n",  # needs a function to generate plausible vals
+                b'RVAL?\n': b"+5.003490E+03\r\n",  # needs a function to generate plausible vals
+                b'CURV?\n': b"1\r\n",
+                b'RANG?\n': b"6\r\n",
+                b'EXON?\n': b"1\r\n",
+                b'EXCI?\n': b"3\r\n",
+                b'MODE?\n': b"2\r\n",
+                b'TCON?\n': b"2\r\n",
+                b'TSET?\n': b"+9.999999E-02\r\n",
+                b'RSET?\n': b"+1.940050E+04\r\n",
+                b'VKEL?\n': b"1.000000E-02\r\n",
+                b'VOHM?\n': b"9.999998E-06\r\n",
+                b'AMAN?\n': b"1\r\n",
+                b'AOUT?\n': b"0.00000\r\n",
+                b'ATEM?\n': b"0\r\n"}
+responses960 = {b'*IDN?\n': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17\r\n",
+                b'LLIM?\n': b"-0.10\r\n",
+                b'ULIM?\n': b"+10.00\r\n",
+                b'INPT?\n': b"0\r\n",
+                b'SETP?\n': b"+0.000\r\n",
+                b'GAIN?\n': b"-1.6E+1\r\n",
+                b'INTG?\n': b"+2.0E-1\r\n",
+                b'DERV?\n': b"+1.0E-5\r\n",
+                b'RAMP?\n': b"1\r\n",
+                b'RATE?\n': b"+0.5E-2\r\n",
+                b'PCTL?\n': b"1\r\n",
+                b'ICTL?\n': b"1\r\n",
+                b'DCTL?\n': b"0\r\n",
+                b'APOL?\n': b"0\r\n",
+                b'AMAN?\n': b"0\r\n",  # needs a function to flip between manual/PID
+                b'MMON?\n': b"-00.008339\r\n",  # needs a function to generate plausible vals
+                b'OMON?\n': b"+00.003277\r\n",  # needs a function to generate plausible vals
+                b'MOUT?\n': b"+0.000\r\n"}  # needs a function to generate plausible vals
+responses_ls240 = {b'*IDN?\n': b"LSCI,MODEL240-2P,LSA2359,1.9\r\n",
+                   b'INTYPE? 1\n': b"1,0,0,0,1,1\r\n",
+                   b'INTYPE? 2\n': b"1,0,0,0,1,1\r\n",
+                   b'KRDG? 1\n': b"+0292.19\r\n",  # needs a function to generate plausible vals
+                   b'KRDG? 2\n': b"+0293.00\r\n",  # needs a function to generate plausible vals
+                   b'INNAME? 1\n': b"LN2            \r\n",
+                   b'INNAME? 2\n': b"LHE            \r\n"}
+responses_currentduino = {b'v': b" 0.20 v\r\n",
+                          b'?': b" 374 ?\r\n",  # needs a function to generate plausible vals
+                          b'o': b" o\r\n",
+                          b'c': b" c\r\n"}
+responses_hemtduino = {b'v': b" 0.10 v\r\n",
+                       b'?': b" 364 355 379 364 351 349 351 350 348 342 362 353 368 362 353 ?\r\n"}  # needs a function to generate plausible vals
 
 class SimulatedSerial:
     def __init__(self, *args, **kwargs):
@@ -533,6 +579,7 @@ class SIM960(SimDevice):
 
     def input_voltage(self):
         """Read the voltage being sent to the input monitor of the SIM960 from the SIM921"""
+
         iv = self.query("MMON?")
         self.last_input_voltage = iv
         return iv
@@ -624,6 +671,7 @@ class SIM921(SimDevice):
             raise IOError(msg)
 
         # Make sure that the excitation is turned on. If not successful, exit the program
+        # TODO: This can be like the vin-setpoint-slew-enable for the SIM960 (
         self.send("EXON 1", connect=False)
         exon = self.query("EXON?", connect=False)
         if exon != '1':
