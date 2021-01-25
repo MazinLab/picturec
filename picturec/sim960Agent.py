@@ -278,9 +278,11 @@ class MagnetController(LockedMachine):
         if blocked_init:
             if init_blocked:
                 # TODO: Error below?
-                log.warning(f'Initializing {"\n\t".join(blocked_init)}\n\t  despite being blocked by current state.')
+                for_logging = "\n\t".join(blocked_init)
+                log.warning(f'Initializing \n\t{for_logging}\n despite being blocked by current state.')
             else:
-                log.warning(f'Skipping settings {"\n\t".join(blocked_init)}\n  as they are blocked by current state.')
+                for_logging = "\n\t".join(blocked_init)
+                log.warning(f'Skipping settings \n\t{for_logging}\n as they are blocked by current state.')
                 settings_to_load = {k: v for k, v in settings_to_load if k not in blocks}
                 current_settings = self.sim.read_schema_settings(blocked_init)  #keep redis in sync
 

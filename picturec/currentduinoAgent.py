@@ -73,8 +73,6 @@ def is_closed():
     return picturec.pcredis.read(HEATSWITCH_STATUS_KEY) == HeatswitchPosition.OPEN
 
 
-
-
 class Currentduino(picturec.devices.SerialDevice):
     VALID_FIRMWARES = (0.0, 0.1, 0.2)
 
