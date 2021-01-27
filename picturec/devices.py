@@ -664,11 +664,12 @@ class SIM960(SimDevice):
         if not self._initialized:
             raise ValueError('Sim is not initialized')
         x = min(max(x, 0), self.MAX_CURRENT)
+        # TODO: There should be something about a discrete jump in here too
         delta = abs((self.setpoint - x)/(time.time()-self._last_manual_change))
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(x ,inverse=True):.0f}')  #TODO how many decimals
+        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True):.3f}')  # Response, there's mV accuracy
         self._last_manual_change = time.time()
 
     def kill_current(self):

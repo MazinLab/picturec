@@ -482,7 +482,7 @@ class MagnetController(LockedMachine):
             getLogger(__name__).warning('Ramp slope set to zero, this will take eternity.')
 
         try:
-            self.sim.setpoint += slope * interval
+            self.sim.manual_current += slope * interval
         except IOError:
             getLogger(__name__).warning('Failed to increment current, sim offline')
 
@@ -506,7 +506,7 @@ class MagnetController(LockedMachine):
             getLogger(__name__).warning('Deramp slope set to zero, this will take eternity.')
 
         try:
-            self.sim.setpoint -= slope * interval
+            self.sim.manual_current -= slope * interval
         except IOError:
             getLogger(__name__).warning('Failed to decrement current, sim offline')
 
