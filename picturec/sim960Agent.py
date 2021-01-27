@@ -27,14 +27,12 @@ STATEFILE = '/picturec/picturec/logs/statefile.txt'
 REDIS_DB = 0
 
 
-#TODO these 4 settings don't really follow the schema pattern that is used below as they do want discovery but don't
-# control the device directly
-# NS (Response 1/19) device-settings -> instrument-settings(or magnet-settings/instrument-settings:magnet/...) ?
-RAMP_SLOPE_KEY = 'device-settings:sim960:ramp-rate'#TODO
-DERAMP_SLOPE_KEY = 'device-settings:sim960:deramp-rate' #TODO
-SOAK_TIME_KEY = 'device-settings:sim960:soak-time'#TODO
-SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'#TODO
-STATEFILE_PATH_KEY = 'device-settings:sim960:statefile'
+#  Standard values have been input for these keys
+RAMP_SLOPE_KEY = 'device-settings:sim960:ramp-rate'  # .005 A/s
+DERAMP_SLOPE_KEY = 'device-settings:sim960:deramp-rate'  # -.005 A/s
+SOAK_TIME_KEY = 'device-settings:sim960:soak-time'  # 1800 s (30 m)
+SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'  # 9.4 A
+STATEFILE_PATH_KEY = 'device-settings:sim960:statefile'  # /picturec/picturec/logs/statefile.txt
 
 SETTING_KEYS = tuple(COMMANDS960.keys())
 
