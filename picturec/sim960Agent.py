@@ -490,7 +490,7 @@ class MagnetController(LockedMachine):
         limit = self.sim.MAX_CURRENT_SLOPE
         interval = self.LOOP_INTERVAL # No need to do this faster than increment current.
         try:
-            slope = abs(float(redis.read(DERAMP_SLOPE_KEY)))
+            slope = abs(float(redis.read(DERAMP_SLOPE_KEY, return_dict=False)[0]))
         except RedisError:
             getLogger(__name__).warning(f'Unable to pull {DERAMP_SLOPE_KEY} using {limit}.')
             slope = limit
