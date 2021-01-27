@@ -62,7 +62,7 @@ def close():
 
 
 def open():
-    picturec.pcredis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.OPEN )
+    picturec.pcredis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.OPEN)
 
 
 def is_opened():
