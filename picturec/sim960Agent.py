@@ -87,7 +87,7 @@ transitions = [
 
 ]
 from transitions import Machine, State
-machine = Machine(foo, states=( State('off'), State('ramping'), State('soaking')),
+machine = Machine(foo, states=(State('off'), State('ramping'), State('soaking')),
                        transitions=transitions, initial='ramping', send_event=True)
 
 
@@ -266,7 +266,8 @@ class MagnetController(LockedMachine):
         # initial = self.compute_initial_state()
         initial = compute_initial_state(self.sim, self.statefile)
         self.state_entry_time = {initial: time.time()}
-        LockedMachine.__init__(self, transitions=transitions, initial=initial, states=states, machine_context=self.lock)
+        LockedMachine.__init__(self, transitions=transitions, initial=initial, states=states, machine_context=self.lock,
+                               send_event=True)
 
         if sim.initialized_at_last_connect:
             self.firmware_pull()
@@ -376,7 +377,7 @@ class MagnetController(LockedMachine):
     def main(self):
         while self._run:
             try:
-                self.machine.next()
+                self.next()
             except IOError:
                 getLogger(__name__).info(exc_info=True)
             except MachineError:
