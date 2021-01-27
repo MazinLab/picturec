@@ -56,8 +56,43 @@ def escapeString(string):
     """
     return string.replace('\n', '\\n').replace('\r', '\\r')
 
-
-SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': defaultdict(str)}
+responses960 = {'*IDN?\n': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17\r\n",
+                'LLIM?\n': b"-0.10\r\n",
+                'ULIM?\n': b"+10.00\r\n",
+                'INPT?\n': b"0\r\n",
+                'SETP?\n': b"+0.000\r\n",
+                'GAIN?\n': b"-1.6E+1\r\n",
+                'INTG?\n': b"+2.0E-1\r\n",
+                'DERV?\n': b"+1.0E-5\r\n",
+                'RAMP?\n': b"1\r\n",
+                'RATE?\n': b"+0.5E-2\r\n",
+                'PCTL?\n': b"1\r\n",
+                'ICTL?\n': b"1\r\n",
+                'DCTL?\n': b"0\r\n",
+                'APOL?\n': b"0\r\n",
+                'AMAN?\n': b"0\r\n",  # needs a function to flip between manual/PID
+                'MMON?\n': b"-00.008339\r\n",  # needs a function to generate plausible vals
+                'OMON?\n': b"+00.003277\r\n",  # needs a function to generate plausible vals
+                'MOUT?\n': b"+0.000\r\n",
+                '*IDN?': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17\r\n",
+                'LLIM?': b"-0.10\r\n",
+                'ULIM?': b"+10.00\r\n",
+                'INPT?': b"0\r\n",
+                'SETP?': b"+0.000\r\n",
+                'GAIN?': b"-1.6E+1\r\n",
+                'INTG?': b"+2.0E-1\r\n",
+                'DERV?': b"+1.0E-5\r\n",
+                'RAMP?': b"1\r\n",
+                'RATE?': b"+0.5E-2\r\n",
+                'PCTL?': b"1\r\n",
+                'ICTL?': b"1\r\n",
+                'DCTL?': b"0\r\n",
+                'APOL?': b"0\r\n",
+                'AMAN?': b"0\r\n",  # needs a function to flip between manual/PID
+                'MMON?': b"-00.008339\r\n",  # needs a function to generate plausible vals
+                'OMON?': b"+00.003277\r\n",  # needs a function to generate plausible vals
+                'MOUT?': b"+0.000\r\n"}  # needs a function to generate plausible vals
+SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': responses960}
 #NB: The responses should be a list of sent strings and their exact responses eg 'foo\n':'barr\r' or sent strings
 # and a callable that given the sent string returns the response string 'foo\n':barr('foo\n') -> 'barr\r'
 responses921 = {b'*IDN?\n': b'Stanford_Research_Systems,SIM921,s/n006241,ver3.6\r\n',
@@ -126,7 +161,7 @@ class SimulatedSerial:
 
         resp = SERIAL_SIM_CONFIG['responses'][self._lastwrite]
         try:
-            return resp(self._lastwrite).encode('utf-8')
+            return resp
         except TypeError:
             resp.encode('utf-8')
 
@@ -301,7 +336,6 @@ class SerialDevice:
         with self._rlock:
             if connect:
                 self.connect()
-            msg = self.format_msg(msg)
             try:
                 getLogger(__name__).debug(f"Sending '{msg}'")
                 self.ser.write(msg)
@@ -498,9 +532,10 @@ class SimDevice(SerialDevice):
         def f():
             while True:
                 vals = []
+                print(monitor_func)
                 for func in monitor_func:
                     try:
-                        vals.append(func())
+                        vals.append(func)
                     except IOError as e:
                         log.error(f"Failed to poll {func}: {e}")
                         vals.append(None)
@@ -565,7 +600,7 @@ class SIM960(SimDevice):
     def _simspecificconnect(self):
         polarity = self.query("APOL?", connect=False)
         if int(polarity) == 1:
-            self.send("APOL 0", connect=False) # Set polarity to negative, fundamental to the wiring.
+            self.send("APOL 0", connect=False)  # Set polarity to negative, fundamental to the wiring.
             polarity = self.query("APOL?", connect=False)
             if polarity != '0':
                 msg = f"Polarity query returned {polarity}. Setting PID loop polarity to negative failed."
@@ -577,22 +612,33 @@ class SIM960(SimDevice):
             self._initialized = polarity == '0'
             self.initialized_at_last_connect = self._initialized
 
+
+    @property
     def input_voltage(self):
         """Read the voltage being sent to the input monitor of the SIM960 from the SIM921"""
-
-        iv = self.query("MMON?")
+        iv = float(self.query("MMON?"))
         self.last_input_voltage = iv
         return iv
 
+
+    @property
     def output_voltage(self):
         """Report the voltage at the output of the SIM960. In manual mode, this will be explicitly controlled using MOUT
         and in PID mode this will be the value set by the function Output = P(e + I * int(e) + D * derv(e)) + Offset"""
-        ov = self.query("OMON?")
+        ov = float(self.query("OMON?"))
         self.last_output_voltage = ov
         return ov
 
+
     @staticmethod
-    def _out_volt_2_current(volt, inverse=False):
+    def _out_volt_2_current(volt:float, inverse=False):
+        """
+        Converts a sim960 output voltage to the expected current.
+        TODO: require volt param to be float
+        :param volt:
+        :param inverse:
+        :return:
+        """
         if inverse:
             return volt/1.0
         else:
@@ -600,13 +646,17 @@ class SIM960(SimDevice):
 
     @property
     def setpoint(self):
-        """ return the currently commanded current """
+        """ return the current that is currently commanded by the sim960 """
         return self._out_volt_2_current(self.output_voltage)
 
     @property
     def manual_current(self):
-        """ return the manual current setpoint"""
-        return self._out_volt_2_current(self.send("MOUT?"))
+        """
+        return the manual current setpoint. Queries the manual output voltage and converts that to the expected current.
+        'MOUT?' query returns the value of the user-specified output voltage. This will only be the output voltage in manual mode (not PID).
+        """
+        manual_voltage_setpoint = self.query("MOUT?")
+        return self._out_volt_2_current(manual_voltage_setpoint)
 
     @manual_current.setter
     def manual_current(self, x: float):
@@ -629,7 +679,7 @@ class SIM960(SimDevice):
     @property
     def mode(self):
         """ Returns MagnetState or raises IOError (which means we don't know!) """
-        return MagnetState.MANUAL if self.query('AMAN') == '1' else MagnetState.PID
+        return MagnetState.MANUAL if self.query('AMAN?') == '0' else MagnetState.PID
 
     @mode.setter
     def mode(self, value: MagnetState):

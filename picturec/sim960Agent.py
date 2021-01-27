@@ -14,14 +14,16 @@ from transitions import MachineError, State, Transition
 from transitions.extensions import LockedMachine
 
 import picturec.util as util
-from picturec.devices import SIM960, SimCommand, MagnetState, COMMANDS960
+from picturec.devices import SIM960, SimCommand, MagnetState, COMMANDS960, enable_simulator
 import picturec.pcredis as redis
 from picturec.pcredis import RedisError
 import picturec.currentduinoAgent as heatswitch
 
 
+enable_simulator()
+
 DEVICE = '/dev/sim960'
-STATEFILE = ''
+STATEFILE = '/picturec/picturec/logs/statefile.txt'
 REDIS_DB = 0
 
 
@@ -95,12 +97,13 @@ machine = Machine(foo, states=( State('off'), State('ramping'), State('soaking')
 def write_persisted_state(statefile, state):
     try:
         with open(statefile, 'w') as f:
-            f.write(f'{time.time()}: {state}')
+            f.write(f'{time.time()}:{state}')
     except IOError:
         getLogger(__name__).warning('Unable to log state entry', exc_info=True)
 
 
 def load_persisted_state(statefile):
+
     try:
         with open(statefile, 'r') as f:
             persisted_state_time, persisted_state = f.readline().split(':')
@@ -116,6 +119,42 @@ def monitor_callback(iv, ov, oc):
         redis.store(d, timeseries=True)
     except RedisError:
         getLogger(__name__).warning('Storing magnet status to redis failed')
+
+def compute_initial_state(sim, statefile):
+    initial_state = 'deramping'  #always safe to start here
+    try:
+        print('here?')
+        if sim.initialized_at_last_connect:
+            mag_state = sim.mode
+            if mag_state == MagnetState.PID:
+                initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
+            else:
+                initial_state = load_persisted_state(statefile)[1].rstrip()
+                current = sim.setpoint
+                #TODO: current 'within_range_of_soak_current_val'
+                if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
+                    initial_state = 'ramping'  # we can recover
+
+                # be sure the command is sent
+                if initial_state in ('hs_closing',):
+                    heatswitch.close()
+
+                if initial_state in ('hs_opening',):
+                    heatswitch.open()
+
+                # failure cases
+                if ((initial_state in ('ramping', 'soaking') and heatswitch.is_opened()) or
+                        (initial_state in ('cooling',) and heatswitch.is_closed()) or
+                        (initial_state in ('off', 'regulating'))):
+                    initial_state = 'deramping'  # deramp to off, we are out of sync with the hardware
+
+    except IOError:
+        getLogger(__name__).critical('Lost sim960 connection during agent startup. defaulting to deramping')
+        initial_state = 'deramping'
+    except RedisError:
+        getLogger(__name__).critical('Lost redis connection during compute_initial_state startup.')
+        raise
+    return initial_state
 
 
 class MagnetController(LockedMachine):
@@ -225,7 +264,9 @@ class MagnetController(LockedMachine):
         self._run = False  # Set to false to kill the main loop
         self._main = None
 
-        initial = self.compute_initial_state()
+        # TODO: When to initialize locked machine?
+        # initial = self.compute_initial_state()
+        initial = compute_initial_state(self.sim, self.statefile)
         self.state_entry_time = {initial: time.time()}
         LockedMachine.__init__(self, transitions=transitions, initial=initial, states=states, machine_context=self.lock)
 
@@ -294,6 +335,7 @@ class MagnetController(LockedMachine):
             log.warning('Storing device settings to redis failed')
 
     def compute_initial_state(self):
+        print('here')
         initial_state = 'deramping'  #always safe to start here
         try:
             if self.sim.initialized_at_last_connect:
@@ -521,7 +563,7 @@ if __name__ == "__main__":
 
     util.setup_logging()
     redis.setup_redis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
-    controller = MagnetController(statefile=redis.read(STATEFILE_PATH_KEY))
+    controller = MagnetController(statefile=redis.read(STATEFILE_PATH_KEY, return_dict=False)[0])
 
     # main loop, listen for commands and handle them
     try:
