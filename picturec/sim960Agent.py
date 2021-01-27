@@ -334,7 +334,6 @@ class MagnetController(LockedMachine):
             log.warning('Storing device settings to redis failed')
 
     def compute_initial_state(self):
-        print('here')
         initial_state = 'deramping'  #always safe to start here
         try:
             if self.sim.initialized_at_last_connect:
