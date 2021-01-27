@@ -6,6 +6,8 @@ inter-program communication (using pubsub), information storage (of device setti
 current, etc.).
 
 TODO: Remake PCRedis.publish into a function that can store to DB, publish using pubsub, or both
+
+TODO: Would it be convenient to have PCRedis.read be able to return just a single value?
 """
 
 from redis import Redis as _Redis
