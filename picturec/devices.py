@@ -658,7 +658,7 @@ class SIM960(SimDevice):
         return the manual current setpoint. Queries the manual output voltage and converts that to the expected current.
         'MOUT?' query returns the value of the user-specified output voltage. This will only be the output voltage in manual mode (not PID).
         """
-        manual_voltage_setpoint = self.query("MOUT?")
+        manual_voltage_setpoint = float(self.query("MOUT?"))
         return self._out_volt_2_current(manual_voltage_setpoint)
 
     @manual_current.setter
@@ -672,7 +672,7 @@ class SIM960(SimDevice):
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True):.3f}')  # Response, there's mV accuracy
+        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True):.3f}')  # Response, there's mV accuracy, so at least 3 decimal places
         self._last_manual_change = time.time()
 
     def kill_current(self):
