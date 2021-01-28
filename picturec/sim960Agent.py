@@ -121,7 +121,6 @@ def monitor_callback(iv, ov, oc):
 def compute_initial_state(sim, statefile):
     initial_state = 'deramping'  #always safe to start here
     try:
-        print('here?')
         if sim.initialized_at_last_connect:
             mag_state = sim.mode
             if mag_state == MagnetState.PID:
@@ -152,6 +151,7 @@ def compute_initial_state(sim, statefile):
     except RedisError:
         getLogger(__name__).critical('Lost redis connection during compute_initial_state startup.')
         raise
+    getLogger(__name__).info(f"\n\n------ Initial State is: {initial_state} ------\n")
     return initial_state
 
 
