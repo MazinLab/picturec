@@ -582,6 +582,9 @@ class SIM960(SimDevice):
         self.polarity = 'negative'
         self.last_input_voltage = None
         self.last_output_voltage = None
+        self._last_manual_change = time.time() - 1  # This requires that in the case the program fails that systemd does
+        # not try to restart the sim960Agent program more frequently than once per second (i.e. if sim960Agent crashes,
+        # hold off on trying to start it again for at least 1s)
         super().__init__('SIM960', port, baudrate, timeout, connect=connect, initilizer=initializer)
 
     @property
