@@ -69,28 +69,6 @@ log = logging.getLogger(__name__)
 class StateError(Exception):
     pass
 
-class Foo:
-    count=0
-    def current_at_soak(self, e):
-        if self.count>0:
-            raise ValueError
-        self.count+=1
-        return True
-
-foo = Foo()
-transitions = [
-    # stay in ramping, increasing the current a bit each time unless the current is high enough
-    # if we can't increment the current or get the current th
-    {'trigger': 'next', 'source': 'ramping', 'dest': None, 'unless': 'current_at_soak',
-     'after': 'increment_current'}, # NB 'dest': None returns to the beginning of the state WITHOUT enter/exit calls
-    {'trigger': 'next', 'source': 'ramping', 'dest': 'soaking', 'conditions': 'current_at_soak'},
-
-]
-from transitions import Machine, State
-machine = Machine(foo, states=(State('off'), State('ramping'), State('soaking')),
-                       transitions=transitions, initial='ramping', send_event=True)
-
-
 
 def write_persisted_state(statefile, state):
     try:
