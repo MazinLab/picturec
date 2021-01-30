@@ -77,14 +77,15 @@ class PCRedis(object):
                 logging.getLogger(__name__).info(f"Setting key:value - {k}:{v}")
                 self.redis.set(k, v)
 
-    def publish(self, channel, message):
+    def publish(self, channel, message, store=True):
         """
         Publishes message to channel. Channels need not have been previously created nor must there be a subscriber.
 
         returns the number of listeners of the channel
         TODO: (Rehashing todo from top of file) Make this robust for not just publishing but also storing data
         """
-        self.store(channel, message)
+        if store:
+            self.store({channel: message})
         return self.redis.publish(channel, message)
 
     def read(self, keys: (list, tuple, str), return_dict=True, error_missing=True):
