@@ -424,6 +424,7 @@ class MagnetController(LockedMachine):
 
     def current_off(self, event):
         try:
+            # TODO: See if the noise on the sim.setpoint measurement is stable enough to have '==0' hold true. (Do we need wiggle room?)
             return self.sim.mode==MagnetState.MANUAL and self.sim.setpoint==0
         except IOError:
             return False
