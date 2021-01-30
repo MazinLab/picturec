@@ -66,11 +66,11 @@ def open():
 
 
 def is_opened():
-    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY) == HeatswitchPosition.OPEN
+    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.OPEN
 
 
 def is_closed():
-    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY) == HeatswitchPosition.OPEN
+    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.CLOSE
 
 
 class Currentduino(picturec.devices.SerialDevice):
