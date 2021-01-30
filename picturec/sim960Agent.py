@@ -55,12 +55,13 @@ QUERY_INTERVAL = 10
 COLD_AT_CMD = 'command:be-cold-at'#TODO
 COLD_NOW_CMD = 'command:get-cold'#TODO
 ABORT_CMD = 'command:abort-cooldown'#TODO
+CANCEL_COOLDOWN_CMD = 'command:cancel-scheduled-cooldown'
 QUENCH_KEY = 'event:quenching'#TODO
 
 DEVICE_TEMP_KEY = 'status:temps:mkidarray:temp'
 MAX_REGULATE_TEMP = .105 #TODO NS: probably want this to be 100 mK +/- a few mK. ('A few' depends on our control level)
 
-COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD)
+COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
 
 
 log = logging.getLogger(__name__)
@@ -238,7 +239,7 @@ class MagnetController(LockedMachine):
         self.lock = threading.RLock()
         self.scheduled_cooldown = None
         self._run = False  # Set to false to kill the main loop
-        self._main = None
+        self._mainthread = None
 
         # TODO: When to initialize locked machine?
         # initial = self.compute_initial_state()
@@ -347,11 +348,11 @@ class MagnetController(LockedMachine):
 
     def start_main(self):
         self._run = True  # Set to false to kill the m
-        self._main = threading.Thread(target=self.main)
-        self._main.daemon = True
-        self._main.start()
+        self._mainthread = threading.Thread(target=self._main)
+        self._mainthread.daemon = True
+        self._mainthread.start()
 
-    def main(self):
+    def _main(self):
         while self._run:
             try:
                 self.next()
@@ -363,6 +364,7 @@ class MagnetController(LockedMachine):
                 getLogger(__name__).info(exc_info=True)
             finally:
                 time.sleep(self.LOOP_INTERVAL)
+
 
     @property
     def min_time_until_cool(self):
@@ -388,7 +390,7 @@ class MagnetController(LockedMachine):
             raise ValueError(f'Time travel not possible, specify a time at least {time_needed} in the future')
 
         self.cancel_scheduled_cooldown()
-        t = threading.Timer(time - time_needed - now, self.start) # TODO (For JB): self.start?
+        t = threading.Timer((time - time_needed - now).seconds, self.start) # TODO (For JB): self.start?
         self.scheduled_cooldown = (time - time_needed, t)
         t.daemon = True
         t.start()
@@ -404,7 +406,7 @@ class MagnetController(LockedMachine):
     @property
     def status(self):
         """A string indicating the current status e.g. state[, Cooldown scheduled for X] """
-        ret = self.machine.state
+        ret = self.state
         if ret not in ('off', 'regulating'):
             ret += f", cold in {self.min_time_until_cool} minutes"
         if self.scheduled_cooldown is not None:
@@ -545,6 +547,7 @@ if __name__ == "__main__":
     try:
         while True:
             for key, val in redis.listen(SETTING_KEYS + COMMAND_KEYS + (QUENCH_KEY,)):
+                getLogger(__name__).debug(f"Redis listened to something! Key: {key} -- Val: {val}")
                 if key in SETTING_KEYS:
                     try:
                         cmd = SimCommand(key, val)
@@ -557,7 +560,7 @@ if __name__ == "__main__":
                 elif key == ABORT_CMD:
                     # abort any cooldown in progress, warm up, and turn things off
                     # e.g. last command before heading to bed
-                    controller.deramp()
+                    controller.abort()
                 elif key == QUENCH_KEY:
                     controller.quench()
                 elif key == COLD_AT_CMD:
@@ -570,10 +573,15 @@ if __name__ == "__main__":
                         controller.start()
                     except MachineError:
                         getLogger(__name__).info('Cooldown already in progress', exc_info=True)
+                elif key == CANCEL_COOLDOWN_CMD:
+                    try:
+                        controller.cancel_scheduled_cooldown()
+                    except:
+                        # Add error handling here
+                        pass
                 else:
                     getLogger(__name__).info(f'Ignoring {key}:{val}')
-
-                redis.store(STATUS_KEY, controller.status)
+                redis.store({STATUS_KEY: controller.status})
 
     except RedisError as e:
         getLogger(__name__).critical(f"Redis server error! {e}", exc_info=True)
