@@ -447,7 +447,7 @@ class MagnetController(LockedMachine):
         limit = self.sim.MAX_CURRENT_SLOPE
         interval = self.LOOP_INTERVAL
         try:
-            slope = abs(float(redis.read([RAMP_SLOPE_KEY])))
+            slope = abs(float(redis.read(RAMP_SLOPE_KEY, return_dict=False)[0]))
         except RedisError:
             getLogger(__name__).warning(f'Unable to pull {RAMP_SLOPE_KEY} using {limit}.')
             slope = limit
@@ -455,7 +455,7 @@ class MagnetController(LockedMachine):
         if slope > self.sim.MAX_CURRENT_SLOPE:
             getLogger(__name__).info(f'{RAMP_SLOPE_KEY} too high, overwriting.')
             try:
-                redis.store(RAMP_SLOPE_KEY, limit)
+                redis.store({RAMP_SLOPE_KEY: limit})
             except RedisError:
                 getLogger(__name__).info(f'Overwriting failed.')
 
@@ -479,7 +479,7 @@ class MagnetController(LockedMachine):
         if slope > self.sim.MAX_CURRENT_SLOPE:
             getLogger(__name__).info(f'{DERAMP_SLOPE_KEY} too high, overwriting.')
             try:
-                redis.store(DERAMP_SLOPE_KEY, limit)
+                redis.store({DERAMP_SLOPE_KEY: limit})
             except RedisError:
                 getLogger(__name__).info(f'Overwriting failed.')
 
@@ -499,7 +499,7 @@ class MagnetController(LockedMachine):
 
     def current_at_soak(self, event):
         try:
-            return self.sim.setpoint >= redis.read(SOAK_CURRENT_KEY)
+            return self.sim.setpoint >= float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0])
         except RedisError:
             return False
 
