@@ -71,7 +71,7 @@ responses960 = {'*IDN?': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17\r\
                 'DCTL?': b"0\r\n",
                 'APOL?': b"0\r\n",
                 'AMAN?': b"0\r\n",  # needs a function to flip between manual/PID
-                'MMON?': b"-00.008339\r\n",  # needs a function to generate plausible vals
+                'MMON?': b"-00.000000\r\n",  # needs a function to generate plausible vals
                 'OMON?': b"+00.000000\r\n",  # needs a function to generate plausible vals
                 'MOUT?': b"+0.000\r\n"}  # needs a function to generate plausible vals
 SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': responses960}
@@ -119,6 +119,21 @@ class SimulatedSerial:
         if SERIAL_SIM_CONFIG['write_error']:
             raise SerialException('')
         self._lastwrite = msg
+
+        # Some dynamic updating of values as if the SIM960 received the command and updated its output accordingly
+        if self._lastwrite[:4] == "MOUT":
+            if self._lastwrite[4] == "?":
+                pass
+            else:
+                val = self._lastwrite.split(" ")[1]
+                SERIAL_SIM_CONFIG['responses']["MOUT?"] = f"+{val}\r\n".encode("utf-8")
+                SERIAL_SIM_CONFIG['responses']["OMON?"] = f"+{val}\r\n".encode("utf-8")
+        if self._lastwrite[:4] == "AMAN":
+            if self._lastwrite[4] == "?":
+                pass
+            else:
+                val = self._lastwrite.split(" ")[1]
+                SERIAL_SIM_CONFIG['responses']["AMAN?"] = f"{val}\r\n".encode("utf-8")
 
     def readline(self):
         if SERIAL_SIM_CONFIG['read_error']:
