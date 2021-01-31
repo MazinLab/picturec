@@ -108,7 +108,7 @@ responses_hemtduino = {'v': b" 0.10 v\r\n",
                        '?': b" 364 355 379 364 351 349 351 350 348 342 362 353 368 362 353 ?\r\n"}  # needs a function to generate plausible vals
 
 class SimulatedSerial:
-    # TODO: Write function so commands actually take effect
+    # TODO: Write a more general function to update SIM values than just the 3 currently specified
     def __init__(self, *args, **kwargs):
         self._lastwrite=''
 

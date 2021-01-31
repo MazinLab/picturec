@@ -1,7 +1,8 @@
 """
 Author: Noah Swimmer, 21 July 2020
-TODO: Measure output voltage-to-current conversion. Should be ~1 V/A (from the hc boost board)
+TODO: Measure output voltage-to-current conversion
 
+TODO: Fix erroring out at soak
 """
 import logging
 import sys
