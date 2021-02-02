@@ -160,7 +160,7 @@ class MagnetController(LockedMachine):
             # stay in hs_closing until it is closed then transition to ramping
             # if we can't get the status from redis then the conditions default to false and we stay put
             {'trigger': 'next', 'source': 'hs_closing', 'dest': 'ramping', 'conditions': 'heatswitch_closed'},
-            {'trigger': 'next', 'source': 'hs_closing', 'dest': None},
+            {'trigger': 'next', 'source': 'hs_closing', 'dest': None, 'prepare': 'close_heatswitch'},
 
             # stay in ramping, increasing the current a bit each time unless the current is high enough to soak
             # if we can't increment the current or get the current then IOErrors will arise and we stay put
@@ -184,7 +184,7 @@ class MagnetController(LockedMachine):
             # don't require conditions on current
             # if we can't get the status from redis then the conditions default to false and we stay put
             {'trigger': 'next', 'source': 'hs_opening', 'dest': 'cooling', 'conditions': 'heatswitch_opened'},
-            {'trigger': 'next', 'source': 'hs_opening', 'dest': None},
+            {'trigger': 'next', 'source': 'hs_opening', 'dest': None, 'prepare': 'open_heatswitch'},
 
             # stay in cooling, decreasing the current a bit until the device is regulatable
             # if the heatswitch closes move to deramping
