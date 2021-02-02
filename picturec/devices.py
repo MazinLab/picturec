@@ -317,6 +317,7 @@ class SerialDevice:
             if connect:
                 self.connect()
             try:
+                msg = self.format_msg(msg)
                 getLogger(__name__).debug(f"Sending '{msg}'")
                 self.ser.write(msg)
             except (serial.SerialException, IOError) as e:
