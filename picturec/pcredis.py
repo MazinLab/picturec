@@ -171,12 +171,14 @@ store = None
 read = None
 listen = None
 publish = None
+redis_ts = None
 
 
 def setup_redis(host='localhost', port=6379, db=0, create_ts_keys=tuple()):
-    global pcredis, store, read, listen, publish
+    global pcredis, store, read, listen, publish, redis_ts
     pcredis = PCRedis(host=host, port=port, db=db, create_ts_keys=create_ts_keys)
     store = pcredis.store
     read = pcredis.read
     listen = pcredis.listen
     publish = pcredis.publish
+    redis_ts = pcredis.redis_ts
