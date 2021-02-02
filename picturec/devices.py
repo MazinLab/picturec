@@ -513,7 +513,6 @@ class SimDevice(SerialDevice):
         def f():
             while True:
                 vals = []
-                print(monitor_func)
                 for func in monitor_func:
                     try:
                         vals.append(func)
@@ -648,7 +647,6 @@ class SIM960(SimDevice):
         if not self._initialized:
             raise ValueError('Sim is not initialized')
         x = min(max(x, 0), self.MAX_CURRENT)
-        # TODO: There should be something about a discrete jump in here too
         delta = abs((self.setpoint - x)/(time.time()-self._last_manual_change))
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
