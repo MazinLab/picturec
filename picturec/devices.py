@@ -675,7 +675,7 @@ class SIM960(SimDevice):
             if mode == value:
                 return
             if value == MagnetState.MANUAL:
-                self.manual_current = self.setpoint
+                self.send(f'MOUT {self._out_volt_2_current(self.setpoint, inverse=True):.3f}')
                 self.send("AMAN 0")
                 #NB no need to set the _lat_manual_change time as we arent actually changing the current
             else:
