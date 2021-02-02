@@ -2,7 +2,7 @@
 Author: Noah Swimmer, 21 July 2020
 TODO: Measure output voltage-to-current conversion
 
-TODO: Fix erroring out at soak
+TODO: Catch quench
 """
 import logging
 import sys
