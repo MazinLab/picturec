@@ -109,7 +109,7 @@ class Currentduino(picturec.devices.SerialDevice):
         Overwrites function from SerialDevice superclass. Follows the communication model we made where the arduinos in
         PICTURE-C do not require termination characters.
         """
-        return f"{msg.strip().lower()}{self.terminator}"
+        return f"{msg.strip().lower()}{self.terminator}".encode()
 
     def move_heat_switch(self, pos):
         """
