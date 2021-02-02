@@ -369,13 +369,25 @@ class MagnetController(LockedMachine):
 
     @property
     def min_time_until_cool(self):
-        """return an estimate of the time to cool from the current state """
-        # TODO (Updated) MATH:
-        #   If RAMPING -> Time = ((SOAK_CURRENT - CURRENT_CURRENT)/ RAMP_RATE) + SOAK_TIME + (SOAK_CURRENT / DERAMP_RATE)
-        #   If SOAKING -> Time = TIME_LEFT_IN_SOAK + (SOAK_CURRENT / DERAMP_RATE)
-        #   If DERAMPING -> Time = CURRENT_CURRENT / DERAMP_RATE
-        #  Note: This doesn't take into account (1) Heatswitch failures/time to close (2) Starting regulation on the tail of deramping
-        return timedelta(minutes=30)
+        """
+        return an estimate of the time to cool from the current state
+        """
+        soak_current = float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0])
+        soak_time = float(redis.read(SOAK_TIME_KEY, return_dict=False)[0])
+        ramp_rate = float(redis.read(RAMP_SLOPE_KEY, return_dict=False)[0])
+        deramp_rate = float(redis.read(DERAMP_SLOPE_KEY, return_dict=False)[0])
+        current_current = self.sim.setpoint
+        current_state = self.state # NB: If current_state is regulating time_to_cool will return 0 since it is already cool.
+
+        time_to_cool = 0
+        if current_state in ('ramping', 'off', 'hs_closing'):
+            time_to_cool = ((soak_current - current_current) / ramp_rate) + soak_time + ((0 - soak_current) / deramp_rate)
+        if current_state in ('soaking', 'hs_opening'):
+            time_to_cool = (time.time() - self.state_entry_time['soaking']) + ((0 - soak_current) / deramp_rate)
+        if current_state in ('cooling', 'deramping'):
+            time_to_cool = (0 - soak_current) / deramp_rate
+
+        return timedelta(seconds=time_to_cool)
 
 
     def schedule_cooldown(self, time):
@@ -388,7 +400,7 @@ class MagnetController(LockedMachine):
         time_needed = self.min_time_until_cool
 
         if time < now + time_needed:
-            raise ValueError(f'Time travel not possible, specify a time at least {time_needed} in the future')
+            raise ValueError(f'Time travel not possible, specify a time at least {time_needed} in the future. (Current time: {now.timestamp()})')
 
         self.cancel_scheduled_cooldown()
         t = threading.Timer((time - time_needed - now).seconds, self.start) # TODO (For JB): self.start?
