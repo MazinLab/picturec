@@ -109,7 +109,7 @@ def compute_initial_state(sim, statefile):
                 initial_state = load_persisted_state(statefile)[1].rstrip()
                 current = sim.setpoint
                 #TODO: current 'within_range_of_soak_current_val'
-                if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
+                if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0]):
                     initial_state = 'ramping'  # we can recover
 
                 # be sure the command is sent
@@ -415,7 +415,10 @@ class MagnetController(LockedMachine):
         return ret
 
     def close_heatswitch(self, event):
-        heatswitch.close()
+        try:
+            heatswitch.close()
+        except RedisError:
+            pass
 
     def open_heatswitch(self, event):
         try:
@@ -494,7 +497,7 @@ class MagnetController(LockedMachine):
 
     def soak_time_expired(self, event):
         try:
-            return (time.time() - self.state_entry_time['soaking']) >= float(redis.read(SOAK_TIME_KEY))
+            return (time.time() - self.state_entry_time['soaking']) >= float(redis.read(SOAK_TIME_KEY, return_dict=False)[0])
         except RedisError:
             return False
 
@@ -511,9 +514,8 @@ class MagnetController(LockedMachine):
         self.sim.mode = MagnetState.PID
 
     def device_regulatable(self, event):
-        #TODO
         try:
-            return float(redis.read([DEVICE_TEMP_KEY])) <= MAX_REGULATE_TEMP
+            return float(redis.redis_ts.get(DEVICE_TEMP_KEY)[1]) <= MAX_REGULATE_TEMP
         except RedisError:
             return False
 
