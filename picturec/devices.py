@@ -56,24 +56,24 @@ def escapeString(string):
     """
     return string.replace('\n', '\\n').replace('\r', '\\r')
 
-responses960 = {'*IDN?': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17\r\n",
-                'LLIM?': b"-0.10\r\n",
-                'ULIM?': b"+10.00\r\n",
-                'INPT?': b"0\r\n",
-                'SETP?': b"+0.000\r\n",
-                'GAIN?': b"-1.6E+1\r\n",
-                'INTG?': b"+2.0E-1\r\n",
-                'DERV?': b"+1.0E-5\r\n",
-                'RAMP?': b"1\r\n",
-                'RATE?': b"+0.5E-2\r\n",
-                'PCTL?': b"1\r\n",
-                'ICTL?': b"1\r\n",
-                'DCTL?': b"0\r\n",
-                'APOL?': b"0\r\n",
-                'AMAN?': b"0\r\n",  # needs a function to flip between manual/PID
-                'MMON?': b"-00.000000\r\n",  # needs a function to generate plausible vals
-                'OMON?': b"+00.000000\r\n",  # needs a function to generate plausible vals
-                'MOUT?': b"+0.000\r\n"}  # needs a function to generate plausible vals
+responses960 = {b'*IDN?\n': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17\r\n",
+                b'LLIM?\n': b"-0.10\r\n",
+                b'ULIM?\n': b"+10.00\r\n",
+                b'INPT?\n': b"0\r\n",
+                b'SETP?\n': b"+0.000\r\n",
+                b'GAIN?\n': b"-1.6E+1\r\n",
+                b'INTG?\n': b"+2.0E-1\r\n",
+                b'DERV?\n': b"+1.0E-5\r\n",
+                b'RAMP?\n': b"1\r\n",
+                b'RATE?\n': b"+0.5E-2\r\n",
+                b'PCTL?\n': b"1\r\n",
+                b'ICTL?\n': b"1\r\n",
+                b'DCTL?\n': b"0\r\n",
+                b'APOL?\n': b"0\r\n",
+                b'AMAN?\n': b"0\r\n",  # needs a function to flip between manual/PID
+                b'MMON?\n': b"-00.000000\r\n",  # needs a function to generate plausible vals
+                b'OMON?\n': b"+00.000000\r\n",  # needs a function to generate plausible vals
+                b'MOUT?\n': b"+0.000\r\n"}  # needs a function to generate plausible vals
 SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': responses960}
 #NB: The responses should be a list of sent strings and their exact responses eg 'foo\n':'barr\r' or sent strings
 # and a callable that given the sent string returns the response string 'foo\n':barr('foo\n') -> 'barr\r'
@@ -121,19 +121,19 @@ class SimulatedSerial:
         self._lastwrite = msg
 
         # Some dynamic updating of values as if the SIM960 received the command and updated its output accordingly
-        if self._lastwrite[:4] == "MOUT":
-            if self._lastwrite[4] == "?":
+        if self._lastwrite[:4] == b"MOUT":
+            if self._lastwrite.decode()[4] == "?":
                 pass
             else:
-                val = self._lastwrite.split(" ")[1]
-                SERIAL_SIM_CONFIG['responses']["MOUT?"] = f"+{val}\r\n".encode("utf-8")
-                SERIAL_SIM_CONFIG['responses']["OMON?"] = f"+{val}\r\n".encode("utf-8")
-        if self._lastwrite[:4] == "AMAN":
-            if self._lastwrite[4] == "?":
+                val = self._lastwrite.decode("utf-8").rstrip('\r\n').split(" ")[1]
+                SERIAL_SIM_CONFIG['responses'][b"MOUT?\n"] = f"+{val}\r\n".encode("utf-8")
+                SERIAL_SIM_CONFIG['responses'][b"OMON?\n"] = f"+{val}\r\n".encode("utf-8")
+        if self._lastwrite[:4] == b"AMAN":
+            if self._lastwrite.decode()[4] == "?":
                 pass
             else:
-                val = self._lastwrite.split(" ")[1]
-                SERIAL_SIM_CONFIG['responses']["AMAN?"] = f"{val}\r\n".encode("utf-8")
+                val = self._lastwrite.decode("utf-8").rstrip('\r\n').split(" ")[1]
+                SERIAL_SIM_CONFIG['responses'][b"AMAN?\n"] = f"{val}\r\n".encode("utf-8")
 
     def readline(self):
         if SERIAL_SIM_CONFIG['read_error']:
