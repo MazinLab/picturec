@@ -73,7 +73,7 @@ responses960 = {b'*IDN?\n': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17
                 b'AMAN?\n': b"0\r\n",  # needs a function to flip between manual/PID
                 b'MMON?\n': b"-00.000000\r\n",  # needs a function to generate plausible vals
                 b'OMON?\n': b"+00.000000\r\n",  # needs a function to generate plausible vals
-                b'MOUT?\n': b"+0.000\r\n"}  # needs a function to generate plausible vals
+                b'MOUT?\n': b"+00.000000\r\n"}  # needs a function to generate plausible vals
 SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': responses960}
 #NB: The responses should be a list of sent strings and their exact responses eg 'foo\n':'barr\r' or sent strings
 # and a callable that given the sent string returns the response string 'foo\n':barr('foo\n') -> 'barr\r'

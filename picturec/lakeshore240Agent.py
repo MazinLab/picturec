@@ -31,7 +31,7 @@ REDIS_DB = 0
 KEYS = ['device-settings:ls240:lhe-profile',
         'device-settings:ls240:ln2-profile',
         'status:temps:lhetank',
-        'status:temps:ln2tank'
+        'status:temps:ln2tank',
         'status:device:ls240:firmware',
         'status:device:ls240:status',
         'status:device:ls240:model',
