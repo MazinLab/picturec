@@ -50,7 +50,7 @@ SN_KEY = 'status:device:sim960:sn'
 
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY, MAGNET_STATE_KEY]
 
-
+# TODO: Should be at most 1 (in production mode)
 QUERY_INTERVAL = 10
 
 COLD_AT_CMD = 'command:be-cold-at'#TODO
@@ -60,7 +60,8 @@ CANCEL_COOLDOWN_CMD = 'command:cancel-scheduled-cooldown'
 QUENCH_KEY = 'event:quenching'#TODO
 
 DEVICE_TEMP_KEY = 'status:temps:mkidarray:temp'
-MAX_REGULATE_TEMP = .105 #TODO NS: probably want this to be 100 mK +/- a few mK. ('A few' depends on our control level)
+MAX_REGULATE_TEMP = .105  # This value should be HIGHER than the DESIRED regulate_temp. This is so that if there is
+# noise on the signal, it will not kill the loop.
 
 COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
 
@@ -107,8 +108,7 @@ def compute_initial_state(sim, statefile):
                 initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
             else:
                 initial_state = load_persisted_state(statefile)[1].rstrip()
-                current = sim.setpoint
-                #TODO: current 'within_range_of_soak_current_val'
+                current = sim.manual_current  # Manual current vs setpoint because manual current is the COMMANDED value, setpoint is MEASURED
                 if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0]):
                     initial_state = 'ramping'  # we can recover
 
@@ -549,6 +549,7 @@ class MagnetController(LockedMachine):
             self.sim.send(cmd.sim_string)
 
     def record_entry(self, event):
+        # TODO: Also record state to redis
         self.state_entry_time[self.state] = time.time()
         write_persisted_state(self.statefile, self.state)
 
