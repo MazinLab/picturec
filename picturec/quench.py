@@ -19,21 +19,26 @@ import picturec.currentduinoAgent as heatswitch
 import numpy as np
 from scipy.stats import linregress
 import logging
+import time
 
 
 REDIS_DB = 0
 TS_KEYS = ['status:temps:mkidarray:temp', 'status:highcurrentboard:current', 'status:temps:lhetank', 'status:temps:ln2tank']
-LOOP_INTERVAL = .1
+LOOP_INTERVAL = .25
 
 QUENCH_KEY = 'event:quenching'
+
+log = logging.getLogger(__name__)
 
 class QuenchMonitor:
 
     def __init__(self):
-        pass
+        self.fit = None
+        self.fit_stddev = None
 
-    def read_timestream(self, key):
-        return np.array(redis.redis_ts.range(key, '-', '+')[-11:])
+    @property
+    def data(self):
+        return np.array(redis.redis_ts.range('status:highcurrentboard:current', '-', '+')[-11:])
 
     def fit_data(self, data):
         data = data[:-1]
@@ -43,11 +48,14 @@ class QuenchMonitor:
         return p, std_dev
 
     def check_quench_from_current(self):
-        data = self.read_timestream('status:highcurrentboard:current')
-        fit, std_dev = self.fit_data(data)
+        data = self.data
+        log.debug(data)
+        self.fit, self.fit_stddev = self.fit_data(data)
 
-        diff_from_expected = data[-1][1] - fit(data[-1][0])
-        if diff_from_expected > 3 * std_dev:
+        diff_from_expected = abs(data[-1][1] - self.fit(data[-1][0]))
+        if self.fit_stddev <= 1e-5:
+            return False
+        if diff_from_expected > 3 * self.fit_stddev:
             return True
         else:
             return False
@@ -55,22 +63,37 @@ class QuenchMonitor:
 
 if __name__ == "__main__":
 
-    # util.setup_logging()
-    log = logging.getLogger(__name__)
+    util.setup_logging()
     redis.setup_redis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
 
     q = QuenchMonitor()
 
     quench = False
+    warning = False
+
+    log.debug('Starting quench monitoring')
 
     while True:
         try:
+            log.debug('Start loop')
             quench = q.check_quench_from_current()
+            log.debug(quench)
+
             if quench:
-                redis.publish(QUENCH_KEY, 'Quenched!!!')
+                if warning:
+                    redis.publish(QUENCH_KEY, 'Quenched!!!')
+                    log.critical(f"Quench occurred!")
+                    break
+                else:
+                    warning = True
             else:
+                if warning:
+                    warning = False
+                log.debug(f"Checked at {time.time()} - no quench")
                 pass
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
             break
+        log.debug('End loop')
+        time.sleep(LOOP_INTERVAL)
 
