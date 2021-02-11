@@ -108,7 +108,7 @@ def compute_initial_state(sim, statefile):
                 initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
             else:
                 initial_state = load_persisted_state(statefile)[1].rstrip()
-                current = sim.manual_current  # Manual current vs setpoint because manual current is the COMMANDED value, setpoint is MEASURED
+                current = sim.setpoint  # TODO: I'm torn on whether this needs to be setpoint vs manual current (or if it matters)
                 if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0]):
                     initial_state = 'ramping'  # we can recover
 
