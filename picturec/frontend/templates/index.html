@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>
+        <div><p>Welcome to the PICTURE-C Dashboard</p></div>
+    </h1>
+    <head>
+<!--        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>-->
+        <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    </head>
+    <div>
+        <table style="border-collapse: collapse; display: inline">
+            <caption style="text-align: center">Thermometry</caption>
+            <thead>
+                {% for header in table_headers %}
+                    <th style="text-align:center; border: 1px solid black; padding:10px"> {{ header }} </th>
+                {% endfor %}
+            </thead>
+            <tbody>
+                {% for row in table_data %}
+                    <tr>
+                    {%for value in row %}
+                        <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
+                    {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table style="border-collapse: collapse; display: inline">
+            <caption style="text-align: center"> Magnet </caption>
+            {% for row in current_tableh %}
+            <tr>
+                {% for value in row %}
+                <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+
+    </div>
+
+    <div id="tank-temps" style="width:600px;height:600px"></div>
+    <script>
+        function init_tank_temps() {
+            var times = [];
+            var temps = [];
+
+            $.ajax({
+                url: '/tempvals',
+                type: 'post',
+                async: false,
+                success: function(response) {
+                    times = response['times']
+                    temps = response['temps']
+                },
+                error: function() {
+                    times = [-1, -1]
+                    temps = [-1, -1]
+                }
+            });
+
+            var trace0 = {
+                x: [times[0]],
+                y: [temps[0]],
+                name: 'LHe Tank',
+                mode: 'line'
+            };
+
+            var trace1 = {
+                x: [times[1]],
+                y: [temps[1]],
+                name: 'LN2 Tank',
+                mode: 'line'
+            };
+
+            var data = [trace0, trace1];
+
+            return data;
+        }
+
+        function grabtanktemps() {
+            var times = [];
+            var temps = [];
+            $.ajax({
+                url: '/tempvals',
+                type: 'post',
+                async: false,
+                success: function(response) {
+                    times = response['times']
+                    temps = response['temps']
+                },
+                error: function() {
+                    times = [-1, -1]
+                    temps = [-1, -1]
+                }
+            });
+
+            return [times, temps];
+        }
+
+        var tank_data = init_tank_temps()
+        var layout = {
+            title:'Tank Temperatures'
+        };
+
+        Plotly.newPlot('tank-temps', tank_data, layout);
+
+        var interval = setInterval(function () {
+            var new_data = grabtanktemps();
+            Plotly.extendTraces('tank-temps', {
+                x: [[new_data[0][0]], [new_data[0][1]]],
+                y: [[new_data[1][0]], [new_data[1][1]]]
+            }, [0,1])
+        }, 1000);
+    </script>
+
+    <h1>
+        <a href="{{ url_for('index') }}"><button> Refresh </button></a>
+    </h1>
+{% endblock %}

@@ -4,6 +4,11 @@ Author: Noah Swimmer 29 June 2020
 A wrapper class to conveniently use redis-py and redistimeseries with PICTURE-C. This includes but is not limited to
 inter-program communication (using pubsub), information storage (of device settings), and data storage (thermometry,
 current, etc.).
+
+TODO: Read TS_KEYS in the class?
+Note there are 2 ways to read TS_KEYS.
+ - (1) redis_timeseries.get(key) returns the last value in the timeseries (with timestamp)
+ - (2) redis_timeseries.range(key, from_time, to_time) returns the timeseries between [from_time, to_time] (UTC)
 """
 
 from redis import Redis as _Redis

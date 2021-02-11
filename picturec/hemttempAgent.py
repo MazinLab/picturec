@@ -63,7 +63,7 @@ class Hemtduino(agent.SerialDevice):
         Overwrites the format_msg function from SerialDevice. Returns a lowercase string with the hemtduino terminator
         (which is '' in the contract with the hemtduino).
         """
-        return f"{msg.strip().lower()}{self.terminator}"
+        return f"{msg.strip().lower()}{self.terminator}".encode("utf-8")
 
     def firmware_ok(self):
         """
