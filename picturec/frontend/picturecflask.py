@@ -71,11 +71,9 @@ def settings():
     form = SettingForm()
     if request.method == 'POST':
         # TODO: There must be a different better way to do this (matching redis keys to field labels)
-        keys = ['device-settings:sim960:mode', 'device-settings:sim960:setpoint-mode',
-                'device-settings:sim960:setpoint-ramp-enable', 'device-settings:sim960:pid-p:enabled',
-                'device-settings:sim960:pid-i:enabled', 'device-settings:sim960:pid-d:enabled',
-                'device-settings:sim921:resistance-range', 'device-settings:sim921:excitation-value',
-                'device-settings:sim921:excitation-mode', 'device-settings:sim921:time-constant',
+        keys = ['device-settings:sim960:setpoint-mode','device-settings :sim960:setpoint-ramp-enable', 'device-settings:sim960:pid-p:enabled',
+                'device-settings:sim960:pid-i:enabled', 'device-settings:sim960:pid-d:enabled', 'device-settings:sim921:resistance-range',
+                'device-settings:sim921:excitation-value', 'device-settings:sim921:excitation-mode', 'device-settings:sim921:time-constant',
                 'device-settings:sim921:output-mode', 'device-settings:sim921:curve-number']
         desired_vals = form.data
         current_vals = redis.read(keys)
@@ -129,7 +127,7 @@ def make_choices(key):
 
 
 class SettingForm(FlaskForm):
-    sim960_mode = SelectField('SIM960 Mode', choices=make_choices('device-settings:sim960:mode'))
+    # sim960_mode = SelectField('SIM960 Mode', choices=make_choices('device-settings:sim960:mode'))
     sim960_setpoint_mode = SelectField('SIM960 Setpoint Mode', choices=make_choices('device-settings:sim960:vin-setpoint-mode'))
     sim960_enable_setpoint_ramp = SelectField('SIM960 Internal Setpoint Ramp Enable', choices=make_choices('device-settings:sim960:vin-setpoint-slew-enable'))
     sim960_p_on = SelectField('SIM960 PID: P Enabled', choices=make_choices('device-settings:sim960:pid-p:enabled'))
