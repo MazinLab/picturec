@@ -26,8 +26,7 @@ from picturec.pcredis import PCRedis, RedisError
 import picturec.util as util
 
 REDIS_DB = 0
-QUERY_INTERVAL = 1
-LOOP_INTERVAL = .001
+QUERY_INTERVAL = .1
 
 DEVICE = '/dev/currentduino'
 
