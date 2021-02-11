@@ -11,19 +11,22 @@ TODO: Add ability to compare current value from high current board ('status:high
  of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
 
 TODO: Test the heat switch touch signals to have an open/closed monitor (in lab)
+TODO: Also measure magnet-current-to-currentduino-measurement conversion (does the currentduino report the same thing we
+ measure with an ammeter?)
 """
 
 import sys
 import time
 import logging
 import threading
+
+import picturec.devices
+import picturec.pcredis
 from picturec.pcredis import PCRedis, RedisError
-import picturec.agent as agent
 import picturec.util as util
 
 REDIS_DB = 0
-QUERY_INTERVAL = 1
-LOOP_INTERVAL = .001
+QUERY_INTERVAL = .1
 
 DEVICE = '/dev/currentduino'
 
@@ -41,14 +44,35 @@ HEATSWITCH_STATUS_KEY = 'status:heatswitch'
 HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
 CURRENT_VALUE_KEY = 'status:highcurrentboard:current'
 
-
+# TODO: These (R1, R2) could be moved to a config if desired
 R1 = 11790  # Values for R1 resistor in magnet current measuring voltage divider
 R2 = 11690  # Values for R2 resistor in magnet current measuring voltage divider
 
 log = logging.getLogger(__name__)
 
 
-class Currentduino(agent.SerialDevice):
+class HeatswitchPosition:
+    OPEN = 'open'
+    CLOSE = 'close'
+
+
+def close():
+    picturec.pcredis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.CLOSE)
+
+
+def open():
+    picturec.pcredis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.OPEN)
+
+
+def is_opened():
+    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.OPEN
+
+
+def is_closed():
+    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.CLOSE
+
+
+class Currentduino(picturec.devices.SerialDevice):
     VALID_FIRMWARES = (0.0, 0.1, 0.2)
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
@@ -87,7 +111,7 @@ class Currentduino(agent.SerialDevice):
         Overwrites function from SerialDevice superclass. Follows the communication model we made where the arduinos in
         PICTURE-C do not require termination characters.
         """
-        return f"{msg.strip().lower()}{self.terminator}"
+        return f"{msg.strip().lower()}{self.terminator}".encode()
 
     def move_heat_switch(self, pos):
         """
@@ -97,8 +121,9 @@ class Currentduino(agent.SerialDevice):
         with the serial port.
         """
         pos = pos.lower()
-        if pos not in ('open', 'close'):
-            raise ValueError(f"'{pos} is not a vaild (open, close) heat switch position")
+        if pos not in (HeatswitchPosition.OPEN, HeatswitchPosition.CLOSE):
+            raise ValueError(f"'{pos} is not a vaild ({HeatswitchPosition.OPEN}, {HeatswitchPosition.CLOSE})'"
+                             f"' heat switch position")
 
         try:
             log.info(f"Commanding heat switch to {pos}")
@@ -202,4 +227,3 @@ if __name__ == "__main__":
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
             break
-

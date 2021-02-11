@@ -20,6 +20,8 @@ import sys
 import time
 import logging
 import threading
+
+import picturec.devices
 from picturec.pcredis import PCRedis, RedisError
 import picturec.agent as agent
 import picturec.util as util
@@ -48,7 +50,7 @@ QUERY_INTERVAL = 1
 log = logging.getLogger()
 
 
-class LakeShore240(agent.SerialDevice):
+class LakeShore240(picturec.devices.SerialDevice):
     def __init__(self, name, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name=name)
 

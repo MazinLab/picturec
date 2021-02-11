@@ -1,0 +1,24 @@
+Notes on Quenching:
+- What is quenching? - The superconducting coil we're pushing through goes 'normal', it's no longer superconducting
+
+- What causes a quench? - Ramping too fast, mechanical vibrations, exceeding the critical current (9.5 A, for our ADR)
+
+- What is the solution? - To drop the voltage across the magnet/the current through the magnet.
+
+- What is the 'smoking gun'? The voltage spiking across the magnet ( V = L * dI/dt + IR ). L~35H, if R_magnet spikes, V will spike accordingly
+
+- What secondary effects occur? Device and LHe tank thermometers will read higher temps. Current should drop (it will with a voltage source, but PIC-C uses a current source, so this must be clarified).
+
+- What time scale to act on? There's a few in the problem (faster is better, but how fast?). Heating occurs on 10s of seconds. 
+Using a voltage source - The voltage spike occurs as quickly as the coil goes normal (there is no good time scale I can find for this). The current drop will occur on the same timescale.
+From Clint - He has quenched DARKNESS's magnet before, recognizing the voltage spike and killing the current. This means 'human' timescales (seconds rather than ms,us,ns...)
+Using a current source - There will not necessarily be current drop (because we're using a current source), but a voltage spike could be seen.
+
+- Where have we seen quenches occur (in the cooldown cycle)? Between 6-7 A while ramping up. Not a guarantee this is where they always occur, but it's where they have in our documentation.
+
+- A few general notes:
+a. There is a voltage monitor on the HC Boost board to start, BUT our current wiring to the fridge does not have voltage taps.
+b. DARKNESS ADR Operation link https://mazinlab.atlassian.net/wiki/spaces/DAR/pages/289472518/DARKNESS+fridge+operation+notes
+c. We can contact HPD about the necessary quench protection, but all of their manuals (online and what they sent to me) use voltage sources to control their magnets.
+d. We can get back in touch with the PIPER people and find out how they handle quenches (they designed the HC Boost Board to work with a 35 H superconducting ADR, and so we're working in near exactly the same regime)
+e. I've spoken with Clint and he sent me a pretty detailed email about what to look for/how this was managed in DARKNESS that's informed some of what I've written here

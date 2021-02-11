@@ -1,70 +1,181 @@
+from logging import getLogger
 import numpy as np
+import enum
 import logging
 import time
-import sys
-import picturec.agent as agent
-from picturec.pcredis import PCRedis, RedisError
 import threading
-import os
-import picturec.util as util
+from collections import defaultdict
+import serial
+from serial import SerialException
 
 log = logging.getLogger(__name__)
 
 COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {'20e-3': '0', '200e-3': '1', '2': '2',
-                                                                                        '20': '3', '200': '4', '2e3': '5',
-                                                                                        '20e3': '6', '200e3': '7',
-                                                                                        '2e6': '8', '20e6': '9'}},
-                'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {'0': '-1', '3e-6': '0', '10e-6': '1',
-                                                                                        '30e-6': '2', '100e-6': '3',
-                                                                                        '300e-6': '4', '1e-3': '5',
-                                                                                        '3e-3': '6', '10e-3': '7', '30e-3': '8'}},
-                'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1',
-                                                                                       'voltage': '2', 'power': '3'}},
-                'device-settings:sim921:time-constant': {'command': 'TCON', 'vals': {'0.3': '0', '1': '1', '3': '2', '10': '3',
-                                                                                     '30': '4', '100': '5', '300': '6'}},
-                'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0.050, 40]},
-                'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [1049.08, 63765.1]},
-                'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
-                'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-5]},
-                'device-settings:sim921:output-mode': {'command': 'AMAN', 'vals': {'scaled': '0', 'manual': '1'}},
-                'device-settings:sim921:manual-vout': {'command': 'AOUT', 'vals': [-10, 10]},
-                'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {'1': '1', '2': '2', '3': '3'}},
-                }
+                                                                                       '20': '3', '200': '4', '2e3': '5',
+                                                                                       '20e3': '6', '200e3': '7',
+                                                                                       '2e6': '8', '20e6': '9'}},
+               'device-settings:sim921:excitation-value': {'command': 'EXCI', 'vals': {'0': '-1', '3e-6': '0', '10e-6': '1',
+                                                                                       '30e-6': '2', '100e-6': '3',
+                                                                                       '300e-6': '4', '1e-3': '5',
+                                                                                       '3e-3': '6', '10e-3': '7', '30e-3': '8'}},
+               'device-settings:sim921:excitation-mode': {'command': 'MODE', 'vals': {'passive': '0', 'current': '1',
+                                                                                      'voltage': '2', 'power': '3'}},
+               'device-settings:sim921:time-constant': {'command': 'TCON', 'vals': {'0.3': '0', '1': '1', '3': '2', '10': '3',
+                                                                                    '30': '4', '100': '5', '300': '6'}},
+               'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0.050, 40]},
+               'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [1049.08, 63765.1]},
+               'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
+               'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-5]},
+               'device-settings:sim921:output-mode': {'command': 'AMAN', 'vals': {'scaled': '0', 'manual': '1'}},
+               'device-settings:sim921:manual-vout': {'command': 'AOUT', 'vals': [-10, 10]},
+               'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {'1': '1', '2': '2', '3': '3'}},
+               }
 
-COMMANDS960 = {'device-settings:sim960:mode': {'command': 'AMAN', 'vals': {'manual': '0', 'pid': '1'}},
-                'device-settings:sim960:vout-value': {'command': 'MOUT', 'vals': [-10, 10]},
-                'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
-                'device-settings:sim960:vout-max-limit': {'command': 'ULIM', 'vals': [-10, 10]},
-                'device-settings:sim960:setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
-                'device-settings:sim960:pid-control-vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
-                'device-settings:sim960:pid-p:value': {'command': 'GAIN', 'vals': [-1e3, -1e-1]},
-                'device-settings:sim960:pid-i:value': {'command': 'INTG', 'vals': [1e-2, 5e5]},
-                'device-settings:sim960:pid-d:value': {'command': 'DERV', 'vals': [0, 1e1]},
-                'device-settings:sim960:setpoint-ramp-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},  # Note: Internal setpoint ramp, NOT magnet ramp
-                'device-settings:sim960:setpoint-ramp-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},  # Note: Internal setpoint ramp rate, NOT magnet ramp
-                'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
-                'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
-                'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
-                }
+COMMANDS960 = {'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'vals': [-10, 10]},
+               'device-settings:sim960:vout-max-limit': {'command': 'ULIM', 'vals': [-10, 10]},
+               'device-settings:sim960:vin-setpoint-mode': {'command': 'INPT', 'vals': {'internal': '0', 'external': '1'}},
+               'device-settings:sim960:vin-setpoint': {'command': 'SETP', 'vals': [-10, 10]},
+               'device-settings:sim960:pid-p:value': {'command': 'GAIN', 'vals': [-1e3, -1e-1]},
+               'device-settings:sim960:pid-i:value': {'command': 'INTG', 'vals': [1e-2, 5e5]},
+               'device-settings:sim960:pid-d:value': {'command': 'DERV', 'vals': [0, 1e1]},
+               'device-settings:sim960:vin-setpoint-slew-enable': {'command': 'RAMP', 'vals': {'off': '0', 'on': '1'}},  # Note: Internal setpoint ramp, NOT magnet ramp
+               'device-settings:sim960:vin-setpoint-slew-rate': {'command': 'RATE', 'vals': [1e-3, 1e4]},  # Note: Internal setpoint ramp rate, NOT magnet ramp
+               'device-settings:sim960:pid-p:enabled': {'command': 'PCTL', 'vals': {'off': '0', 'on': '1'}},
+               'device-settings:sim960:pid-i:enabled': {'command': 'ICTL', 'vals': {'off': '0', 'on': '1'}},
+               'device-settings:sim960:pid-d:enabled': {'command': 'DCTL', 'vals': {'off': '0', 'on': '1'}},
+               }
 
 COMMAND_DICT={}
 COMMAND_DICT.update(COMMANDS960)
 COMMAND_DICT.update(COMMANDS921)
 
 
-class SimCommand(object):
-    def __init__(self, schema_key, value):
+def escapeString(string):
+    """
+    Takes a string and escapes newline characters so they can be logged and display the newline characters in that string
+    """
+    return string.replace('\n', '\\n').replace('\r', '\\r')
+
+responses960 = {b'*IDN?\n': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17\r\n",
+                b'LLIM?\n': b"-0.10\r\n",
+                b'ULIM?\n': b"+10.00\r\n",
+                b'INPT?\n': b"0\r\n",
+                b'SETP?\n': b"+0.000\r\n",
+                b'GAIN?\n': b"-1.6E+1\r\n",
+                b'INTG?\n': b"+2.0E-1\r\n",
+                b'DERV?\n': b"+1.0E-5\r\n",
+                b'RAMP?\n': b"1\r\n",
+                b'RATE?\n': b"+0.5E-2\r\n",
+                b'PCTL?\n': b"1\r\n",
+                b'ICTL?\n': b"1\r\n",
+                b'DCTL?\n': b"0\r\n",
+                b'APOL?\n': b"0\r\n",
+                b'AMAN?\n': b"0\r\n",  # needs a function to flip between manual/PID
+                b'MMON?\n': b"-00.000000\r\n",  # needs a function to generate plausible vals
+                b'OMON?\n': b"+00.000000\r\n",  # needs a function to generate plausible vals
+                b'MOUT?\n': b"+00.000000\r\n"}  # needs a function to generate plausible vals
+SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': responses960}
+#NB: The responses should be a list of sent strings and their exact responses eg 'foo\n':'barr\r' or sent strings
+# and a callable that given the sent string returns the response string 'foo\n':barr('foo\n') -> 'barr\r'
+responses921 = {'*IDN?': b'Stanford_Research_Systems,SIM921,s/n006241,ver3.6\r\n',
+                'TVAL?': b"+3.426272E-01\r\n",  # needs a function to generate plausible vals
+                'RVAL?': b"+5.003490E+03\r\n",  # needs a function to generate plausible vals
+                'CURV?': b"1\r\n",
+                'RANG?': b"6\r\n",
+                'EXON?': b"1\r\n",
+                'EXCI?': b"3\r\n",
+                'MODE?': b"2\r\n",
+                'TCON?': b"2\r\n",
+                'TSET?': b"+9.999999E-02\r\n",
+                'RSET?': b"+1.940050E+04\r\n",
+                'VKEL?': b"1.000000E-02\r\n",
+                'VOHM?': b"9.999998E-06\r\n",
+                'AMAN?': b"1\r\n",
+                'AOUT?': b"0.00000\r\n",
+                'ATEM?': b"0\r\n"}
+responses_ls240 = {'*IDN?': b"LSCI,MODEL240-2P,LSA2359,1.9\r\n",
+                   'INTYPE? 1': b"1,0,0,0,1,1\r\n",
+                   'INTYPE? 2': b"1,0,0,0,1,1\r\n",
+                   'KRDG? 1': b"+0292.19\r\n",  # needs a function to generate plausible vals
+                   'KRDG? 2': b"+0293.00\r\n",  # needs a function to generate plausible vals
+                   'INNAME? 1': b"LN2            \r\n",
+                   'INNAME? 2': b"LHE            \r\n"}
+responses_currentduino = {'v': b" 0.20 v\r\n",
+                          '?': b" 374 ?\r\n",  # needs a function to generate plausible vals
+                          'o': b" o\r\n",
+                          'c': b" c\r\n"}
+responses_hemtduino = {'v': b" 0.10 v\r\n",
+                       '?': b" 364 355 379 364 351 349 351 350 348 342 362 353 368 362 353 ?\r\n"}  # needs a function to generate plausible vals
+
+class SimulatedSerial:
+    # TODO: Write a more general function to update SIM values than just the 3 currently specified
+    def __init__(self, *args, **kwargs):
+        self._lastwrite=''
+
+    def close(self):
+        pass
+
+    def write(self, msg):
+        if SERIAL_SIM_CONFIG['write_error']:
+            raise SerialException('')
+        self._lastwrite = msg
+
+        # Some dynamic updating of values as if the SIM960 received the command and updated its output accordingly
+        if self._lastwrite[:4] == b"MOUT":
+            if self._lastwrite.decode()[4] == "?":
+                pass
+            else:
+                val = self._lastwrite.decode("utf-8").rstrip('\r\n').split(" ")[1]
+                SERIAL_SIM_CONFIG['responses'][b"MOUT?\n"] = f"+{val}\r\n".encode("utf-8")
+                SERIAL_SIM_CONFIG['responses'][b"OMON?\n"] = f"+{val}\r\n".encode("utf-8")
+        if self._lastwrite[:4] == b"AMAN":
+            if self._lastwrite.decode()[4] == "?":
+                pass
+            else:
+                val = self._lastwrite.decode("utf-8").rstrip('\r\n').split(" ")[1]
+                SERIAL_SIM_CONFIG['responses'][b"AMAN?\n"] = f"{val}\r\n".encode("utf-8")
+
+    def readline(self):
+        if SERIAL_SIM_CONFIG['read_error']:
+            raise SerialException('')
+
+        resp = SERIAL_SIM_CONFIG['responses'][self._lastwrite]
+        try:
+            return resp
+        except TypeError:
+            resp.encode('utf-8')
+
+    def isOpen(self):
+        return SERIAL_SIM_CONFIG['open']
+
+
+Serial = serial.Serial
+def enable_simulator():
+    global Serial
+    Serial = SimulatedSerial
+
+
+def disable_simulator():
+    global Serial
+    Serial = serial.Serial
+
+
+class SimCommand:
+    def __init__(self, schema_key, value=None):
         """
         Initializes a SimCommand. Takes in a redis device-setting:* key and desired value an evaluates it for its type,
         the mapping of the command, and appropriately sets the mapping|range for the command. If the setting is not
         supported, raise a ValueError.
+
+        If no value is specified it will create the command as a query
+
         """
         if schema_key not in COMMAND_DICT.keys():
             raise ValueError(f'Unknown command: {schema_key}')
 
         self.range = None
         self.mapping = None
-        self.value = None
+        self.value = value
         self.setting = schema_key
 
         self.command = COMMAND_DICT[self.setting]['command']
@@ -72,12 +183,20 @@ class SimCommand(object):
 
         if isinstance(setting_vals, dict):
             self.mapping = setting_vals
-            if value not in self.mapping:
-                raise ValueError(f'Invalid value {value}. Options are: {list(self.mapping.keys())}.')
-            else:
-                self.value = value
         else:
             self.range = setting_vals
+        self._vet()
+
+    def _vet(self):
+        """Verifies value agaisnt papping or range and handles necessary casting"""
+        if self.value is None:
+            return True
+
+        value = self.value
+        if self.mapping is not None:
+            if value not in self.mapping:
+                raise ValueError(f'Invalid value {value}. Options are: {list(self.mapping.keys())}.')
+        else:
             try:
                 self.value = float(value)
             except ValueError:
@@ -89,24 +208,170 @@ class SimCommand(object):
         return f"{self.setting}->{self.value}: {self.sim_string}"
 
     @property
+    def is_query(self):
+        return self.value is None
+
+    @property
     def sim_string(self):
         """
         Returns the command string for the SIM.
         """
+        if self.is_query:
+            return self.sim_query_string
         v = self.mapping[self.value] if self.range is None else self.value
         return f"{self.command} {v}"
 
+    @property
+    def sim_query_string(self):
+        """ Returns the corresponding command string to query for the setting"""
+        return f"{self.command}?"
 
-class SimDevice(agent.SerialDevice):
-    def __init__(self, name, port, baudrate=9600, timeout=0.1, connect=True, connection_callback=None):
+
+class SerialDevice:
+    def __init__(self, port, baudrate=115200, timeout=0.1, name=None, terminator='\n'):
+        self.ser = None
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
+        self.name = name if name else self.port
+        self.terminator = terminator
+        self._rlock = threading.RLock()
+
+    def _preconnect(self):
+        """
+        Override to perform an action immediately prior to connection.
+        Function should raise IOError if the serial device should not be opened.
+        """
+        pass
+
+    def _postconnect(self):
+        """
+        Override to perform an action immediately after connection. Default is to sleep for twice the timeout
+        Function should raise IOError if there are issues with the connection.
+        Function will not be called if a connection can not be established or already exists.
+        """
+        time.sleep(2*self.timeout)
+
+    def _predisconnect(self):
+        """
+        Override to perform an action immediately prior to disconnection.
+        Function should raise IOError if the serial device should not be opened.
+        """
+        pass
+
+    def connect(self, reconnect=False, raise_errors=True):
+        """
+        Connect to a serial port. If reconnect is True, closes the port first and then tries to reopen it. First asks
+        the port if it is already open. If so, returns nothing and allows the calling function to continue on. If port
+        is not already open, first attempts to create a serial.Serial object and establish the connection.
+        Raises an IOError if the serial connection is unable to be established.
+        """
+        if reconnect:
+            self.disconnect()
+
+        try:
+            if self.ser.isOpen():
+                return
+        except Exception:
+            pass
+
+        getLogger(__name__).debug(f"Connecting to {self.port} at {self.baudrate}")
+        try:
+            self._preconnect()
+            self.ser = Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+            self._postconnect()
+            getLogger(__name__).info(f"port {self.port} connection established")
+            return True
+        except (serial.SerialException, IOError) as e:
+            self.ser = None
+            getLogger(__name__).error(f"Conntecting to port {self.port} failed: {e}")
+            if raise_errors:
+                raise e
+            return False
+
+    def disconnect(self):
+        """
+        First closes the existing serial connection and then sets the ser attribute to None. If an exception occurs in
+        closing the port, log the error but do not raise.
+        """
+        try:
+            self._predisconnect()
+            self.ser.close()
+            self.ser = None
+        except Exception as e:
+            getLogger(__name__).info(f"Exception during disconnect: {e}")
+
+    def format_msg(self, msg:str):
+        """Subclass may implement to apply hardware specific formatting"""
+        if msg and msg[-1] != self.terminator:
+            msg = msg+self.terminator
+        return msg.encode('utf-8')
+
+    def send(self, msg: str, connect=True):
+        """
+        Send a message to a serial port. If connect is True, try to connect to the serial port before sending the
+        message. Formats message according to the class's format_msg function before attempting to write to serial port.
+        If IOError or SerialException occurs, first disconnect from the serial port, then log and raise the error.
+        """
+        with self._rlock:
+            if connect:
+                self.connect()
+            try:
+                msg = self.format_msg(msg)
+                getLogger(__name__).debug(f"Sending '{msg}'")
+                self.ser.write(msg)
+            except (serial.SerialException, IOError) as e:
+                self.disconnect()
+                getLogger(__name__).error(f"...failed: {e}")
+                raise e
+
+    def receive(self):
+        """
+        Receives a message from a serial port. Assumes that the message consists of a single line. If a message is
+        received, decode it and strip it of any newline characters. In the case of an error or serialException,
+        disconnects from the serial port and raises an IOError.
+        """
+        with self._rlock:
+            try:
+                data = self.ser.readline().decode("utf-8").strip()
+                getLogger(__name__).debug(f"read {escapeString(data)} from {self.name}")
+                return data
+            except (IOError, serial.SerialException) as e:
+                self.disconnect()
+                getLogger(__name__).debug(f"Send failed {e}")
+                raise IOError(e)
+
+    def query(self, cmd: str, **kwargs):
+        """
+        Send command and wait for a response, kwargs passed to send, raises only IOError
+        """
+        with self._rlock:
+            try:
+                self.send(cmd, **kwargs)
+                time.sleep(.1)
+                return self.receive()
+            except Exception as e:
+                raise IOError(e)
+
+
+class SimDevice(SerialDevice):
+    def __init__(self, name, port, baudrate=9600, timeout=0.1, connect=True, initilizer=None):
+        """The initialize callback is called after _simspecificconnect iff _initialized is false. The callback
+        will be passed this object and should raise IOError if the device can not be initialized. If it completes
+        without exception (or is not specified) the device will then be considered initialized
+        The .initialized_at_last_connect attribute may be checked to see if initilization ran.
+        """
+
         super().__init__(port, baudrate, timeout, name=name)
 
         self.sn = None
         self.firmware = None
         self.mainframe_slot = None
         self.mainframe_exitstring = 'XYZ'
-        self.connection_callback = connection_callback
+        self.initilizer = initilizer
         self._monitor_thread = None
+        self._initialized = False
+        self.initialized_at_last_connect = False
         if connect:
             self.connect(raise_errors=False)
 
@@ -189,36 +454,45 @@ class SimDevice(agent.SerialDevice):
 
         self._simspecificconnect()
 
-        if self.connection_callback is not None:
-            self.connection_callback(self)
+        if self.initilizer and not self._initialized:
+            self.initilizer(self)
+            self._initialized = True
 
     @property
     def device_info(self):
-        self.connect()
+        self.connect(reconnect=False)
         return dict(model=self.name, firmware=self.firmware, sn=self.sn)
 
-    def initialize_sim(self, settings_to_load):
-        """ Initialize the sim with the settings per the picturec schema keys
+    def apply_schema_settings(self, settings_to_load):
+        """
+        Configure the sim device with a dict of redis settings via SimCommand translation
 
-        In the event of an IO error during configuration XXX
-        In the even that a setting is not taken XXX
+        In the event of an IO error configuration is aborted and the IOError raised. Partial configuration is possible
+        In the even that a setting is not valid it is skipped
 
         Returns the sim settings and the values per the schema
-
-        #TODO JB: whats the return if they only get partially set? do we need to take action?
-        # what about if there are IO errors?
         """
+        ret = {}
         for setting, value in settings_to_load.items():
-            cmd = SimCommand(setting, value)
-            log.debug(cmd)
-            self.send(cmd.sim_string)
-            time.sleep(0.1)
-        return settings_to_load
+            try:
+                cmd = SimCommand(setting, value)
+                log.debug(cmd)
+                self.send(cmd.sim_string)
+                ret[setting] = value
+            except ValueError as e:
+                log.warning(f"Skipping bad setting: {e}")
+                ret[setting] = self.query(cmd.sim_query_string)
+        return ret
+
+    def read_schema_settings(self, settings):
+        ret = {}
+        for setting in settings:
+            cmd = SimCommand(setting)
+            ret[setting] = self.query(cmd.sim_query_string)
+        return ret
 
     def monitor(self, interval: float, monitor_func: (callable, tuple), value_callback: (callable, tuple) = None):
         """
-        TODO JB: This is a first stab at a quasi-general purpose monitoring function that fixes some of the issues we
-         discussed.
         Given a monitoring function (or is of the same) and either one or the same number of optional callback
         functions call the monitors every interval. If one callback it will get all the values in the order of the
         monitor funcs, if a list of the same number as of monitorables each will get a single value.
@@ -241,7 +515,7 @@ class SimDevice(agent.SerialDevice):
                 vals = []
                 for func in monitor_func:
                     try:
-                        vals.append(func())
+                        vals.append(func)
                     except IOError as e:
                         log.error(f"Failed to poll {func}: {e}")
                         vals.append(None)
@@ -268,40 +542,143 @@ class SimDevice(agent.SerialDevice):
         self._monitor_thread.start()
 
 
+class MagnetState(enum.Enum):
+     PID = enum.auto()
+     MANUAL = enum.auto()
+
+
 class SIM960(SimDevice):
-    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, connection_callback=None):
+
+    MAX_CURRENT_SLOPE = .005  # 5 mA/s
+    MAX_CURRENT = 10.0
+    OFF_SLOPE = 0.5
+
+    def __init__(self, port, baudrate=9600, timeout=0.1, connect=True, initializer=None):
         """
         Initializes SIM960 agent. First hits the superclass (SerialDevice) init function. Then sets class variables which
         will be used in normal operation. If connect mainframe is True, attempts to connect to the SIM960 via the SIM900
         in mainframe mode. Raise IOError if an invalid slot or exit string is given (or if no exit string is given).
         """
-        super().__init__('SIM960', port, baudrate, timeout, connect=connect, connection_callback=connection_callback)
         self.polarity = 'negative'
         self.last_input_voltage = None
         self.last_output_voltage = None
-        self._monitor_thread = None
+        self._last_manual_change = time.time() - 1  # This requires that in the case the program fails that systemd does
+        # not try to restart the sim960Agent program more frequently than once per second (i.e. if sim960Agent crashes,
+        # hold off on trying to start it again for at least 1s)
+        super().__init__('SIM960', port, baudrate, timeout, connect=connect, initilizer=initializer)
+
+    @property
+    def state(self):
+        """
+        Return offline, online, or configured
+
+        NB configured implies that settings have not been lost due to a power cycle
+        """
+        try:
+            polarity = self.query("APOL?", connect=True)
+            return 'configured' if int(polarity)==0 else 'online'
+        except IOError:
+            return 'offline'
 
     def _simspecificconnect(self):
-        # Set polarity to negative here. This is a non-redis controlled setting (not modifiable during normal operation).
-        self.send("APOL 0", connect=False)
         polarity = self.query("APOL?", connect=False)
-        if polarity != '0':
-            msg = f"Polarity query returned {polarity}. Setting PID loop polarity to negative failed."
-            log.critical(msg)
-            raise IOError(msg)
+        if int(polarity) == 1:
+            self.send("APOL 0", connect=False)  # Set polarity to negative, fundamental to the wiring.
+            polarity = self.query("APOL?", connect=False)
+            if polarity != '0':
+                msg = f"Polarity query returned {polarity}. Setting PID loop polarity to negative failed."
+                log.critical(msg)
+                raise IOError(msg)
+            self._initialized = False
+            self.initialized_at_last_connect = False
+        else:
+            self._initialized = polarity == '0'
+            self.initialized_at_last_connect = self._initialized
 
+
+    @property
     def input_voltage(self):
         """Read the voltage being sent to the input monitor of the SIM960 from the SIM921"""
-        iv = self.query("MMON?")
+        iv = float(self.query("MMON?"))
         self.last_input_voltage = iv
         return iv
 
+
+    @property
     def output_voltage(self):
         """Report the voltage at the output of the SIM960. In manual mode, this will be explicitly controlled using MOUT
         and in PID mode this will be the value set by the function Output = P(e + I * int(e) + D * derv(e)) + Offset"""
-        ov = self.query("OMON?")
+        ov = float(self.query("OMON?"))
         self.last_output_voltage = ov
         return ov
+
+
+    @staticmethod
+    def _out_volt_2_current(volt:float, inverse=False):
+        """
+        Converts a sim960 output voltage to the expected current.
+        TODO: require volt param to be float
+        :param volt:
+        :param inverse:
+        :return:
+        """
+        if inverse:
+            return volt/1.0
+        else:
+            return 1.0*volt
+
+    @property
+    def setpoint(self):
+        """ return the current that is currently commanded by the sim960 """
+        return self._out_volt_2_current(self.output_voltage)
+
+    @property
+    def manual_current(self):
+        """
+        return the manual current setpoint. Queries the manual output voltage and converts that to the expected current.
+        'MOUT?' query returns the value of the user-specified output voltage. This will only be the output voltage in manual mode (not PID).
+        """
+        manual_voltage_setpoint = float(self.query("MOUT?"))
+        return self._out_volt_2_current(manual_voltage_setpoint)
+
+    @manual_current.setter
+    def manual_current(self, x: float):
+        """ will clip to the range 0,MAX_CURRENT and enforces a maximum absolute current derivative """
+        if not self._initialized:
+            raise ValueError('Sim is not initialized')
+        x = min(max(x, 0), self.MAX_CURRENT)
+        delta = abs((self.setpoint - x)/(time.time()-self._last_manual_change))
+        if delta > self.MAX_CURRENT_SLOPE:
+            raise ValueError('Requested current delta unsafe')
+        self.mode = MagnetState.MANUAL
+        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True):.3f}')  # Response, there's mV accuracy, so at least 3 decimal places
+        self._last_manual_change = time.time()
+
+    def kill_current(self):
+        """Immediately kill the current"""
+        self.mode=MagnetState.MANUAL
+        self.send("MOUT 0")
+
+    @property
+    def mode(self):
+        """ Returns MagnetState or raises IOError (which means we don't know!) """
+        return MagnetState.MANUAL if self.query('AMAN?') == '0' else MagnetState.PID
+
+    @mode.setter
+    def mode(self, value: MagnetState):
+        """ Set the magnet state, state may not be set of Off directly.
+        If transistioning to manual ensure that the manual current doesn't hiccup
+        """
+        with self._rlock:
+            mode = self.mode
+            if mode == value:
+                return
+            if value == MagnetState.MANUAL:
+                self.send(f'MOUT {self._out_volt_2_current(self.setpoint, inverse=True):.3f}')
+                self.send("AMAN 0")
+                #NB no need to set the _lat_manual_change time as we arent actually changing the current
+            else:
+                self.send("AMAN 1")
 
 
 class SIM921(SimDevice):
@@ -327,6 +704,7 @@ class SIM921(SimDevice):
             raise IOError(msg)
 
         # Make sure that the excitation is turned on. If not successful, exit the program
+        # TODO: This can be like the vin-setpoint-slew-enable for the SIM960 (
         self.send("EXON 1", connect=False)
         exon = self.query("EXON?", connect=False)
         if exon != '1':
@@ -335,6 +713,7 @@ class SIM921(SimDevice):
             raise IOError(msg)
 
     def temp(self):
+        # TODO: Make this (and resistance) more amenable to the SimCommand.sim_query_string property?
         temp = self.query("TVAL?")
         self.last_temp_read = temp
         return temp

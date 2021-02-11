@@ -1,387 +1,614 @@
 """
 Author: Noah Swimmer, 21 July 2020
+TODO: Measure output voltage-to-current conversion
 
-TODO: Measure output voltage-to-current conversion. Should be ~1 V/A (from the hc boost board)
-TODO: Also measure magnet-current-to-currentduino-measurement conversion (does the currentduino report the same thing we
- measure with an ammeter?)
-
-TODO: Consider how to most effectively store magnet current data (conversion from SIM960 output voltage?) and magnet
- state/safety checks (should this be done in a monitoring loop in the sim960 agent or from a fridge manager?)
+TODO: Catch quench
 """
 import logging
 import sys
-from picturec.pcredis import PCRedis, RedisError
+from collections import defaultdict
+from logging import getLogger
+import time
+from datetime import datetime, timedelta
+import threading
+from transitions import MachineError, State, Transition
+from transitions.extensions import LockedMachine
+
 import picturec.util as util
-from picturec.devices import SIM960, SimCommand
+from picturec.devices import SIM960, SimCommand, MagnetState, COMMANDS960, enable_simulator
+import picturec.pcredis as redis
+from picturec.pcredis import RedisError
+import picturec.currentduinoAgent as heatswitch
 
-DEVICE = '/dev/sim921'
 
+enable_simulator()
+
+DEVICE = '/dev/sim960'
+STATEFILE = '/picturec/picturec/logs/statefile.txt'
 REDIS_DB = 0
-QUERY_INTERVAL = 1
-
-SETTING_KEYS = ['device-settings:sim960:mode',
-                'device-settings:sim960:vout-value',
-                'device-settings:sim960:vout-min-limit',
-                'device-settings:sim960:vout-max-limit',
-                'device-settings:sim960:pid-p:enabled',
-                'device-settings:sim960:pid-i:enabled',
-                'device-settings:sim960:pid-d:enabled',
-                'device-settings:sim960:pid-p:value',
-                'device-settings:sim960:pid-i:value',
-                'device-settings:sim960:pid-d:value',
-                'device-settings:sim960:setpoint-mode',
-                'device-settings:sim960:pid-control-vin-setpoint',
-                'device-settings:sim960:setpoint-ramp-rate',
-                'device-settings:sim960:setpoint-ramp-enable']
 
 
-default_key_factory = lambda key: f"default:{key}"
-DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
+#  Standard values have been input for these keys
+RAMP_SLOPE_KEY = 'device-settings:sim960:ramp-rate'  # .005 A/s
+DERAMP_SLOPE_KEY = 'device-settings:sim960:deramp-rate'  # -.005 A/s
+SOAK_TIME_KEY = 'device-settings:sim960:soak-time'  # 1800 s (30 m)
+SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'  # 9.4 A
+STATEFILE_PATH_KEY = 'device-settings:sim960:statefile'  # /picturec/picturec/logs/statefile.txt
 
+SETTING_KEYS = tuple(COMMANDS960.keys())
 
 OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'  # Set by 'MOUT' in manual mode, monitored by 'OMON?' always
-INPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'  # This is the output from the sim921 to the sim960 for PID control
-MAGNET_CURRENT_KEY = 'status:magnet:current'  # To get the expected current from the sim960.
-# TODO: We will need to run a calibration test to figure out what the output voltage to current conversion is.
+INPUT_VOLTAGE_KEY = 'status:device:sim960:vin'  # This is the measured input to sim960 from sim921 for PID control
+MAGNET_CURRENT_KEY = 'status:device:sim960:current-setpoint'
 MAGNET_STATE_KEY = 'status:magnet:state'  # OFF | RAMPING | SOAKING | QUENCH (DON'T QUENCH!)
-HEATSWITCH_STATUS_KEY = 'status:heatswitch'  # Needs to be read to determine its status, and set by the sim960agent during
-# normal operation so it's possible to run the ramp appropriately
-HC_BOARD_CURRENT = 'status:highcurrentboard:current'  # Current from HC Boost board.
-# TODO: Determine if the high current board measures the same current as an ammeter (or if we need a correction factor)
-
-
-TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY,
-           MAGNET_STATE_KEY, HEATSWITCH_STATUS_KEY, HC_BOARD_CURRENT]
-
 
 STATUS_KEY = 'status:device:sim960:status'
 MODEL_KEY = 'status:device:sim960:model'
 FIRMWARE_KEY = 'status:device:sim960:firmware'
 SN_KEY = 'status:device:sim960:sn'
 
+
+TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY, MAGNET_STATE_KEY]
+
+# TODO: Should be at most 1 (in production mode)
+QUERY_INTERVAL = 10
+
+COLD_AT_CMD = 'command:be-cold-at'#TODO
+COLD_NOW_CMD = 'command:get-cold'#TODO
+ABORT_CMD = 'command:abort-cooldown'#TODO
+CANCEL_COOLDOWN_CMD = 'command:cancel-scheduled-cooldown'
+QUENCH_KEY = 'event:quenching'#TODO
+
+DEVICE_TEMP_KEY = 'status:temps:mkidarray:temp'
+MAX_REGULATE_TEMP = .105  # This value should be HIGHER than the DESIRED regulate_temp. This is so that if there is
+# noise on the signal, it will not kill the loop.
+
+COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
+
+
 log = logging.getLogger(__name__)
 
 
-def prepare_magnet():
-    """
-    BEFORE READING: Some of the information contained here might not be strictly under the purview of the sim960Agent.
-    This docstring is purely to describe the process and expected operation of the magnet preparation.
-
-    Prepare magnet describes the process of preparing the magnet (ADR) so it is properly ready for temperature
-    regulation of the MKID device stage.
-
-    First, prepare_magnet should be initialized with a few parameters.
-    :param Ramp Rate: <float> The rate in A/s at which the current should be increased and decreased in the ADR
-    :param Soak Time: <float|int> The duration at which the maximum current will be sent through the ADR
-    :param Max Current: <float|int> The maximum current value that the magnet should attain.
-    With these parameters come a few caveats, namely that Ramp Rate and Max Current are both values that need to be
-    selected carefully so as not to damage the ADR. When initializing the ramp, the first check should be to make sure
-    these values are not exceeded. For the ramp rate, that is dI/dt > 5 mA/s (0.005 A/s) and for max current, it is
-    I > 9.4 A (note: We usually call this 10 A, but it is not a full 10 A).
-
-    In order to prepare the magnet for PID control, a coordinated set of processes must be run so that the magnet
-    current is increased up to the maximum value, soaks at that maximum value, and then is decreased back down to 0 A.
-
-    In addition to performing these tasks, preparing the magnet properly also means that the heatswitch (which thermally
-    connects the ADR to the LN2 tank) most be opened prior to decreasing the current from the max value back to 0 A.
-
-    What the prepare_magnet process will look like is as follows:
-    check_magnet_prep_parameters()
-    increase_current_to_max()
-    soak_magnet_at_max_current()
-    open_heat_switch()
-    decrease_current_to_zero()
-
-    During this process, the device stage temperature should be monitored as always. Before the heat switch is opened,
-    it should remain around the temperature of LN2 (still in thermal contact) and after the heat switch is opened it
-    should fall below the LN2 temperature all the way down to below the operating temperature of the device*.
-
-    It is also important to monitor the current through the magnet for 2 reasons. The first is to ensure that it is
-    progressing as expected (smoothly increasing up to max, maintaining the max current with little noise, smoothly
-    decreasing down) and the second is to ensure that a quench has not occurred.
-
-    In the case of a quench (which would manifest as a sudden, sharp decrease in current), it is necessary to instantly
-    (or as close to instantly as possible) reduce the current being pushed through the ADR to 0. A quench occurs when
-    the superconducting magnet 'goes normal', which is to say it is no longer superconducting.
-    TODO: (Just so this is specifically highlighted) A QUENCH IS POTENTIALLY THE MOST DAMAGING FAILURE THAT CAN OCCUR
-     DURING MAGNET OPERATION.
-
-    This will necessitate 1 of 2 things:
-    1) Proper monitoring to account for a quench in any situation in the SIM960 agent
-    2) A 'watcher' thread in the prepare_magnet() function.
-    Either way, a function is needed (1 is more powerful and is realistically the best choice):
-    monitor_for_and_handle_quench()
-
-    What changes during the magnet preparation?:
-    - The output voltage from the SIM960 that controls the high current boost board output
-    - The position of the heatswitch (controlled by the currentduinoAgent)
-
-    What does not (cannot) change during the magnet preparation?:
-    - The output mode from the SIM960 <manual|PID> must remain manual
-    - PID polarity <negative|positive> must remain negative (this can never change outside of massive structural change
-     in the cryostat/readout)
-    - Setpoint reference mode <internal|external> must remain internal (this can never change unless the electronics
-     rack is completely changed so that an external reference voltage is added)
-
-    What is prepare_magnet() agnostic to? (Note: just because it won't hurt the magnet preparation does not mean that it
-    is wise or recommended to change these values):
-    - PID control setpoint reference value
-    - P, I, D values
-    - Setpoint ramp value (how fast the setpoint changes)
-    - Setpoint ramp enabling (does the setpoint value slew or 'jump')
-    """
+class StateError(Exception):
     pass
 
 
-def check_magnet_prep_parameters():
-    """
-    A function that assesses the parameters selected for the ADR preparation and ensures that they are safe to use and
-    will not cause damage to the magnet.
-
-    The parameters that will be assessed are ramp_rate, max_current, and soak_time. These are discussed below
-
-    :param ramp_rate: The ramp rate is the rate at which current will be increased/decreased in the magnet during the
-    prepare_magnet() process. From experience using this magnet and the manual, the highest safe value to use is 5 mA/s.
-    If a higher value than that is requested, it has two choices, set the ramp_rate to the highest allowable value or
-    cause the prepare_magnet() process to fail and report/warn the user that they requested a dangerous value.
-    NOTE: The ramp_rate holds for increasing the current AND decreasing, the only difference is that in the decreasing
-    step, it will be negative.
-
-    :param max_current: The max current is the highest current the magnet will attain during the prepare_magnet()
-    process. Physically this is limited by the voltage (which controls the current via the high current boost board) the
-    SIM960 is capable of outputting (10 V). However, the magnet can also only safely have a certain current flowing
-    through it. This value is 9.4 A. If a higher value is requested, two choices can be made: set the max_current to its
-    highest allowable value or cause prepare_magnet() to fail and report/warn the user that they requested a dangerous
-    value.
-
-    :param soak_time: This value will not damage the magnet, but for practical reasons should be checked. If the soak
-    time is <1 hour the hold time at base temperature risks being drastically decreased. If the soak time is >4 hours
-    it will no longer lead to an increase in hold time and simply becomes a waste of power. Within 1-4 hours, the hold
-    time will increase proportionally with the soak time, although 1 hour has been shown to be more than enough for a
-    night of observing. For these reasons, a check on soak_time is warranted and any value that are short (<1 hour) or
-    quite long (>4 hours) should be reported to the user (give them an 'Are you sure?' message).
-
-    One potential idea is to have a configuration parameter that says 'change_to_safe_values'. If true, then the program
-    could report an unsafe value selection and modify it accordingly. If false, the program would not modify the values
-    and fail instead, so that the magnet preparation is not able to go on.
-    :return:
-    """
-    pass
+def write_persisted_state(statefile, state):
+    try:
+        with open(statefile, 'w') as f:
+            f.write(f'{time.time()}:{state}')
+    except IOError:
+        getLogger(__name__).warning('Unable to log state entry', exc_info=True)
 
 
-def ramp():
-    """
-    A general function which will allow the SIM960 agent to iteratively update its output voltage (and thus the current
-    through the ADR).
+def load_persisted_state(statefile):
 
-    The ramp function specified here can increase, hold, or decrease the current in the magnet by modifying (or holding)
-    the voltage value output from the SIM960. This is the 'base' of increase_current_to_max(),
-    soak_magnet_at_max_current(), and decrease_current_to_zero().
-
-    It can be configured by giving it the starting value, the desired value, and the ramp rate. It needs to be smart
-    enough to determine from the endpoints the direction of the ramp (e.g. start=5 A, stop=0 A, rate=1 A/s should
-    recognize the need for a negative slope and handle it gracefully).
-
-    As this will get called after the check_magnet_prep_parameters(), it is assumed that the ramp will progress at a
-    safe level.
-
-    The way that this will function is by creating a list of values of voltages to send to the SIM960 device for it to
-    output. With that list of voltages, the SIM960 will iteratively command the voltage to change at an appropriate
-    interval.
-    NOTE: Since the ramp rates are going to be given in A/s, updating the value once per second is the natural choice
-    for this. At the same time, since the SIM960 has a .001 V resolution on its output and the highest ramp value that
-    is safe is .005 A/s, you could in principle increase the voltage by .001 V, 5 times per second for the same result
-    (with a 1 A/V conversion between output voltage and resulting current)
-
-    See prepare_magnet() for what DOES change, what CANNOT change, and what MAY change (but doesn't have to) during
-    the use of this function (since the bulk of of prepare_magnet is ramping, those values hold within the ramp
-    function). This behavior of what does/does not/may change is inherited by increase_...(), soak_...(), and
-    decrease_...() processes.
-    :return:
-    """
-    pass
+    try:
+        with open(statefile, 'r') as f:
+            persisted_state_time, persisted_state = f.readline().split(':')
+    except Exception:
+        persisted_state_time, persisted_state = None, None
+    return persisted_state_time, persisted_state
 
 
-def increase_current_to_max():
-    """
-    Increase_current_to_max() is a specific use case of the ramp function. It is assumed that it will start at 0 A and
-    increase until it has reached the maximum specified current value.
+def monitor_callback(iv, ov, oc):
+    d = {k: v for k, v in zip((INPUT_VOLTAGE_KEY, OUTPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY), (iv, ov, oc))
+         if v is not None}  # NB 'if is not None' - > so we don't store bad data
+    try:
+        redis.store(d, timeseries=True)
+    except RedisError:
+        getLogger(__name__).warning('Storing magnet status to redis failed')
 
-    This is used as the first piece of the magnet preparation. It encompasses the ramping of the magnet from 0 A to its
-    maximum value, then hands off its responsibility to soak_magnet_at_max_current().
+def compute_initial_state(sim, statefile):
+    initial_state = 'deramping'  #always safe to start here
+    try:
+        if sim.initialized_at_last_connect:
+            mag_state = sim.mode
+            if mag_state == MagnetState.PID:
+                initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
+            else:
+                initial_state = load_persisted_state(statefile)[1].rstrip()
+                current = sim.setpoint  # TODO: I'm torn on whether this needs to be setpoint vs manual current (or if it matters)
+                if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0]):
+                    initial_state = 'ramping'  # we can recover
 
-    This is the stage at which it is most likely for the magnet to quench! Because the current is steadily increasing,
-    a spike in current that is too great may cause a quench. For that reason, the monitoring program must be 'extra-
-    vigilant' (it should always be the same amount vigilant, but for emphasis here) in regards to the state of the
-    magnet current.
-    :return:
-    """
-    pass
+                # be sure the command is sent
+                if initial_state in ('hs_closing',):
+                    heatswitch.close()
 
+                if initial_state in ('hs_opening',):
+                    heatswitch.open()
 
-def soak_magnet_at_max_current():
-    """
-    soak_magnet_at_max_current is another specific use case of the ramp function. In this case, it will hold the magnet
-    at the max current value once increase_current_to_max() has ramped up the current value sufficiently. In this case
-    we are running a ramp with slope=0 (essentially I=const).
+                # failure cases
+                if ((initial_state in ('ramping', 'soaking') and heatswitch.is_opened()) or
+                        (initial_state in ('cooling',) and heatswitch.is_closed()) or
+                        (initial_state in ('off', 'regulating'))):
+                    initial_state = 'deramping'  # deramp to off, we are out of sync with the hardware
 
-    It should try to dynamically (using continual updates) keep the current at its max value (within reason, a few mA
-    of drift over the duration of the soak is not a problem) rather than statically (setting the value once and then
-    just waiting around for a set time).
-
-    A quench is unlikely at this stage, but it is important here to be monitoring the SIM960, high current boost board,
-    and magnet itself since there is a HUGE current being pushed through it.
-
-    After completing the soak, the heat switch for the ADR must be flipped from closed to an open position. It remains
-    to be decided who/what agent is responsible for that, which leaves three options:
-    1) SIM960Agent reports 'Soak Done!' via redis pubsub, and that triggers the currentduino to flip the heatswitch. In
-    the meantime, the SIM960 agent is monitoring the heat switch position and once it is open, can progress further.
-    2) The SIM960Agent sends a message saying 'soak done!' up the ladder to a higher level program. That coordinating
-    program then sends a message to the currentduino to open. Once the 'coordinator' is aware that the switch was opened
-    it tells the SIM960 as much, and it can proceed.
-
-    Once the soak is completed, open_heat_switch() is run.
-    :return:
-    """
-    pass
-
-
-def open_heat_switch():
-    """
-    See discussion in soak_magnet_at_max_current().
-
-    After the soak duration is reached, the heatswitch must be opened before the current can be decreased in the magnet.
-    If the heatswitch is not opened, then the salt pills (heat sinks) will remain in thermal contact with the LN2 bath
-    and the device stage will be unable to drop below that temperature.
-    :return:
-    """
-    pass
+    except IOError:
+        getLogger(__name__).critical('Lost sim960 connection during agent startup. defaulting to deramping')
+        initial_state = 'deramping'
+    except RedisError:
+        getLogger(__name__).critical('Lost redis connection during compute_initial_state startup.')
+        raise
+    getLogger(__name__).info(f"\n\n------ Initial State is: {initial_state} ------\n")
+    return initial_state
 
 
-def decrease_current_to_zero():
-    """
-    The inverse of increase_current_to_max(). A specific use case of the ramp function. In this case, it is assumed that
-    it will start at the max current value and decrease the current until it has reached 0 A again.
-    NOTE: There is a potential option here to smoothly transition to PID regulation once the temperature has reached the
-    operating value. It is not clear if this is recommended or useful, but instead of dropping current to 0 A and then
-    starting PID control, it may be desirable to - once the device stage is at its operating temperature - just flip
-    over to PID control.
+class MagnetController(LockedMachine):
+    LOOP_INTERVAL = 1
+    BLOCKS = defaultdict(set)  # TODO This holds the sim960 commands that are blocked out in a given state i.e.
+                               #  'regulating':('device-settings:sim960:setpoint-mode',)
 
-    This is the final stage of the magnet preparation before PID control. Afterwards it does not hand over
-    responsibility to the next step in the prepare_magnet() process. Optionally, it can log a successful completion of
-    the process.
+    def __init__(self, statefile='./magnetstate.txt'):
+        transitions = [
+            #Allow aborting from any point, trigger will always succeed
+            {'trigger': 'abort', 'source': '*', 'dest': 'deramping'},
 
-    It is not recommended to drop the value very fast, because to sharp a change in current can cause a quench (even
-    when decreasing current in the ADR)! For this reason, still remain extra-vigilant with respect to the possibility
-    of a quench during this stage.
+            # Allow quench (direct to hard off) from any point, trigger will always succeed
+            {'trigger': 'quench', 'source': '*', 'dest': 'off'},
 
-    :return:
-    """
-    pass
+            # Allow starting a ramp from off or deramping, if close_heatswitch fails then start should fail
+            {'trigger': 'start', 'source': 'off', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
+            {'trigger': 'start', 'source': 'deramping', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
+            # {'trigger': 'start', 'source': 'cooling', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
+            # {'trigger': 'start', 'source': 'regulating', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
+            # {'trigger': 'start', 'source': 'soak', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
+
+            # Transitions for cooldown progression
+
+            # stay in hs_closing until it is closed then transition to ramping
+            # if we can't get the status from redis then the conditions default to false and we stay put
+            {'trigger': 'next', 'source': 'hs_closing', 'dest': 'ramping', 'conditions': 'heatswitch_closed'},
+            {'trigger': 'next', 'source': 'hs_closing', 'dest': None, 'prepare': 'close_heatswitch'},
+
+            # stay in ramping, increasing the current a bit each time unless the current is high enough to soak
+            # if we can't increment the current or get the current then IOErrors will arise and we stay put
+            # if we can't get the settings from redis then the conditions default to false and we stay put
+            {'trigger': 'next', 'source': 'ramping', 'dest': None, 'unless': 'current_at_soak',
+             'after': 'increment_current'},
+            {'trigger': 'next', 'source': 'ramping', 'dest': 'soaking', 'conditions': 'current_at_soak'},
+
+            # stay in soaking until we've elapsed the soak time, if the current changes move to deramping as something
+            # is quite wrong, when elapsed command heatswitch open and move to waiting on the heatswitch
+            # if we can't get the current then conditions raise IOerrors and we will deramp
+            # if we can't get the settings from redis then the conditions default to false and we stay put
+            # Note that the hs_opening command will always complete (even if it fails) so the state will progress
+            {'trigger': 'next', 'source': 'soaking', 'dest': None, 'unless': 'soak_time_expired',
+             'conditions': 'current_at_soak'},
+            {'trigger': 'next', 'source': 'soaking', 'dest': 'hs_opening', 'prepare': 'open_heatswitch',
+             'conditions': ('current_at_soak', 'soak_time_expired')},  #condition repeated to preclude call passing due to IO hiccup
+            {'trigger': 'next', 'source': 'soaking', 'dest': 'deramping'},
+
+            # stay in hs_opening until it is open then transition to cooling
+            # don't require conditions on current
+            # if we can't get the status from redis then the conditions default to false and we stay put
+            {'trigger': 'next', 'source': 'hs_opening', 'dest': 'cooling', 'conditions': 'heatswitch_opened'},
+            {'trigger': 'next', 'source': 'hs_opening', 'dest': None, 'prepare': 'open_heatswitch'},
+
+            # stay in cooling, decreasing the current a bit until the device is regulatable
+            # if the heatswitch closes move to deramping
+            # if we can't change the current or interact with redis for related settings the its a noop and we
+            #  stay put
+            # if we can't put the device in pid mode (IOError)  we stay put
+            {'trigger': 'next', 'source': 'cooling', 'dest': None, 'unless': 'device_regulatable',
+             'after': 'decrement_current', 'conditions': 'heatswitch_opened'},
+            {'trigger': 'next', 'source': 'cooling', 'dest': 'regulating', 'before': 'to_pid_mode',
+             'conditions': 'heatswitch_opened'},
+            {'trigger': 'next', 'source': 'cooling', 'dest': 'deramping', 'conditions': 'heatswitch_closed'},
+
+            # stay in regulating until the device is too warm to regulate
+            # if it somehow leaves PID mode (or we can't verify it is in PID mode: IOError) move to deramping
+            # if we cant pull the temp from redis then device is assumed unregulatable and we move to deramping
+            {'trigger': 'next', 'source': 'regulating', 'dest': None, 'conditions': ['device_regulatable', 'in_pid_mode']},  # TODO
+            {'trigger': 'next', 'source': 'regulating', 'dest': 'deramping'},
+
+            # stay in deramping, trying to decrement the current, until the device is off then move to off
+            # condition defaults to false in the even of an IOError and decrement_current will just noop if there are
+            # failures
+            {'trigger': 'next', 'source': 'deramping', 'dest': None, 'unless': 'current_off',
+             'after': 'decrement_current'},
+            {'trigger': 'next', 'source': 'deramping', 'dest': 'off'},
+
+            #once off stay put, if the current gets turned on while in off then something is fundamentally wrong with
+            # the sim itself. This can't happen.
+            {'trigger': 'next', 'source': 'off', 'dest': None}
+        ]
+
+        states = (# Entering off MUST succeed
+                  State('off', on_enter=['record_entry', 'kill_current']),
+                  State('hs_closing', on_enter='record_entry'),
+                  State('ramping', on_enter='record_entry'),
+                  State('soaking', on_enter='record_entry'),
+                  State('hs_opening', on_enter='record_entry'),
+                  State('cooling', on_enter='record_entry'),
+                  State('regulating', on_enter='record_entry'),
+                  # Entering ramping MUST succeed
+                  State('deramping', on_enter='record_entry'))
+
+        sim = SIM960(port=DEVICE, baudrate=9600, timeout=0.1, initializer=self.initialize_sim)
+        # NB If the settings are manufacturer defaults then the sim960 had a major upset, generally initialize_sim
+        # will not be called
+
+        # Kick off a thread to run forever and just log data into redis
+        # TODO bundling these into a sim960.monitor_values if necessary to simplify redundant serial comm.
+        sim.monitor(QUERY_INTERVAL, (sim.input_voltage, sim.output_voltage, sim.setpoint),
+                    value_callback=monitor_callback)
+
+        self.statefile = statefile
+        self.sim = sim
+        self.lock = threading.RLock()
+        self.scheduled_cooldown = None
+        self._run = False  # Set to false to kill the main loop
+        self._mainthread = None
+
+        # TODO: When to initialize locked machine?
+        # initial = self.compute_initial_state()
+        initial = compute_initial_state(self.sim, self.statefile)
+        self.state_entry_time = {initial: time.time()}
+        LockedMachine.__init__(self, transitions=transitions, initial=initial, states=states, machine_context=self.lock,
+                               send_event=True)
+
+        if sim.initialized_at_last_connect:
+            self.firmware_pull()
+            self.set_redis_settings(init_blocked=False)  #allow IO and Redis errors to shut things down.
+
+        self.start_main()
+
+    def initialize_sim(self):
+        """
+        Callback run on connection to the sim whenever it is not initialized. This will only happen if the sim loses all
+        of its settings, which should never every happen. Any settings applied take immediate effect
+        """
+        self.firmware_pull()
+        try:
+            self.set_redis_settings(init_blocked=True) # If called the sim is in a blank state and needs everything!
+        except (RedisError, KeyError) as e:
+            raise IOError(e) #we can't initialize!
+
+    def firmware_pull(self):
+        # Grab and store device info
+        try:
+            info = self.sim.device_info
+            d = {FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['sn']}
+        except IOError as e:
+            log.error(f"When checking device info: {e}")
+            d = {FIRMWARE_KEY: '', MODEL_KEY: '', SN_KEY: ''}
+
+        try:
+            redis.store(d)
+        except RedisError:
+            log.warning('Storing device info to redis failed')
+
+    def set_redis_settings(self, init_blocked=False):
+        """may raise IOError, if so sim can be in a partially configured state"""
+        try:
+            settings_to_load = redis.read(SETTING_KEYS, error_missing=True)
+        except RedisError:
+            log.critical('Unable to pull settings from redis to initialize sim960')
+            raise
+        except KeyError as e:
+            log.critical('Unable to pull setting {e} from redis to initialize sim960')
+            raise
+
+        blocks = self.BLOCKS[self.state]
+        blocked_init = blocks.intersection(settings_to_load.keys())
+
+        current_settings = {}
+        if blocked_init:
+            if init_blocked:
+                # TODO: Error below?
+                for_logging = "\n\t".join(blocked_init)
+                log.warning(f'Initializing \n\t{for_logging}\n despite being blocked by current state.')
+            else:
+                for_logging = "\n\t".join(blocked_init)
+                log.warning(f'Skipping settings \n\t{for_logging}\n as they are blocked by current state.')
+                settings_to_load = {k: v for k, v in settings_to_load if k not in blocks}
+                current_settings = self.sim.read_schema_settings(blocked_init)  #keep redis in sync
+
+        initialized_settings = self.sim.apply_schema_settings(settings_to_load)
+        initialized_settings.update(current_settings)
+        try:
+            redis.store(initialized_settings)
+        except RedisError:
+            log.warning('Storing device settings to redis failed')
+
+    def compute_initial_state(self):
+        initial_state = 'deramping'  #always safe to start here
+        try:
+            if self.sim.initialized_at_last_connect:
+                mag_state = self.sim.mode
+                if mag_state == MagnetState.PID:
+                    initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
+                else:
+                    initial_state = load_persisted_state(self.statefile)
+                    current = self.sim.setpoint
+                    if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
+                        initial_state = 'ramping'  # we can recover
+
+                    # be sure the command is sent
+                    if initial_state in ('hs_closing',):
+                        heatswitch.close()
+
+                    if initial_state in ('hs_opening',):
+                        heatswitch.open()
+
+                    # failure cases
+                    if ((initial_state in ('ramping', 'soaking') and heatswitch.is_opened()) or
+                            (initial_state in ('cooling',) and heatswitch.is_closed()) or
+                            (initial_state in ('off', 'regulating'))):
+                        initial_state = 'deramping'  # deramp to off, we are out of sync with the hardware
+
+        except IOError:
+            getLogger(__name__).critical('Lost sim960 connection during agent startup. defaulting to deramping')
+            initial_state = 'deramping'
+        except RedisError:
+            getLogger(__name__).critical('Lost redis connection during compute_initial_state startup.')
+            raise
+        return initial_state
+
+    def start_main(self):
+        self._run = True  # Set to false to kill the m
+        self._mainthread = threading.Thread(target=self._main)
+        self._mainthread.daemon = True
+        self._mainthread.start()
+
+    def _main(self):
+        while self._run:
+            try:
+                self.next()
+            except IOError:
+                getLogger(__name__).info(exc_info=True)
+            except MachineError:
+                getLogger(__name__).info(exc_info=True)
+            except RedisError:
+                getLogger(__name__).info(exc_info=True)
+            finally:
+                time.sleep(self.LOOP_INTERVAL)
 
 
-def monitor_for_and_handle_quench():
-    """
-    This process is one that should be running at all times which continually reads the current measured by the high
-    current boost board, cache the last few values, and checkup with those values to make sure that a quench has not
-    occurred.
+    @property
+    def min_time_until_cool(self):
+        """
+        return an estimate of the time to cool from the current state
+        """
+        soak_current = float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0])
+        soak_time = float(redis.read(SOAK_TIME_KEY, return_dict=False)[0])
+        ramp_rate = float(redis.read(RAMP_SLOPE_KEY, return_dict=False)[0])
+        deramp_rate = float(redis.read(DERAMP_SLOPE_KEY, return_dict=False)[0])
+        current_current = self.sim.setpoint
+        current_state = self.state # NB: If current_state is regulating time_to_cool will return 0 since it is already cool.
 
-    If it is determined that a quench has occurred, it also needs to have the capability to tell the SIM960 to drop
-    everything and drop the current to 0 A.
+        time_to_cool = 0
+        if current_state in ('ramping', 'off', 'hs_closing'):
+            time_to_cool = ((soak_current - current_current) / ramp_rate) + soak_time + ((0 - soak_current) / deramp_rate)
+        if current_state in ('soaking', 'hs_opening'):
+            time_to_cool = (time.time() - self.state_entry_time['soaking']) + ((0 - soak_current) / deramp_rate)
+        if current_state in ('cooling', 'deramping'):
+            time_to_cool = (0 - soak_current) / deramp_rate
 
-    This is essentially a simple process, compare the most recent current value to the previous. If there is a massive,
-    sharp drop between two measured values (especially during an increasing/holding step, but at any point) then it
-    reports "A QUENCH HAS HAPPENED" and EVERYTHING must stop what it's doing and handle it.
+        return timedelta(seconds=time_to_cool)
 
-    What handling a quench entails is (in the PICTURE-C electronics rack configuration), dropping the voltage output
-    from the SIM960 to 0 V, which in turn makes it so that the high current boost board is not attempting to drive any
-    current through the magnet.
 
-    Because a quench involves the magnet going normal (having a resistance as it stops superconducting) while a huge
-    current is being run through it, that will result in heating of the fridge. With this, one of the checks to make
-    sure that the magnet has returned to a 'post-quench' state is that the temperatures (especially the device stage and
-    LN2 thermometers) have returned to normal.
+    def schedule_cooldown(self, time):
+        """time specifies the time by which to be cold"""
+        # TODO how to handle scheduling when we are warming up or other such
+        if self.state not in ('off', 'deramping'):
+            raise ValueError(f'Cooldown in progress, abort before scheduling.')
 
-    However, all that being said: A quench is ultimately damaging enough that it is likely not advisable to try another
-    prepare_magnet() cycle until the cryostat is inspected for damage.
-    :return:
-    """
-    pass
+        now = datetime.now()
+        time_needed = self.min_time_until_cool
 
-def PID_control():
-    """
-    TODO: Create docstring re: pid control and what must occur during it
+        if time < now + time_needed:
+            raise ValueError(f'Time travel not possible, specify a time at least {time_needed} in the future. (Current time: {now.timestamp()})')
 
-    :return:
-    """
-    pass
+        self.cancel_scheduled_cooldown()
+        t = threading.Timer((time - time_needed - now).seconds, self.start) # TODO (For JB): self.start?
+        self.scheduled_cooldown = (time - time_needed, t)
+        t.daemon = True
+        t.start()
+
+    def cancel_scheduled_cooldown(self):
+        if self.scheduled_cooldown is not None:
+            getLogger(__name__).info(f'Cancelling cooldown scheduled for {self.scheduled_cooldown[0]}')
+            self.scheduled_cooldown[1].cancel()
+            self.scheduled_cooldown = None
+        else:
+            getLogger(__name__).debug(f'No pending cooldown to cancel')
+
+    @property
+    def status(self):
+        """A string indicating the current status e.g. state[, Cooldown scheduled for X] """
+        ret = self.state
+        if ret not in ('off', 'regulating'):
+            ret += f", cold in {self.min_time_until_cool} minutes"
+        if self.scheduled_cooldown is not None:
+            ret += f', cooldown scheduled for {self.scheduled_cooldown[0]}'
+        return ret
+
+    def close_heatswitch(self, event):
+        try:
+            heatswitch.close()
+        except RedisError:
+            pass
+
+    def open_heatswitch(self, event):
+        try:
+            heatswitch.open()
+        except RedisError:
+            pass
+
+    def current_off(self, event):
+        try:
+            # TODO: See if the noise on the sim.setpoint measurement is stable enough to have '==0' hold true. (Do we need wiggle room?)
+            return self.sim.mode==MagnetState.MANUAL and self.sim.setpoint==0
+        except IOError:
+            return False
+
+    def heatswitch_closed(self, event):
+        """return true iff heatswitch is closed"""
+        try:
+            return heatswitch.is_closed()
+        except RedisError:
+            return False
+
+    def heatswitch_opened(self, event):
+        """return true iff heatswitch is closed"""
+        try:
+            return heatswitch.is_opened()
+        except RedisError:
+            return False
+
+    def increment_current(self, event):
+        limit = self.sim.MAX_CURRENT_SLOPE
+        interval = self.LOOP_INTERVAL
+        try:
+            slope = abs(float(redis.read(RAMP_SLOPE_KEY, return_dict=False)[0]))
+        except RedisError:
+            getLogger(__name__).warning(f'Unable to pull {RAMP_SLOPE_KEY} using {limit}.')
+            slope = limit
+
+        if slope > self.sim.MAX_CURRENT_SLOPE:
+            getLogger(__name__).info(f'{RAMP_SLOPE_KEY} too high, overwriting.')
+            try:
+                redis.store({RAMP_SLOPE_KEY: limit})
+            except RedisError:
+                getLogger(__name__).info(f'Overwriting failed.')
+
+        if not slope:
+            getLogger(__name__).warning('Ramp slope set to zero, this will take eternity.')
+
+        try:
+            self.sim.manual_current += slope * interval
+        except IOError:
+            getLogger(__name__).warning('Failed to increment current, sim offline')
+
+    def decrement_current(self, event):
+        limit = self.sim.MAX_CURRENT_SLOPE
+        interval = self.LOOP_INTERVAL # No need to do this faster than increment current.
+        try:
+            slope = abs(float(redis.read(DERAMP_SLOPE_KEY, return_dict=False)[0]))
+        except RedisError:
+            getLogger(__name__).warning(f'Unable to pull {DERAMP_SLOPE_KEY} using {limit}.')
+            slope = limit
+
+        if slope > self.sim.MAX_CURRENT_SLOPE:
+            getLogger(__name__).info(f'{DERAMP_SLOPE_KEY} too high, overwriting.')
+            try:
+                redis.store({DERAMP_SLOPE_KEY: limit})
+            except RedisError:
+                getLogger(__name__).info(f'Overwriting failed.')
+
+        if not slope:
+            getLogger(__name__).warning('Deramp slope set to zero, this will take eternity.')
+
+        try:
+            self.sim.manual_current -= slope * interval
+        except IOError:
+            getLogger(__name__).warning('Failed to decrement current, sim offline')
+
+    def soak_time_expired(self, event):
+        try:
+            return (time.time() - self.state_entry_time['soaking']) >= float(redis.read(SOAK_TIME_KEY, return_dict=False)[0])
+        except RedisError:
+            return False
+
+    def current_at_soak(self, event):
+        try:
+            return self.sim.setpoint >= float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0])
+        except RedisError:
+            return False
+
+    def in_pid_mode(self, event):
+        return self.sim.mode == MagnetState.PID
+
+    def to_pid_mode(self, event):
+        self.sim.mode = MagnetState.PID
+
+    def device_regulatable(self, event):
+        try:
+            return float(redis.redis_ts.get(DEVICE_TEMP_KEY)[1]) <= MAX_REGULATE_TEMP
+        except RedisError:
+            return False
+
+    def kill_current(self, event):
+        """Kill the current if possible, return False if fail"""
+        try:
+            self.sim.kill_current()
+            return True
+        except IOError:
+            return False
+
+    def sim_command(self, cmd):
+        """ Directly execute a SimCommand if if possible. May raise IOError or StateError"""
+        with self.lock:
+            if cmd.setting in self.BLOCKS.get(self.state, tuple()):
+                msg = f'Command {cmd} not supported while in state {self.state}'
+                getLogger(__name__).error(msg)
+                raise StateError(msg)
+            self.sim.send(cmd.sim_string)
+
+    def record_entry(self, event):
+        # TODO: Also record state to redis
+        self.state_entry_time[self.state] = time.time()
+        write_persisted_state(self.statefile, self.state)
+
 
 if __name__ == "__main__":
 
     util.setup_logging()
+    redis.setup_redis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
+    controller = MagnetController(statefile=redis.read(STATEFILE_PATH_KEY, return_dict=False)[0])
 
-    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
+    # main loop, listen for commands and handle them
+    try:
+        while True:
+            for key, val in redis.listen(SETTING_KEYS + COMMAND_KEYS + (QUENCH_KEY,)):
+                getLogger(__name__).debug(f"Redis listened to something! Key: {key} -- Val: {val}")
+                if key in SETTING_KEYS:
+                    try:
+                        cmd = SimCommand(key, val)
+                        controller.sim_command(cmd)
+                    except (IOError, StateError):
+                        pass
+                    except ValueError:
+                        getLogger(__name__).warning(f"Ignoring invalid command ('{key}={val}'): {e}")
+                # NB I'm disinclined to include forced state overrides but they would go here
+                elif key == ABORT_CMD:
+                    # abort any cooldown in progress, warm up, and turn things off
+                    # e.g. last command before heading to bed
+                    controller.abort()
+                elif key == QUENCH_KEY:
+                    controller.quench()
+                elif key == COLD_AT_CMD:
+                    try:
+                        controller.schedule_cooldown(datetime.fromtimestamp(float(val)))
+                    except ValueError as e:
+                        getLogger(__name__).error(e)
+                elif key == COLD_NOW_CMD:
+                    try:
+                        controller.start()
+                    except MachineError:
+                        getLogger(__name__).info('Cooldown already in progress', exc_info=True)
+                elif key == CANCEL_COOLDOWN_CMD:
+                    try:
+                        controller.cancel_scheduled_cooldown()
+                    except:
+                        # Add error handling here
+                        pass
+                else:
+                    getLogger(__name__).info(f'Ignoring {key}:{val}')
+                redis.store({STATUS_KEY: controller.status})
 
-    def initialize(sim):
+    except RedisError as e:
+        getLogger(__name__).critical(f"Redis server error! {e}", exc_info=True)
+        # TODO insert something to suppress the concomitant redis monitor thread errors that will spam logs?
+        controller.deramp()
+
         try:
-            info = sim.device_info
-            redis.store({FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['sn']})
-        except IOError as e:
-            log.error(f"When checking device info: {e}")
-            redis.store({FIRMWARE_KEY: '', MODEL_KEY: '', SN_KEY: ''})
-        except RedisError as e:
-            log.critical(f"Redis server error! {e}")
-            sys.exit(1)
-
-        from_state = 'defaults'
-        keys = SETTING_KEYS if from_state.lower() in ('previous', 'last_state', 'last') else DEFAULT_SETTING_KEYS
-        try:
-            settings_to_load = redis.read(keys, error_missing=True)
-            # settings_to_load = {setting.lstrip('default:'): value for setting, value in settings_to_load.items()}
-            if from_state == 'defaults':
-                settings_to_load = {setting[8:]: value for setting, value in settings_to_load.items()}
-            initialized_settings = sim.initialize_sim(settings_to_load)
-            redis.store(initialized_settings)  # TODO JB Exception handling
+            while not controller.is_off():
+                getLogger(__name__).info(f'Waiting (10s) for magnet to deramp from ({controller.sim.setpoint}) before exiting...')
+                time.sleep(10)
         except IOError:
-            raise
-        except RedisError:
-            sys.exit(1)
-        except KeyError:
-            sys.exit(1)
-
-    sim = SIM960(port=DEVICE, baudrate=9600, timeout=0.1, connection_callback=initialize)
-
-    # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
-    OUTPUT_TO_CURRENT_FACTOR = 1  # 1 A/V (TODO: Measure this value)
-    def callback(iv, ov):
-        d = {}
-        for k, val in zip((INPUT_VOLTAGE_KEY, OUTPUT_VOLTAGE_KEY), (iv, ov)):
-            if val is not None:  # TODO JB: Since we don't want to store bad data
-                d[k] = val
-        if OUTPUT_VOLTAGE_KEY in d:
-            d[MAGNET_CURRENT_KEY] = d[OUTPUT_VOLTAGE_KEY]*OUTPUT_TO_CURRENT_FACTOR
-        redis.store(d, timeseries=True)
-    sim.monitor(QUERY_INTERVAL, (sim.input_voltage, sim.output_voltage), value_callback=callback)
-    #  TODO: Figure out where to add in magnet state checking (in the sim960 or elsewhere?)
-
-    while True:
-        try:
-            for key, val in redis.listen(SETTING_KEYS):
-                log.debug(f"sim960agent received {key}, {val}. Trying to send a command.")
-                try:
-                    cmd = SimCommand(key, val)
-                except ValueError as e:
-                    log.warning(f"Ignoring invalid command ('{key}={val}'): {e}")
-                    continue
-
-                try:
-                    log.info(f"Processing command '{cmd}'")
-                    sim.send(cmd.sim_string)
-                    redis.store({cmd.setting: cmd.value})
-                    redis.store({STATUS_KEY: "OK"})
-                except IOError as e:
-                    redis.store({STATUS_KEY: f"Error {e}"})
-                    log.error(f"Some error communicating with the SIM960! {e}")
-        except RedisError as e:
-            log.critical(f"Redis server error! {e}")
-            sys.exit(1)
+            pass
+        sys.exit(1)
