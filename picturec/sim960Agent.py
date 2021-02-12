@@ -19,6 +19,7 @@ from picturec.devices import SIM960, SimCommand, MagnetState, COMMANDS960, enabl
 import picturec.pcredis as redis
 from picturec.pcredis import RedisError
 import picturec.currentduinoAgent as heatswitch
+import picturec.sim921Agent as sim921
 
 
 enable_simulator()
@@ -149,8 +150,8 @@ class MagnetController(LockedMachine):
             {'trigger': 'quench', 'source': '*', 'dest': 'off'},
 
             # Allow starting a ramp from off or deramping, if close_heatswitch fails then start should fail
-            {'trigger': 'start', 'source': 'off', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
-            {'trigger': 'start', 'source': 'deramping', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
+            {'trigger': 'start', 'source': 'off', 'dest': 'hs_closing', 'prepare': ('close_heatswitch', 'sim921_to_manual')},
+            {'trigger': 'start', 'source': 'deramping', 'dest': 'hs_closing', 'prepare': ('close_heatswitch', 'sim921_to_manual')},
             # {'trigger': 'start', 'source': 'cooling', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
             # {'trigger': 'start', 'source': 'regulating', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
             # {'trigger': 'start', 'source': 'soak', 'dest': 'hs_closing', 'prepare': 'close_heatswitch'},
@@ -160,7 +161,7 @@ class MagnetController(LockedMachine):
             # stay in hs_closing until it is closed then transition to ramping
             # if we can't get the status from redis then the conditions default to false and we stay put
             {'trigger': 'next', 'source': 'hs_closing', 'dest': 'ramping', 'conditions': 'heatswitch_closed'},
-            {'trigger': 'next', 'source': 'hs_closing', 'dest': None, 'prepare': 'close_heatswitch'},
+            {'trigger': 'next', 'source': 'hs_closing', 'dest': None, 'prepare': ('close_heatswitch', 'sim921_to_manual')},
 
             # stay in ramping, increasing the current a bit each time unless the current is high enough to soak
             # if we can't increment the current or get the current then IOErrors will arise and we stay put
@@ -176,15 +177,15 @@ class MagnetController(LockedMachine):
             # Note that the hs_opening command will always complete (even if it fails) so the state will progress
             {'trigger': 'next', 'source': 'soaking', 'dest': None, 'unless': 'soak_time_expired',
              'conditions': 'current_at_soak'},
-            {'trigger': 'next', 'source': 'soaking', 'dest': 'hs_opening', 'prepare': 'open_heatswitch',
+            {'trigger': 'next', 'source': 'soaking', 'dest': 'hs_opening', 'prepare': ('open_heatswitch', 'sim921_to_scaled'),
              'conditions': ('current_at_soak', 'soak_time_expired')},  #condition repeated to preclude call passing due to IO hiccup
             {'trigger': 'next', 'source': 'soaking', 'dest': 'deramping'},
 
             # stay in hs_opening until it is open then transition to cooling
             # don't require conditions on current
             # if we can't get the status from redis then the conditions default to false and we stay put
-            {'trigger': 'next', 'source': 'hs_opening', 'dest': 'cooling', 'conditions': 'heatswitch_opened'},
-            {'trigger': 'next', 'source': 'hs_opening', 'dest': None, 'prepare': 'open_heatswitch'},
+            {'trigger': 'next', 'source': 'hs_opening', 'dest': 'cooling', 'conditions': ('heatswitch_opened', 'sim921_in_scaled')},
+            {'trigger': 'next', 'source': 'hs_opening', 'dest': None, 'prepare': ('open_heatswitch', 'sim921_to_scaled')},
 
             # stay in cooling, decreasing the current a bit until the device is regulatable
             # if the heatswitch closes move to deramping
@@ -194,13 +195,13 @@ class MagnetController(LockedMachine):
             {'trigger': 'next', 'source': 'cooling', 'dest': None, 'unless': 'device_regulatable',
              'after': 'decrement_current', 'conditions': 'heatswitch_opened'},
             {'trigger': 'next', 'source': 'cooling', 'dest': 'regulating', 'before': 'to_pid_mode',
-             'conditions': 'heatswitch_opened'},
+             'conditions': ('heatswitch_opened', 'sim921_in_scaled')},
             {'trigger': 'next', 'source': 'cooling', 'dest': 'deramping', 'conditions': 'heatswitch_closed'},
 
             # stay in regulating until the device is too warm to regulate
             # if it somehow leaves PID mode (or we can't verify it is in PID mode: IOError) move to deramping
             # if we cant pull the temp from redis then device is assumed unregulatable and we move to deramping
-            {'trigger': 'next', 'source': 'regulating', 'dest': None, 'conditions': ['device_regulatable', 'in_pid_mode']},  # TODO
+            {'trigger': 'next', 'source': 'regulating', 'dest': None, 'conditions': ['device_regulatable', 'in_pid_mode']},
             {'trigger': 'next', 'source': 'regulating', 'dest': 'deramping'},
 
             # stay in deramping, trying to decrement the current, until the device is off then move to off
@@ -208,7 +209,7 @@ class MagnetController(LockedMachine):
             # failures
             {'trigger': 'next', 'source': 'deramping', 'dest': None, 'unless': 'current_off',
              'after': 'decrement_current'},
-            {'trigger': 'next', 'source': 'deramping', 'dest': 'off'},
+            {'trigger': 'next', 'source': 'deramping', 'dest': 'off', 'prepare': 'sim921_to_manual'},
 
             #once off stay put, if the current gets turned on while in off then something is fundamentally wrong with
             # the sim itself. This can't happen.
@@ -438,6 +439,18 @@ class MagnetController(LockedMachine):
         except RedisError:
             pass
 
+    def sim921_to_scaled(self, event):
+        try:
+            sim921.to_scaled_output()
+        except RedisError:
+            pass
+
+    def sim921_to_manual(self, event):
+        try:
+            sim921.to_manual_output()
+        except RedisError:
+            pass
+
     def current_off(self, event):
         try:
             # TODO: See if the noise on the sim.setpoint measurement is stable enough to have '==0' hold true. (Do we need wiggle room?)
@@ -456,6 +469,18 @@ class MagnetController(LockedMachine):
         """return true iff heatswitch is closed"""
         try:
             return heatswitch.is_opened()
+        except RedisError:
+            return False
+
+    def sim921_in_scaled(self, event):
+        try:
+            return sim921.in_scaled_output()
+        except RedisError:
+            return False
+
+    def sim921_in_manual(self, event):
+        try:
+            return sim921.in_manual_output()
         except RedisError:
             return False
 
@@ -524,7 +549,6 @@ class MagnetController(LockedMachine):
 
     def to_pid_mode(self, event):
         self.sim.mode = MagnetState.PID
-        redis.publish('device-settings:sim921:output-mode', 'scaled', store=False)
 
     def device_regulatable(self, event):
         try:

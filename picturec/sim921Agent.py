@@ -15,6 +15,8 @@ import sys
 from picturec.pcredis import PCRedis, RedisError
 import picturec.util as util
 from picturec.devices import SIM921, SimCommand
+import picturec.pcredis
+
 
 DEVICE = '/dev/sim921'
 REDIS_DB = 0
@@ -32,10 +34,6 @@ SETTING_KEYS = ['device-settings:sim921:output-mode',
                 'device-settings:sim921:excitation-mode',
                 'device-settings:sim921:time-constant']
 
-# TODO: Consider if default keys are even necessary
-default_key_factory = lambda key: f"default:{key}"
-DEFAULT_SETTING_KEYS = [default_key_factory(key) for key in SETTING_KEYS]
-
 
 TEMP_KEY = 'status:temps:mkidarray:temp'
 RES_KEY = 'status:temps:mkidarray:resistance'
@@ -49,6 +47,27 @@ FIRMWARE_KEY = 'status:device:sim921:firmware'
 SN_KEY = 'status:device:sim921:sn'
 
 log = logging.getLogger(__name__)
+
+
+class SIM921OutputMode:
+    SCALED = 'scaled'
+    MANUAL = 'manual'
+
+
+def to_scaled_output():
+    picturec.pcredis.publish('device-settings:sim921:output-mode', SIM921OutputMode.SCALED, store=False)
+
+
+def to_manual_output():
+    picturec.pcredis.publish('device-settings:sim921:output-mode', SIM921OutputMode.MANUAL, store=False)
+
+
+def in_scaled_output():
+    return picturec.pcredis.read('device-settings:sim921:output-mode', return_dict=False)[0] == SIM921OutputMode.SCALED
+
+
+def in_manual_output():
+    return picturec.pcredis.read('device-settings:sim921:output-mode', return_dict=False)[0] == SIM921OutputMode.MANUAL
 
 
 if __name__ == "__main__":
