@@ -524,6 +524,7 @@ class MagnetController(LockedMachine):
 
     def to_pid_mode(self, event):
         self.sim.mode = MagnetState.PID
+        redis.publish('device-settings:sim921:output-mode', 'scaled', store=False)
 
     def device_regulatable(self, event):
         try:
