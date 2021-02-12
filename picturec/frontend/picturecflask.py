@@ -127,7 +127,6 @@ def make_choices(key):
 
 
 class SettingForm(FlaskForm):
-    # sim960_mode = SelectField('SIM960 Mode', choices=make_choices('device-settings:sim960:mode'))
     sim960_setpoint_mode = SelectField('SIM960 Setpoint Mode', choices=make_choices('device-settings:sim960:vin-setpoint-mode'))
     sim960_enable_setpoint_ramp = SelectField('SIM960 Internal Setpoint Ramp Enable', choices=make_choices('device-settings:sim960:vin-setpoint-slew-enable'))
     sim960_p_on = SelectField('SIM960 PID: P Enabled', choices=make_choices('device-settings:sim960:pid-p:enabled'))
