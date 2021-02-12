@@ -26,6 +26,7 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
            'status:feedline4:hemt:drain-current-bias', 'status:feedline5:hemt:drain-current-bias',
            'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current']
 
+
 redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
 
 
@@ -61,9 +62,22 @@ def index():
                            hemt_keys=hemt_keys)
 
 
-def grab_redis_value(key):
-    info = redis.redis_ts.get(key)
-    return info
+@app.route('/dashboard', methods=['GET', 'POST'])
+def dashboard():
+    form = FlaskForm()
+    return render_template('dashboard.html', title='Dashboard', form=form)
+
+
+@app.route('/sim960settings', methods=['GET', 'POST'])
+def sim960settings():
+    form = FlaskForm()
+    return render_template('sim960settings.html', title='SIM960 Settings', form=form)
+
+
+@app.route('/sim921settings', methods=['GET', 'POST'])
+def sim921settings():
+    form = FlaskForm()
+    return render_template('sim921settings.html', title='SIM921 Settings', form=form)
 
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -71,7 +85,7 @@ def settings():
     form = SettingForm()
     if request.method == 'POST':
         # TODO: There must be a different better way to do this (matching redis keys to field labels)
-        keys = ['device-settings:sim960:setpoint-mode','device-settings :sim960:setpoint-ramp-enable', 'device-settings:sim960:pid-p:enabled',
+        keys = ['device-settings:sim960:vin-setpoint-mode', 'device-settings:sim960:vin-setpoint-slew-enable', 'device-settings:sim960:pid-p:enabled',
                 'device-settings:sim960:pid-i:enabled', 'device-settings:sim960:pid-d:enabled', 'device-settings:sim921:resistance-range',
                 'device-settings:sim921:excitation-value', 'device-settings:sim921:excitation-mode', 'device-settings:sim921:time-constant',
                 'device-settings:sim921:output-mode', 'device-settings:sim921:curve-number']
@@ -91,6 +105,7 @@ def settings():
 def info():
     form = FlaskForm()
     return render_template('info.html', title='Info', form=form)
+
 
 @app.route('/reporter', methods=['POST'])
 def reporter():
@@ -116,7 +131,7 @@ def tempvals():
 
 
 def make_choices(key):
-    current_value = redis.read([key])[key]
+    current_value = redis.read(key, return_dict=False)[0]
     rest = list(COMMAND_DICT[key]['vals'].keys())
     choice = [current_value]
     rest.remove(current_value)
