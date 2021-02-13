@@ -1,7 +1,33 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div>
-        SIM 960 Placeholder
-    </div>
+    <form action="{{ url_for('sim960settings') }}" method="post">
+        {{ form.hidden_tag() }}
+        {% for field in form %}
+            {% if field.type == "SelectField" %}
+                <div style="padding: 10px">
+                    {{ field.label}}
+                    {{ field() }}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {% for field in form %}
+            {% if field.type == "StringField" %}
+                <div style="padding: 10px">
+                    {{ field.label}}
+                    {{ field() }}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        <div style="padding: 10px">
+            {{ form.submit() }}
+            <a href="{{ url_for('sim960settings') }}">Reset</a>
+        </div>
+
+        <div style="padding: 10px">
+            {{ messages }}
+        </div>
+    </form>
 {% endblock %}

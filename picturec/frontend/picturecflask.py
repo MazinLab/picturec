@@ -2,7 +2,7 @@ import flask
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
 from flask import request, redirect, url_for, render_template, jsonify
-from wtforms import SelectField, SubmitField
+from wtforms import SelectField, SubmitField, StringField
 from wtforms.validators import DataRequired
 import numpy as np
 
@@ -33,6 +33,11 @@ redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
+    # TODO: Split tank temperatures up
+    # TODO: Add Device T
+    # TODO: Add Magnet Current
+    # TODO: Add HS Position (and ability to toggle it)
+    # TODO: Add commands for start/stop/schedule ramp
     form = FlaskForm()
     therm_headers = ['Thermometer', 'Value']
     therm_data = [['Device', f"{redis.redis_ts.get('status:temps:mkidarray:temp')[1]:.3f} mK"],
@@ -40,71 +45,72 @@ def index():
                   ['LHe Tank', f"{redis.redis_ts.get('status:temps:lhetank')[1]:.2f} K"],
                   ['LN2 Tank', f"{redis.redis_ts.get('status:temps:ln2tank')[1]:.2f} K"]]
 
-    hemt_headers = ['HEMT', 'Vg', 'Id', 'Vd']
-    hemt_keys = ['status:feedline1:hemt:gate-voltage-bias', 'status:feedline1:hemt:drain-current-bias', 'status:feedline1:hemt:drain-voltage-bias',
-                 'status:feedline2:hemt:gate-voltage-bias', 'status:feedline2:hemt:drain-current-bias', 'status:feedline2:hemt:drain-voltage-bias',
-                 'status:feedline3:hemt:gate-voltage-bias', 'status:feedline3:hemt:drain-current-bias', 'status:feedline3:hemt:drain-voltage-bias',
-                 'status:feedline4:hemt:gate-voltage-bias', 'status:feedline4:hemt:drain-current-bias', 'status:feedline4:hemt:drain-voltage-bias',
-                 'status:feedline5:hemt:gate-voltage-bias', 'status:feedline5:hemt:drain-current-bias', 'status:feedline5:hemt:drain-voltage-bias']
-    hemt_vals = [[["1",0], ['status:feedline1:hemt:gate-voltage-bias', 1], ['status:feedline1:hemt:drain-current-bias', 1], ['status:feedline1:hemt:drain-voltage-bias',1]],
-            [["2",0], ['status:feedline2:hemt:gate-voltage-bias', 1], ['status:feedline2:hemt:drain-current-bias', 1], ['status:feedline2:hemt:drain-voltage-bias',1]],
-            [["3",0], ['status:feedline3:hemt:gate-voltage-bias', 1], ['status:feedline3:hemt:drain-current-bias', 1], ['status:feedline3:hemt:drain-voltage-bias',1]],
-            [["4",0], ['status:feedline4:hemt:gate-voltage-bias', 1], ['status:feedline4:hemt:drain-current-bias', 1], ['status:feedline4:hemt:drain-voltage-bias',1]],
-            [["5",0], ['status:feedline5:hemt:gate-voltage-bias', 1], ['status:feedline5:hemt:drain-current-bias', 1], ['status:feedline5:hemt:drain-voltage-bias',1]]]
-
     magnet_vals = [['Magnet current', f"{redis.redis_ts.get('status:highcurrentboard:current')[1]:.3f} A"], # TODO: Add a 'predicted voltage' value (based on SIM960 output * conversion factor)?
                    ['SIM960 control voltage', f"{redis.redis_ts.get('status:device:sim960:hcfet-control-voltage')[1]:.3f} V"],
                    ['Control Mode', redis.read(['device-settings:sim960:mode'])['device-settings:sim960:mode']],
                    ['Heat Switch', redis.read(['status:heatswitch'])['status:heatswitch']]]  # TODO: Allow flipping here?
 
-    return render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data,
-                           hemt_tableh=hemt_headers, hemt_tablev=hemt_vals, current_tableh=magnet_vals,
-                           hemt_keys=hemt_keys)
+    return render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data, current_tableh=magnet_vals)
 
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
+    # TODO
     form = FlaskForm()
     return render_template('dashboard.html', title='Dashboard', form=form)
 
 
 @app.route('/sim960settings', methods=['GET', 'POST'])
 def sim960settings():
-    form = FlaskForm()
-    return render_template('sim960settings.html', title='SIM960 Settings', form=form)
-
-
-@app.route('/sim921settings', methods=['GET', 'POST'])
-def sim921settings():
-    form = FlaskForm()
-    return render_template('sim921settings.html', title='SIM921 Settings', form=form)
-
-
-@app.route('/settings', methods=['GET', 'POST'])
-def settings():
-    form = SettingForm()
+    form = Sim960SettingForm()
     if request.method == 'POST':
         # TODO: There must be a different better way to do this (matching redis keys to field labels)
-        keys = ['device-settings:sim960:vin-setpoint-mode', 'device-settings:sim960:vin-setpoint-slew-enable', 'device-settings:sim960:pid-p:enabled',
-                'device-settings:sim960:pid-i:enabled', 'device-settings:sim960:pid-d:enabled', 'device-settings:sim921:resistance-range',
-                'device-settings:sim921:excitation-value', 'device-settings:sim921:excitation-mode', 'device-settings:sim921:time-constant',
-                'device-settings:sim921:output-mode', 'device-settings:sim921:curve-number']
+        # TODO: Highlight 'changed' values
+        keys = ['device-settings:sim960:vin-setpoint-mode',
+                'device-settings:sim960:vin-setpoint-slew-enable',
+                'device-settings:sim960:pid-p:enabled',
+                'device-settings:sim960:pid-i:enabled',
+                'device-settings:sim960:pid-d:enabled']
         desired_vals = form.data
         current_vals = redis.read(keys)
         for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
             if v1 != v2:
                 print(f"Change {k1} from {v1} to {v2}")
-                redis.publish(k1, v2)
+                # redis.publish(k1, v2)
 
-        return redirect(url_for('settings'))
+        return redirect(url_for('sim960settings'))
     else:
-        return render_template('settings.html', title='Settings', form=form)
+        return render_template('sim960settings.html', title='SIM960 Settings', form=form)
 
 
-@app.route('/info', methods=['GET', 'POST'])
-def info():
+@app.route('/sim921settings', methods=['GET', 'POST'])
+def sim921settings():
+    form = Sim921SettingForm()
+    if request.method == 'POST':
+        # TODO: There must be a different better way to do this (matching redis keys to field labels)
+        # TODO: Highlight 'changed' values
+        keys = ['device-settings:sim921:resistance-range',
+                'device-settings:sim921:excitation-value',
+                'device-settings:sim921:excitation-mode',
+                'device-settings:sim921:time-constant',
+                'device-settings:sim921:output-mode',
+                'device-settings:sim921:curve-number']
+        desired_vals = form.data
+        current_vals = redis.read(keys)
+        for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
+            if v1 != v2:
+                print(f"Change {k1} from {v1} to {v2}")
+                # redis.publish(k1, v2)
+
+        return redirect(url_for('sim921settings'))
+    else:
+        return render_template('sim921settings.html', title='SIM921 Settings', form=form)
+
+
+@app.route('/hemts', methods=['GET', 'POST'])
+def hemts():
     form = FlaskForm()
-    return render_template('info.html', title='Info', form=form)
+    return render_template('hemts.html', title='HEMT', form=form)
 
 
 @app.route('/reporter', methods=['POST'])
@@ -141,22 +147,39 @@ def make_choices(key):
     return choice
 
 
-class SettingForm(FlaskForm):
-    sim960_setpoint_mode = SelectField('SIM960 Setpoint Mode', choices=make_choices('device-settings:sim960:vin-setpoint-mode'))
-    sim960_enable_setpoint_ramp = SelectField('SIM960 Internal Setpoint Ramp Enable', choices=make_choices('device-settings:sim960:vin-setpoint-slew-enable'))
-    sim960_p_on = SelectField('SIM960 PID: P Enabled', choices=make_choices('device-settings:sim960:pid-p:enabled'))
-    sim960_i_on = SelectField('SIM960 PID: I Enabled', choices=make_choices('device-settings:sim960:pid-i:enabled'))
-    sim960_d_on = SelectField('SIM960 PID: D Enabled', choices=make_choices('device-settings:sim960:pid-d:enabled'))
+class Sim960SettingForm(FlaskForm):
+    sim960_setpoint_mode = SelectField('Setpoint Mode', choices=make_choices('device-settings:sim960:vin-setpoint-mode'))
+    sim960_enable_setpoint_ramp = SelectField('Internal Setpoint Slew Enable', choices=make_choices('device-settings:sim960:vin-setpoint-slew-enable'))
+    sim960_p_on = SelectField('PID: P Enabled', choices=make_choices('device-settings:sim960:pid-p:enabled'))
+    sim960_i_on = SelectField('PID: I Enabled', choices=make_choices('device-settings:sim960:pid-i:enabled'))
+    sim960_d_on = SelectField('PID: D Enabled', choices=make_choices('device-settings:sim960:pid-d:enabled'))
 
-    sim921_resistance_range = SelectField('SIM921 Resistance Range', choices=make_choices('device-settings:sim921:resistance-range'))
-    sim921_excitation_val = SelectField('SIM921 Excitation Value', choices=make_choices('device-settings:sim921:excitation-value'))
-    sim921_excitation_mode = SelectField('SIM921 Excitation Mode', choices=make_choices('device-settings:sim921:excitation-mode'))
-    sim921_time_constant = SelectField('SIM921 Time Constant', choices=make_choices('device-settings:sim921:time-constant'))
-    sim921_output_mode = SelectField('SIM921 Output Mode', choices=make_choices('device-settings:sim921:output-mode'))
-    sim921_curve = SelectField('SIM921 Calibration Curve', choices=make_choices('device-settings:sim921:curve-number'))
+    sim960_p_value = StringField('PID: P Value', default='')
+    sim960_i_value = StringField('PID: I Value', default='')
+    sim960_d_value = StringField('PID: D Value', default='')
+    sim960_vout_min = StringField('Minimum Output Voltage', default='')
+    sim960_vout_max = StringField('Maximum Output Voltage', default='')
+    sim960_setpoint = StringField('Internal Setpoint (V)', default='')
+    sim960_slew_rate = StringField('Setpoint Slew Rate (V/s)', default='')
 
     submit = SubmitField('Update', [DataRequired()])
 
+class Sim921SettingForm(FlaskForm):
+    sim921_resistance_range = SelectField('Resistance Range', choices=make_choices('device-settings:sim921:resistance-range'))
+    sim921_excitation_val = SelectField('Excitation Value', choices=make_choices('device-settings:sim921:excitation-value'))
+    sim921_excitation_mode = SelectField('Excitation Mode', choices=make_choices('device-settings:sim921:excitation-mode'))
+    sim921_time_constant = SelectField('Time Constant', choices=make_choices('device-settings:sim921:time-constant'))
+    sim921_output_mode = SelectField('Output Mode', choices=make_choices('device-settings:sim921:output-mode'))
+    sim921_curve = SelectField('Calibration Curve', choices=make_choices('device-settings:sim921:curve-number'))
+
+    sim921_t_offset = StringField('Temperature Setpoint', default='')
+    sim921_r_offset = StringField('Resistance Setpoint', default='')
+    sim921_t_slope = StringField('Temperature Slope (V/K) { Output = A * (T - Tsetpoint) }', default='')
+    sim921_r_slope = StringField('Resistance Slope (V/Ohm) { Output = A * (R - Rsetpoint) }', default='')
+    sim921_vout = StringField('Output Voltage (V)', default='')
+
+
+    submit = SubmitField('Update', [DataRequired()])
 
 if __name__ == "__main__":
 

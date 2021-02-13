@@ -9,39 +9,8 @@
         <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     </head>
-    <div>
-        <table style="border-collapse: collapse; display: inline">
-            <caption style="text-align: center">Thermometry</caption>
-            <thead>
-                {% for header in table_headers %}
-                    <th style="text-align:center; border: 1px solid black; padding:10px"> {{ header }} </th>
-                {% endfor %}
-            </thead>
-            <tbody>
-                {% for row in table_data %}
-                    <tr>
-                    {%for value in row %}
-                        <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
-                    {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
 
-        <table style="border-collapse: collapse; display: inline">
-            <caption style="text-align: center"> Magnet </caption>
-            {% for row in current_tableh %}
-            <tr>
-                {% for value in row %}
-                <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
-                {% endfor %}
-            </tr>
-            {% endfor %}
-        </table>
-
-    </div>
-
-    <div id="tank-temps" style="width:600px;height:600px"></div>
+    <div id="tank-temps" style="width:450px;height:450px"></div>
     <script>
         function init_tank_temps() {
             var times = [];
@@ -116,7 +85,39 @@
         }, 1000);
     </script>
 
+    <div>
+        <table style="border-collapse: collapse; display: inline">
+            <caption style="text-align: center">Thermometry</caption>
+            <thead>
+                {% for header in table_headers %}
+                    <th style="text-align:center; border: 1px solid black; padding:10px"> {{ header }} </th>
+                {% endfor %}
+            </thead>
+            <tbody>
+                {% for row in table_data %}
+                    <tr>
+                    {%for value in row %}
+                        <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
+                    {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table style="border-collapse: collapse; display: inline">
+            <caption style="text-align: center"> Magnet </caption>
+            {% for row in current_tableh %}
+            <tr>
+                {% for value in row %}
+                <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+
+    </div>
+
     <h1>
-        <a href="{{ url_for('index') }}"><button> Refresh </button></a>
+        <a href="{{ url_for('index') }}">Refresh</a>
     </h1>
 {% endblock %}

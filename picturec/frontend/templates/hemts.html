@@ -6,13 +6,8 @@
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     </head>
 
-    <div>Here's where the PICTURE-C Info will go. </div>
-    <div>Hope it's good!</div>
-    <h1>
-        <a href="{{ url_for('index') }}"><button> Home </button></a>
-    </h1>
-
-    <div id="gate-voltages" style="width:600px;height:600px;"></div>
+    <div style="width:1400px">
+    <div id="gate-voltages" style="float:left; width:450px;height:450px;"></div>
     <script>
 
         function init_vals1() {
@@ -115,7 +110,7 @@
         }, 1000);
     </script>
 
-    <div id="drain-voltages" style="width:600px;height:600px;"></div>
+    <div id="drain-voltages" style="float:left; width:450px;height:450px;"></div>
     <script>
 
         function init_vals2() {
@@ -218,7 +213,7 @@
         }, 1000);
     </script>
 
-    <div id="drain-currents" style="width:600px;height:600px;"></div>
+    <div id="drain-currents" style="float:left; width:450px;height:450px;"></div>
     <script>
 
         function init_vals3() {
@@ -320,9 +315,6 @@
             }, [0,1,2,3,4])
         }, 1000);
     </script>
-
-
-
+    </div>
 
 {% endblock %}
-
