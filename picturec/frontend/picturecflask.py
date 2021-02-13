@@ -30,6 +30,9 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
 redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
 
 
+# TODO: Add alarms for serial (dis)connections?
+# TODO: Only have temperature setpoint and have the program internals convert that to resistance?
+
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
@@ -66,6 +69,8 @@ def sim960settings():
     if request.method == 'POST':
         # TODO: There must be a different better way to do this (matching redis keys to field labels)
         # TODO: Highlight 'changed' values
+        # TODO: Add 'notes' to the side of the string fields about what values are legal
+        # TODO: Block changes of specific values
         keys = ['device-settings:sim960:vin-setpoint-mode',
                 'device-settings:sim960:vin-setpoint-slew-enable',
                 'device-settings:sim960:pid-p:enabled',
@@ -89,6 +94,8 @@ def sim921settings():
     if request.method == 'POST':
         # TODO: There must be a different better way to do this (matching redis keys to field labels)
         # TODO: Highlight 'changed' values
+        # TODO: Add 'notes' to the side of the string fields about what values are legal
+        # TODO: Block changes of specific values
         keys = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:excitation-value',
                 'device-settings:sim921:excitation-mode',
@@ -154,13 +161,13 @@ class Sim960SettingForm(FlaskForm):
     sim960_i_on = SelectField('PID: I Enabled', choices=make_choices('device-settings:sim960:pid-i:enabled'))
     sim960_d_on = SelectField('PID: D Enabled', choices=make_choices('device-settings:sim960:pid-d:enabled'))
 
-    sim960_p_value = StringField('PID: P Value', default='')
-    sim960_i_value = StringField('PID: I Value', default='')
-    sim960_d_value = StringField('PID: D Value', default='')
-    sim960_vout_min = StringField('Minimum Output Voltage', default='')
-    sim960_vout_max = StringField('Maximum Output Voltage', default='')
-    sim960_setpoint = StringField('Internal Setpoint (V)', default='')
-    sim960_slew_rate = StringField('Setpoint Slew Rate (V/s)', default='')
+    sim960_p_value = StringField('PID: P Value', default=redis.read('device-settings:sim960:pid-p:value', return_dict=False)[0])
+    sim960_i_value = StringField('PID: I Value', default=redis.read('device-settings:sim960:pid-i:value', return_dict=False)[0])
+    sim960_d_value = StringField('PID: D Value', default=redis.read('device-settings:sim960:pid-d:value', return_dict=False)[0])
+    sim960_vout_min = StringField('Minimum Output Voltage', default=redis.read('device-settings:sim960:vout-min-limit', return_dict=False)[0])
+    sim960_vout_max = StringField('Maximum Output Voltage', default=redis.read('device-settings:sim960:vout-max-limit', return_dict=False)[0])
+    sim960_setpoint = StringField('Internal Setpoint (V)', default=redis.read('device-settings:sim960:vin-setpoint', return_dict=False)[0])
+    sim960_slew_rate = StringField('Setpoint Slew Rate (V/s)', default=redis.read('device-settings:sim960:vin-setpoint-slew-rate', return_dict=False)[0])
 
     submit = SubmitField('Update', [DataRequired()])
 
@@ -172,11 +179,11 @@ class Sim921SettingForm(FlaskForm):
     sim921_output_mode = SelectField('Output Mode', choices=make_choices('device-settings:sim921:output-mode'))
     sim921_curve = SelectField('Calibration Curve', choices=make_choices('device-settings:sim921:curve-number'))
 
-    sim921_t_offset = StringField('Temperature Setpoint', default='')
-    sim921_r_offset = StringField('Resistance Setpoint', default='')
-    sim921_t_slope = StringField('Temperature Slope (V/K) { Output = A * (T - Tsetpoint) }', default='')
-    sim921_r_slope = StringField('Resistance Slope (V/Ohm) { Output = A * (R - Rsetpoint) }', default='')
-    sim921_vout = StringField('Output Voltage (V)', default='')
+    sim921_t_offset = StringField('Temperature Setpoint', default=redis.read('device-settings:sim921:temp-offset', return_dict=False)[0])
+    sim921_r_offset = StringField('Resistance Setpoint', default=redis.read('device-settings:sim921:resistance-offset', return_dict=False)[0])
+    sim921_t_slope = StringField('Temperature Slope (V/K) { Output = A * (T - Tsetpoint) }', default=redis.read('device-settings:sim921:temp-slope', return_dict=False)[0])
+    sim921_r_slope = StringField('Resistance Slope (V/Ohm) { Output = A * (R - Rsetpoint) }', default=redis.read('device-settings:sim921:resistance-slope', return_dict=False)[0])
+    sim921_vout = StringField('Output Voltage (V)', default=redis.read('device-settings:sim921:manual-vout', return_dict=False)[0])
 
 
     submit = SubmitField('Update', [DataRequired()])
