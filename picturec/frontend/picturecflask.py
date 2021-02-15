@@ -136,11 +136,35 @@ def reporter():
                     'vd_times': list(vds[:, 0]), 'drain_voltages': list(vds[:, 1])})
 
 
-@app.route('/tempvals', methods=['POST'])
-def tempvals():
-    temperature_keys = ['status:temps:lhetank', 'status:temps:ln2tank']
-    vals = np.array([redis.redis_ts.get(i) for i in temperature_keys])
-    return jsonify({'times': list(vals[:, 0]), 'temps': list(vals[:, 1])})
+@app.route('/tempvals_n2', methods=['POST'])
+def tempvals_n2():
+    temperature_key = 'status:temps:ln2tank'
+    val = redis.redis_ts.get(temperature_key)
+    print(f"LN2 time/temp: {val}")
+    return jsonify({'times': val[0], 'temps': val[1]})
+
+
+@app.route('/tempvals_he', methods=['POST'])
+def tempvals_he():
+    temperature_key = 'status:temps:lhetank'
+    val = redis.redis_ts.get(temperature_key)
+    print(f"LHe time/temp: {val}")
+    return jsonify({'times': val[0], 'temps': val[1]})
+
+@app.route('/device_t', methods=['POST'])
+def device_t():
+    temperature_key = 'status:temps:mkidarray:temp'
+    val = redis.redis_ts.get(temperature_key)
+    print(f"Device time/temp: {val}")
+    return jsonify({'times': val[0], 'temps': val[1]})
+
+
+@app.route('/magnet_current', methods=['POST'])
+def magnet_current():
+    temperature_key = 'status:highcurrentboard:current'
+    val = redis.redis_ts.get(temperature_key)
+    print(f"Magnet time/current: {val}")
+    return jsonify({'times': val[0], 'currents': val[1]})
 
 
 def make_choices(key):
@@ -184,7 +208,6 @@ class Sim921SettingForm(FlaskForm):
     sim921_t_slope = StringField('Temperature Slope (V/K) { Output = A * (T - Tsetpoint) }', default=redis.read('device-settings:sim921:temp-slope', return_dict=False)[0])
     sim921_r_slope = StringField('Resistance Slope (V/Ohm) { Output = A * (R - Rsetpoint) }', default=redis.read('device-settings:sim921:resistance-slope', return_dict=False)[0])
     sim921_vout = StringField('Output Voltage (V)', default=redis.read('device-settings:sim921:manual-vout', return_dict=False)[0])
-
 
     submit = SubmitField('Update', [DataRequired()])
 

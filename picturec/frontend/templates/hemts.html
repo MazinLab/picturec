@@ -7,314 +7,314 @@
     </head>
 
     <div style="width:1400px">
-    <div id="gate-voltages" style="float:left; width:450px;height:450px;"></div>
-    <script>
+        <div id="gate-voltages" style="float:left; width:450px;height:450px;"></div>
+        <script>
 
-        function init_vals1() {
-            var times = [];
-            var voltages = [];
+            function init_vals1() {
+                var times = [];
+                var voltages = [];
 
-            $.ajax({
-                url: '/reporter',
-                type: 'post',
-                async: false,
-                success: function(response) {
-                    times = response['vg_times'];
-                    voltages = response['gate_voltages'];
-                },
-                error: function() {
-                    times = [-1, -1, -1, -1, -1];
-                    voltages = [-1, -1, -1, -1, -1];
-                }
-            });
-            // time.forEach(function(e) {
-            //     Date(e).toLocaleTimeString("en-US")
-            // });
+                $.ajax({
+                    url: '/reporter',
+                    type: 'post',
+                    async: false,
+                    success: function(response) {
+                        times = response['vg_times'];
+                        voltages = response['gate_voltages'];
+                    },
+                    error: function() {
+                        times = [-1, -1, -1, -1, -1];
+                        voltages = [-1, -1, -1, -1, -1];
+                    }
+                });
+                // time.forEach(function(e) {
+                //     Date(e).toLocaleTimeString("en-US")
+                // });
 
-            var trace0 = {
-                x: [times[0]],
-                y: [voltages[0]],
-                name: 'Feedline 1 Vg',
-                mode: 'lines'
+                var trace0 = {
+                    x: [times[0]],
+                    y: [voltages[0]],
+                    name: 'Feedline 1 Vg',
+                    mode: 'lines'
+                };
+
+                var trace1 = {
+                    x: [times[1]],
+                    y: [voltages[1]],
+                    name: 'Feedline 2 Vg',
+                    mode: 'lines'
+                };
+
+                var trace2 = {
+                    x: [times[2]],
+                    y: [voltages[2]],
+                    name: 'Feedline 3 Vg',
+                    mode: 'lines'
+                };
+
+                var trace3 = {
+                    x: [times[3]],
+                    y: [voltages[3]],
+                    name: 'Feedline 4 Vg',
+                    mode: 'lines'
+                };
+
+                var trace4 = {
+                    x: [times[4]],
+                    y: [voltages[4]],
+                    name: 'Feedline 5 Vg',
+                    mode: 'lines'
+                };
+
+                var data = [trace0, trace1, trace2, trace3, trace4];
+
+                return data;
+            }
+
+            function grab1() {
+                var times = [];
+                var voltages = [];
+                $.ajax({
+                    url: '/reporter',
+                    type: 'post',
+                    async: false,
+                    success: function(response) {
+                        console.log(response)
+                        times = response['vg_times'];
+                        voltages = response['gate_voltages'];
+                    },
+                    error: function() {
+                        times = [-1, -1, -1, -1, -1];
+                        voltages = [-1, -1, -1, -1, -1];
+                    }
+                });
+                // time.forEach(function(e) {
+                //     Date(e).toLocaleTimeString("en-US")
+                // })
+                return [times, voltages];
+            }
+
+            var hemt_data = init_vals1()
+            var layout = {
+                title:'HEMT Gate Voltages'
             };
 
-            var trace1 = {
-                x: [times[1]],
-                y: [voltages[1]],
-                name: 'Feedline 2 Vg',
-                mode: 'lines'
+            Plotly.newPlot('gate-voltages', hemt_data, layout);
+
+            var interval = setInterval(function() {
+                var new_data = grab1();
+                Plotly.extendTraces('gate-voltages', {
+                    x: [[new_data[0][0]], [new_data[0][1]], [new_data[0][2]], [new_data[0][3]], [new_data[0][4]]],
+                    y: [[new_data[1][0]], [new_data[1][1]], [new_data[1][2]], [new_data[1][3]], [new_data[1][4]]]
+                }, [0,1,2,3,4])
+            }, 1000);
+        </script>
+
+        <div id="drain-voltages" style="float:left; width:450px;height:450px;"></div>
+        <script>
+
+            function init_vals2() {
+                var times = [];
+                var voltages = [];
+
+                $.ajax({
+                    url: '/reporter',
+                    type: 'post',
+                    async: false,
+                    success: function(response) {
+                        times = response['vd_times'];
+                        voltages = response['drain_voltages'];
+                    },
+                    error: function() {
+                        times = [-1, -1, -1, -1, -1];
+                        voltages = [-1, -1, -1, -1, -1];
+                    }
+                });
+                // time.forEach(function(e) {
+                //     Date(e).toLocaleTimeString("en-US")
+                // });
+
+                var trace0 = {
+                    x: [times[0]],
+                    y: [voltages[0]],
+                    name: 'Feedline 1 Vd',
+                    mode: 'lines'
+                };
+
+                var trace1 = {
+                    x: [times[1]],
+                    y: [voltages[1]],
+                    name: 'Feedline 2 Vd',
+                    mode: 'lines'
+                };
+
+                var trace2 = {
+                    x: [times[2]],
+                    y: [voltages[2]],
+                    name: 'Feedline 3 Vd',
+                    mode: 'lines'
+                };
+
+                var trace3 = {
+                    x: [times[3]],
+                    y: [voltages[3]],
+                    name: 'Feedline 4 Vd',
+                    mode: 'lines'
+                };
+
+                var trace4 = {
+                    x: [times[4]],
+                    y: [voltages[4]],
+                    name: 'Feedline 5 Vd',
+                    mode: 'lines'
+                };
+
+                var data = [trace0, trace1, trace2, trace3, trace4];
+
+                return data;
+            }
+
+            function grab2() {
+                var times = [];
+                var voltages = [];
+                $.ajax({
+                    url: '/reporter',
+                    type: 'post',
+                    async: false,
+                    success: function(response) {
+                        console.log(response)
+                        times = response['vd_times'];
+                        voltages = response['drain_voltages'];
+                    },
+                    error: function() {
+                        times = [-1, -1, -1, -1, -1];
+                        voltages = [-1, -1, -1, -1, -1];
+                    }
+                });
+                // time.forEach(function(e) {
+                //     Date(e).toLocaleTimeString("en-US")
+                // })
+                return [times, voltages];
+            }
+
+            var hemt_data = init_vals2()
+            var layout = {
+                title:'HEMT Drain Voltages'
             };
 
-            var trace2 = {
-                x: [times[2]],
-                y: [voltages[2]],
-                name: 'Feedline 3 Vg',
-                mode: 'lines'
+            Plotly.newPlot('drain-voltages', hemt_data, layout);
+
+            var interval = setInterval(function() {
+                var new_data = grab2();
+                Plotly.extendTraces('drain-voltages', {
+                    x: [[new_data[0][0]], [new_data[0][1]], [new_data[0][2]], [new_data[0][3]], [new_data[0][4]]],
+                    y: [[new_data[1][0]], [new_data[1][1]], [new_data[1][2]], [new_data[1][3]], [new_data[1][4]]]
+                }, [0,1,2,3,4])
+            }, 1000);
+        </script>
+
+        <div id="drain-currents" style="float:left; width:450px;height:450px;"></div>
+        <script>
+
+            function init_vals3() {
+                var times = [];
+                var voltages = [];
+
+                $.ajax({
+                    url: '/reporter',
+                    type: 'post',
+                    async: false,
+                    success: function(response) {
+                        times = response['id_times'];
+                        voltages = response['drain_currents'];
+                    },
+                    error: function() {
+                        times = [-1, -1, -1, -1, -1];
+                        voltages = [-1, -1, -1, -1, -1];
+                    }
+                });
+                // time.forEach(function(e) {
+                //     Date(e).toLocaleTimeString("en-US")
+                // });
+
+                var trace0 = {
+                    x: [times[0]],
+                    y: [voltages[0]],
+                    name: 'Feedline 1 Id',
+                    mode: 'lines'
+                };
+
+                var trace1 = {
+                    x: [times[1]],
+                    y: [voltages[1]],
+                    name: 'Feedline 2 Id',
+                    mode: 'lines'
+                };
+
+                var trace2 = {
+                    x: [times[2]],
+                    y: [voltages[2]],
+                    name: 'Feedline 3 Id',
+                    mode: 'lines'
+                };
+
+                var trace3 = {
+                    x: [times[3]],
+                    y: [voltages[3]],
+                    name: 'Feedline 4 Id',
+                    mode: 'lines'
+                };
+
+                var trace4 = {
+                    x: [times[4]],
+                    y: [voltages[4]],
+                    name: 'Feedline 5 Id',
+                    mode: 'lines'
+                };
+
+                var data = [trace0, trace1, trace2, trace3, trace4];
+
+                return data;
+            }
+
+            function grab3() {
+                var times = [];
+                var voltages = [];
+                $.ajax({
+                    url: '/reporter',
+                    type: 'post',
+                    async: false,
+                    success: function(response) {
+                        console.log(response)
+                        times = response['id_times'];
+                        voltages = response['drain_currents'];
+                    },
+                    error: function() {
+                        times = [-1, -1, -1, -1, -1];
+                        voltages = [-1, -1, -1, -1, -1];
+                    }
+                });
+                // time.forEach(function(e) {
+                //     Date(e).toLocaleTimeString("en-US")
+                // })
+                return [times, voltages];
+            }
+
+            var hemt_data = init_vals3()
+            var layout = {
+                title:'HEMT Drain Currents'
             };
 
-            var trace3 = {
-                x: [times[3]],
-                y: [voltages[3]],
-                name: 'Feedline 4 Vg',
-                mode: 'lines'
-            };
+            Plotly.newPlot('drain-currents', hemt_data, layout);
 
-            var trace4 = {
-                x: [times[4]],
-                y: [voltages[4]],
-                name: 'Feedline 5 Vg',
-                mode: 'lines'
-            };
-
-            var data = [trace0, trace1, trace2, trace3, trace4];
-
-            return data;
-        }
-
-        function grab1() {
-            var times = [];
-            var voltages = [];
-            $.ajax({
-                url: '/reporter',
-                type: 'post',
-                async: false,
-                success: function(response) {
-                    console.log(response)
-                    times = response['vg_times'];
-                    voltages = response['gate_voltages'];
-                },
-                error: function() {
-                    times = [-1, -1, -1, -1, -1];
-                    voltages = [-1, -1, -1, -1, -1];
-                }
-            });
-            // time.forEach(function(e) {
-            //     Date(e).toLocaleTimeString("en-US")
-            // })
-            return [times, voltages];
-        }
-
-        var hemt_data = init_vals1()
-        var layout = {
-            title:'HEMT Gate Voltages'
-        };
-
-        Plotly.newPlot('gate-voltages', hemt_data, layout);
-
-        var interval = setInterval(function() {
-            var new_data = grab1();
-            Plotly.extendTraces('gate-voltages', {
-                x: [[new_data[0][0]], [new_data[0][1]], [new_data[0][2]], [new_data[0][3]], [new_data[0][4]]],
-                y: [[new_data[1][0]], [new_data[1][1]], [new_data[1][2]], [new_data[1][3]], [new_data[1][4]]]
-            }, [0,1,2,3,4])
-        }, 1000);
-    </script>
-
-    <div id="drain-voltages" style="float:left; width:450px;height:450px;"></div>
-    <script>
-
-        function init_vals2() {
-            var times = [];
-            var voltages = [];
-
-            $.ajax({
-                url: '/reporter',
-                type: 'post',
-                async: false,
-                success: function(response) {
-                    times = response['vd_times'];
-                    voltages = response['drain_voltages'];
-                },
-                error: function() {
-                    times = [-1, -1, -1, -1, -1];
-                    voltages = [-1, -1, -1, -1, -1];
-                }
-            });
-            // time.forEach(function(e) {
-            //     Date(e).toLocaleTimeString("en-US")
-            // });
-
-            var trace0 = {
-                x: [times[0]],
-                y: [voltages[0]],
-                name: 'Feedline 1 Vd',
-                mode: 'lines'
-            };
-
-            var trace1 = {
-                x: [times[1]],
-                y: [voltages[1]],
-                name: 'Feedline 2 Vd',
-                mode: 'lines'
-            };
-
-            var trace2 = {
-                x: [times[2]],
-                y: [voltages[2]],
-                name: 'Feedline 3 Vd',
-                mode: 'lines'
-            };
-
-            var trace3 = {
-                x: [times[3]],
-                y: [voltages[3]],
-                name: 'Feedline 4 Vd',
-                mode: 'lines'
-            };
-
-            var trace4 = {
-                x: [times[4]],
-                y: [voltages[4]],
-                name: 'Feedline 5 Vd',
-                mode: 'lines'
-            };
-
-            var data = [trace0, trace1, trace2, trace3, trace4];
-
-            return data;
-        }
-
-        function grab2() {
-            var times = [];
-            var voltages = [];
-            $.ajax({
-                url: '/reporter',
-                type: 'post',
-                async: false,
-                success: function(response) {
-                    console.log(response)
-                    times = response['vd_times'];
-                    voltages = response['drain_voltages'];
-                },
-                error: function() {
-                    times = [-1, -1, -1, -1, -1];
-                    voltages = [-1, -1, -1, -1, -1];
-                }
-            });
-            // time.forEach(function(e) {
-            //     Date(e).toLocaleTimeString("en-US")
-            // })
-            return [times, voltages];
-        }
-
-        var hemt_data = init_vals2()
-        var layout = {
-            title:'HEMT Drain Voltages'
-        };
-
-        Plotly.newPlot('drain-voltages', hemt_data, layout);
-
-        var interval = setInterval(function() {
-            var new_data = grab2();
-            Plotly.extendTraces('drain-voltages', {
-                x: [[new_data[0][0]], [new_data[0][1]], [new_data[0][2]], [new_data[0][3]], [new_data[0][4]]],
-                y: [[new_data[1][0]], [new_data[1][1]], [new_data[1][2]], [new_data[1][3]], [new_data[1][4]]]
-            }, [0,1,2,3,4])
-        }, 1000);
-    </script>
-
-    <div id="drain-currents" style="float:left; width:450px;height:450px;"></div>
-    <script>
-
-        function init_vals3() {
-            var times = [];
-            var voltages = [];
-
-            $.ajax({
-                url: '/reporter',
-                type: 'post',
-                async: false,
-                success: function(response) {
-                    times = response['id_times'];
-                    voltages = response['drain_currents'];
-                },
-                error: function() {
-                    times = [-1, -1, -1, -1, -1];
-                    voltages = [-1, -1, -1, -1, -1];
-                }
-            });
-            // time.forEach(function(e) {
-            //     Date(e).toLocaleTimeString("en-US")
-            // });
-
-            var trace0 = {
-                x: [times[0]],
-                y: [voltages[0]],
-                name: 'Feedline 1 Id',
-                mode: 'lines'
-            };
-
-            var trace1 = {
-                x: [times[1]],
-                y: [voltages[1]],
-                name: 'Feedline 2 Id',
-                mode: 'lines'
-            };
-
-            var trace2 = {
-                x: [times[2]],
-                y: [voltages[2]],
-                name: 'Feedline 3 Id',
-                mode: 'lines'
-            };
-
-            var trace3 = {
-                x: [times[3]],
-                y: [voltages[3]],
-                name: 'Feedline 4 Id',
-                mode: 'lines'
-            };
-
-            var trace4 = {
-                x: [times[4]],
-                y: [voltages[4]],
-                name: 'Feedline 5 Id',
-                mode: 'lines'
-            };
-
-            var data = [trace0, trace1, trace2, trace3, trace4];
-
-            return data;
-        }
-
-        function grab3() {
-            var times = [];
-            var voltages = [];
-            $.ajax({
-                url: '/reporter',
-                type: 'post',
-                async: false,
-                success: function(response) {
-                    console.log(response)
-                    times = response['id_times'];
-                    voltages = response['drain_currents'];
-                },
-                error: function() {
-                    times = [-1, -1, -1, -1, -1];
-                    voltages = [-1, -1, -1, -1, -1];
-                }
-            });
-            // time.forEach(function(e) {
-            //     Date(e).toLocaleTimeString("en-US")
-            // })
-            return [times, voltages];
-        }
-
-        var hemt_data = init_vals3()
-        var layout = {
-            title:'HEMT Drain Currents'
-        };
-
-        Plotly.newPlot('drain-currents', hemt_data, layout);
-
-        var interval = setInterval(function() {
-            var new_data = grab3();
-            Plotly.extendTraces('drain-currents', {
-                x: [[new_data[0][0]], [new_data[0][1]], [new_data[0][2]], [new_data[0][3]], [new_data[0][4]]],
-                y: [[new_data[1][0]], [new_data[1][1]], [new_data[1][2]], [new_data[1][3]], [new_data[1][4]]]
-            }, [0,1,2,3,4])
-        }, 1000);
-    </script>
+            var interval = setInterval(function() {
+                var new_data = grab3();
+                Plotly.extendTraces('drain-currents', {
+                    x: [[new_data[0][0]], [new_data[0][1]], [new_data[0][2]], [new_data[0][3]], [new_data[0][4]]],
+                    y: [[new_data[1][0]], [new_data[1][1]], [new_data[1][2]], [new_data[1][3]], [new_data[1][4]]]
+                }, [0,1,2,3,4])
+            }, 1000);
+        </script>
     </div>
 
 {% endblock %}
