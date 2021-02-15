@@ -133,11 +133,18 @@ def reporter():
                     'vd_times': list(vds[:, 0]), 'drain_voltages': list(vds[:, 1])})
 
 
+@app.route('/tester', methods=['GET', 'POST'])
+def tester():
+    print('This would be a magnet command!')
+    data = {'msg':'nothing'}
+    return jsonify(data)
+
+
 @app.route('/tempvals_n2', methods=['POST'])
 def tempvals_n2():
     temperature_key = 'status:temps:ln2tank'
     val = redis.redis_ts.get(temperature_key)
-    print(f"LN2 time/temp: {val}")
+    # print(f"LN2 time/temp: {val}")
     return jsonify({'times': val[0], 'temps': val[1]})
 
 
@@ -145,14 +152,14 @@ def tempvals_n2():
 def tempvals_he():
     temperature_key = 'status:temps:lhetank'
     val = redis.redis_ts.get(temperature_key)
-    print(f"LHe time/temp: {val}")
+    # print(f"LHe time/temp: {val}")
     return jsonify({'times': val[0], 'temps': val[1]})
 
 @app.route('/device_t', methods=['POST'])
 def device_t():
     temperature_key = 'status:temps:mkidarray:temp'
     val = redis.redis_ts.get(temperature_key)
-    print(f"Device time/temp: {val}")
+    # print(f"Device time/temp: {val}")
     return jsonify({'times': val[0], 'temps': val[1]})
 
 
@@ -160,7 +167,7 @@ def device_t():
 def magnet_current():
     temperature_key = 'status:highcurrentboard:current'
     val = redis.redis_ts.get(temperature_key)
-    print(f"Magnet time/current: {val}")
+    # print(f"Magnet time/current: {val}")
     return jsonify({'times': val[0], 'currents': val[1]})
 
 
@@ -191,6 +198,7 @@ class Sim960SettingForm(FlaskForm):
     sim960_slew_rate = StringField('Setpoint Slew Rate (V/s)', default=redis.read('device-settings:sim960:vin-setpoint-slew-rate', return_dict=False)[0])
 
     submit = SubmitField('Update', [DataRequired()])
+
 
 class Sim921SettingForm(FlaskForm):
     sim921_resistance_range = SelectField('Resistance Range', choices=make_choices('device-settings:sim921:resistance-range'))

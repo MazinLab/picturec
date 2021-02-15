@@ -10,6 +10,26 @@
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     </head>
 
+
+    <script type="text/javascript">
+        $(function() {
+            $('a#test').on('click', function (e) {
+                e.preventDefault();
+                $.ajax({
+                    url: '/tester',
+                    type: 'post',
+                    async: false,
+                    success: function (data) {
+                        console.log(data, data['msg'])
+                        $("#dest").text(data['msg'])
+                    },
+                    error: function () {
+                    }
+                });
+            });
+        });
+    </script>
+
     <div style="float:left; width:1000px; height:500px">
         <div id="device-temp" style="float:left;width:450px;height:450px"></div>
         <script>
@@ -146,7 +166,11 @@
         </script>
     </div>
 
-    <div style="float:left">Magnet Commands</div>
+    <div style="float:left">
+        Magnet Commands
+        <a href="#" id="test"><button> Test </button></a>
+        <div id="dest"></div>
+    </div>
 
     <div style="width:1000px; height:500px">
         <div id="ln2-tank-temp" style="float:left;width:450px;height:450px"></div>
@@ -283,38 +307,6 @@
             }, 1000);
         </script>
     </div>
-
-<!--    <div>-->
-<!--        <table style="border-collapse: collapse; display: inline">-->
-<!--            <caption style="text-align: center">Thermometry</caption>-->
-<!--            <thead>-->
-<!--                {% for header in table_headers %}-->
-<!--                    <th style="text-align:center; border: 1px solid black; padding:10px"> {{ header }} </th>-->
-<!--                {% endfor %}-->
-<!--            </thead>-->
-<!--            <tbody>-->
-<!--                {% for row in table_data %}-->
-<!--                    <tr>-->
-<!--                    {%for value in row %}-->
-<!--                        <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>-->
-<!--                    {% endfor %}-->
-<!--                    </tr>-->
-<!--                {% endfor %}-->
-<!--            </tbody>-->
-<!--        </table>-->
-
-<!--        <table style="border-collapse: collapse; display: inline">-->
-<!--            <caption style="text-align: center"> Magnet </caption>-->
-<!--            {% for row in current_tableh %}-->
-<!--            <tr>-->
-<!--                {% for value in row %}-->
-<!--                <td style="text-align:center; border: 1px solid black; padding:10px"> {{ value }} </td>-->
-<!--                {% endfor %}-->
-<!--            </tr>-->
-<!--            {% endfor %}-->
-<!--        </table>-->
-
-<!--    </div>-->
 
     <h1>
         <a href="{{ url_for('index') }}">Refresh</a>
