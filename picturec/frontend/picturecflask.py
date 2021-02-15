@@ -36,9 +36,6 @@ redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
-    # TODO: Split tank temperatures up
-    # TODO: Add Device T
-    # TODO: Add Magnet Current
     # TODO: Add HS Position (and ability to toggle it)
     # TODO: Add commands for start/stop/schedule ramp
     form = FlaskForm()
