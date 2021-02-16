@@ -21,7 +21,6 @@ dependencies:
   - python>=3
   - ruamel_yaml
   - scikit-image
-#  - scikit-learn
   - flask
   - scipy>=1.4.1
   - seaborn

@@ -23,7 +23,6 @@ import threading
 
 import picturec.devices
 from picturec.pcredis import PCRedis, RedisError
-import picturec.agent as agent
 import picturec.util as util
 
 REDIS_DB = 0

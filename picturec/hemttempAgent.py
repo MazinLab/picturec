@@ -24,7 +24,6 @@ import numpy as np
 
 import picturec.devices
 from picturec.pcredis import PCRedis, RedisError
-import picturec.agent as agent
 import picturec.util as util
 import time
 

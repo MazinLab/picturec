@@ -21,7 +21,7 @@ setuptools.setup(
              'picturec/hemttempAgent.py',
              'picturec/piccDirector.py',
              'picturec/sim960Agent.py',
-             'picturec/sim992Agent.py'],
+             'picturec/sim921Agent.py'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

@@ -1,21 +1,15 @@
 [Unit]
 Description=SIM960 Agent
-Wants=sim921.service
-After=sim921.service
 Wants=quenchmon.service
 After=quenchmon.service
-Wants=currentduino.service
-After=currentduino.service
-
 
 [Install]
 WantedBy=picc.service
 
 [Service]
 Type=simple
-ExecStart=/home/mazinlab/.local/bin/sim960Agent
+ExecStart=/home/mazinlab/anaconda3/envs/picc/bin/sim960Agent.py
 WorkingDirectory=/home/mazinlab/picturec
-user=mazinlab
-group=mazingroup
+User=mazinlab
 RestartSec=100ms
 Restart=always

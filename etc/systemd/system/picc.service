@@ -13,9 +13,8 @@ WantedBy=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/home/mazinlab/.local/bin/piccDirector
+ExecStart=/home/mazinlab/anaconda3/envs/picc/bin/piccDirector.py
 WorkingDirectory=/home/mazinlab/picturec
-user=mazinlab
-group=mazingroup
+User=mazinlab
 RestartSec=100ms
 Restart=always

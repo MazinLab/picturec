@@ -6,9 +6,8 @@ WantedBy=picc.service
 
 [Service]
 Type=simple
-ExecStart=/home/mazinlab/.local/bin/hemttempAgent
+ExecStart=/home/mazinlab/anaconda3/envs/picc/bin/hemttempAgent.py
 WorkingDirectory=/home/mazinlab/picturec
-user=mazinlab
-group=mazingroup
+User=mazinlab
 RestartSec=100ms
 Restart=always
