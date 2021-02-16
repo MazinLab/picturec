@@ -5,6 +5,7 @@ from flask import request, redirect, url_for, render_template, jsonify
 from wtforms import SelectField, SubmitField, StringField
 from wtforms.validators import DataRequired
 import numpy as np
+import json
 
 from picturec.frontend.config import Config
 from picturec.pcredis import PCRedis
@@ -30,6 +31,7 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
 redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
 
 
+# TODO: Magnet Ramp settings page
 # TODO: Add alarms for serial (dis)connections?
 # TODO: Only have temperature setpoint and have the program internals convert that to resistance?
 
@@ -37,20 +39,10 @@ redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS
 @app.route('/main', methods=['GET', 'POST'])
 def index():
     # TODO: Add HS Position (and ability to toggle it)
-    # TODO: Add commands for start/stop/schedule ramp
-    form = FlaskForm()
-    therm_headers = ['Thermometer', 'Value']
-    therm_data = [['Device', f"{redis.redis_ts.get('status:temps:mkidarray:temp')[1]:.3f} mK"],
-                  ['(resistance)', f"{redis.redis_ts.get('status:temps:mkidarray:resistance')[1]:.3f} Ohms"],
-                  ['LHe Tank', f"{redis.redis_ts.get('status:temps:lhetank')[1]:.2f} K"],
-                  ['LN2 Tank', f"{redis.redis_ts.get('status:temps:ln2tank')[1]:.2f} K"]]
+    # TODO: Cause magnet command buttons to actually trigger commands
+    form = MainPageForm()
 
-    magnet_vals = [['Magnet current', f"{redis.redis_ts.get('status:highcurrentboard:current')[1]:.3f} A"], # TODO: Add a 'predicted voltage' value (based on SIM960 output * conversion factor)?
-                   ['SIM960 control voltage', f"{redis.redis_ts.get('status:device:sim960:hcfet-control-voltage')[1]:.3f} V"],
-                   ['Control Mode', redis.read(['device-settings:sim960:mode'])['device-settings:sim960:mode']],
-                   ['Heat Switch', redis.read(['status:heatswitch'])['status:heatswitch']]]  # TODO: Allow flipping here?
-
-    return render_template('index.html', form=form, table_headers=therm_headers, table_data=therm_data, current_tableh=magnet_vals)
+    return render_template('index.html', form=form)
 
 
 @app.route('/dashboard', methods=['GET', 'POST'])
@@ -133,10 +125,33 @@ def reporter():
                     'vd_times': list(vds[:, 0]), 'drain_voltages': list(vds[:, 1])})
 
 
-@app.route('/tester', methods=['GET', 'POST'])
-def tester():
+@app.route('/start_cooldown', methods=['POST'])
+def start_cooldown():
     print('This would be a magnet command!')
     data = {'msg':'nothing'}
+    return jsonify(data)
+
+
+@app.route('/abort_cooldown', methods=['POST'])
+def abort_cooldown():
+    print('This would be a magnet command!')
+    data = {'msg':'something'}
+    return jsonify(data)
+
+
+@app.route('/schedule_cooldown_at', methods=['POST'])
+def schedule_cooldown_at():
+    time = request.form['time']
+    print('This would be a magnet command!')
+    data = {'msg':f'Scheduled a cooldown for {time}'}
+    return jsonify(data)
+
+
+@app.route('/schedule_be_cold_at', methods=['POST'])
+def schedule_be_cold_at():
+    time = request.form['time']
+    print('This would be a magnet command!')
+    data = {'msg':f'Scheduled to be cold at {time}'}
     return jsonify(data)
 
 
@@ -180,6 +195,14 @@ def make_choices(key):
         choice.append(i)
     print(choice)
     return choice
+
+
+class MainPageForm(FlaskForm):
+    start_cooldown = SubmitField('Start Cooldown')
+    abort_cooldown = SubmitField('Abort Cooldown')
+    schedule_time = StringField("Cooldown at", default="HH:MM:SS")
+    be_cold_time = StringField("Be cold at", default="HH:MM:SS")
+    schedule_cooldown = SubmitField('Schedule')
 
 
 class Sim960SettingForm(FlaskForm):
