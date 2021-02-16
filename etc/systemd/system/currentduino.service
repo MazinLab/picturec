@@ -4,6 +4,7 @@ Description=Currentduino Agent
 [Install]
 WantedBy=picc.service
 WantedBy=quenchmon.service
+WantedBy=sim960.service
 
 [Service]
 Type=simple

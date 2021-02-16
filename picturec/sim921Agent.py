@@ -63,11 +63,13 @@ def to_manual_output():
 
 
 def in_scaled_output():
-    return picturec.pcredis.read('device-settings:sim921:output-mode', return_dict=False)[0] == SIM921OutputMode.SCALED
+    return picturec.pcredis.read('device-settings:sim921:output-mode',
+                                 return_dict=False)[0] == SIM921OutputMode.SCALED
 
 
 def in_manual_output():
-    return picturec.pcredis.read('device-settings:sim921:output-mode', return_dict=False)[0] == SIM921OutputMode.MANUAL
+    return picturec.pcredis.read('device-settings:sim921:output-mode',
+                                 return_dict=False)[0] == SIM921OutputMode.MANUAL
 
 
 if __name__ == "__main__":
