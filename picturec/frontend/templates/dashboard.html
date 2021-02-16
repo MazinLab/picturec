@@ -1,7 +1,66 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div>
-        Dashboard will go here
-    </div>
+
+    <head>
+        <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    </head>
+
+    <div id="dash" style="width:600px;height:600px"></div>
+    <script>
+        function iv() {
+            var values = [];
+            $.ajax({
+                url: '/viewdata',
+                type: 'post',
+                async: false,
+                success: function(data) {
+                    values = data['cts']
+                },
+                error: function() {
+                    console.log('Error grabbing dashboard data')
+                }
+            });
+
+            var d0 = [
+                {
+                    z: values,
+                    type: 'heatmap',
+                }
+            ];
+
+            return d0
+        }
+
+        function grab_new_frame() {
+            var values = [];
+            $.ajax({
+                url: '/viewdata',
+                type: 'post',
+                async: false,
+                success: function(data) {
+                    values = data['cts']
+                },
+                error: function() {
+                    console.log('Error grabbing dashboard data')
+                }
+            });
+
+            return values
+        }
+
+        var first_frame = iv()
+        var layout = {
+            title:'Dashboard'
+        };
+
+        Plotly.newPlot('dash', first_frame, layout);
+
+        var interval = setInterval(function() {
+            var new_data = iv()
+            Plotly.newPlot('dash', new_data, {title:'Dashboard'})
+        }, 1500);
+
+    </script>
 {% endblock %}
