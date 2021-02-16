@@ -1,11 +1,14 @@
-# TODO: Enable automatic restarting
-
 [Unit]
 Description=Hemtduino Agent
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=picc.service
 
 [Service]
 Type=simple
-ExecStart=/home/kids/anaconda3/bin/python /picturec/picturec/hemttempAgent.py
+ExecStart=/home/mazinlab/.local/bin/hemttempAgent
+WorkingDirectory=/home/mazinlab/picturec
+user=mazinlab
+group=mazingroup
+RestartSec=100ms
+Restart=always

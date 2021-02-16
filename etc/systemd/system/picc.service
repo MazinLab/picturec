@@ -1,0 +1,21 @@
+[Unit]
+Description=Pic-C Control
+Wants=hemtduino.service
+Wants=currentduino.service
+Wants=lakeshore240.service
+Wants=sim921.service
+Wants=sim960.service
+Wants=quenchmon.service
+After=redis.service
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/mazinlab/.local/bin/piccDirector
+WorkingDirectory=/home/mazinlab/picturec
+user=mazinlab
+group=mazingroup
+RestartSec=100ms
+Restart=always

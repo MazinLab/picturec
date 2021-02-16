@@ -13,9 +13,20 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/MazinLab/picturec.git',
     packages=setuptools.find_packages(),
+    # TODO may prove to be a major headache and we need to use either entry points or break the files into two parts
+    #  with the script in bin/
+    scripts=['picturec/quenchAgent.py',
+             'picturec/lakeshore240Agent.py',
+             'picturec/currentduinoAgent.py',
+             'picturec/hemttempAgent.py',
+             'picturec/piccDirector.py',
+             'picturec/sim960Agent.py',
+             'picturec/sim992Agent.py'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ]
 )
+
+#https://docs.python.org/3/distutils/setupscript.html#installing-package-data

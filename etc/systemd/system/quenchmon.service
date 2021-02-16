@@ -1,12 +1,13 @@
 [Unit]
-Description=SIM921 Agent
+Description=Quench Monitor
+After=
 
 [Install]
 WantedBy=picc.service
 
 [Service]
 Type=simple
-ExecStart=/home/mazinlab/.local/bin/sim921Agent
+ExecStart=/home/mazinlab/.local/bin/quenchAgent
 WorkingDirectory=/home/mazinlab/picturec
 user=mazinlab
 group=mazingroup
