@@ -1,13 +1,14 @@
-TODO: Enable restarting
-
 [Unit]
 Description=Currentduino Agent
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=picc.service
 
 [Service]
 Type=simple
-ExecStart=/home/kids/anaconda3/bin/python /picturec/picturec/currentduinoAgent.py
-
-# Use usr/bin/env/ python to get the right environment
+ExecStart=/home/mazinlab/.local/bin/currentduinoAgent
+WorkingDirectory=/home/mazinlab/picturec
+user=mazinlab
+group=mazingroup
+RestartSec=100ms
+Restart=always

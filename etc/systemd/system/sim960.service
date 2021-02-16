@@ -1,11 +1,21 @@
-TODO: Enable restarting
-
 [Unit]
 Description=SIM960 Agent
+Wants=sim921.service
+After=sim921.service
+Wants=quenchmon.service
+After=quenchmon.service
+Wants=currentduino.service
+After=currentduino.service
+
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=picc.service
 
 [Service]
 Type=simple
-ExecStart=/home/kids/anaconda3/bin/python /picturec/picturec/sim960Agent.py
+ExecStart=/home/mazinlab/.local/bin/sim960Agent
+WorkingDirectory=/home/mazinlab/picturec
+user=mazinlab
+group=mazingroup
+RestartSec=100ms
+Restart=always

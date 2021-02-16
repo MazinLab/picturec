@@ -1,11 +1,17 @@
-TODO: Enable restarting
-
 [Unit]
 Description=LakeShore240 Agent
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=picc.service
 
 [Service]
 Type=simple
-ExecStart=/home/kids/anaconda3/bin/python /picturec/picturec/lakeshore240Agent.py
+ExecStart=/home/mazinlab/.local/bin lakeshore240Agent
+WorkingDirectory=/home/mazinlab/picturec
+user=mazinlab
+group=mazingroup
+RestartSec=100ms
+Restart=always
+#KillMode=control-group
+#KillSignal=SIGTERM
+#SendSIGKILL=yes
