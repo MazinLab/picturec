@@ -41,6 +41,7 @@
                 async: false,
                 success: function(data) {
                     values = data['cts']
+                    console.log(values)
                 },
                 error: function() {
                     console.log('Error grabbing dashboard data')
@@ -58,9 +59,15 @@
         Plotly.newPlot('dash', first_frame, layout);
 
         var interval = setInterval(function() {
-            var new_data = iv()
-            Plotly.newPlot('dash', new_data, {title:'Dashboard'})
-        }, 1500);
+            var new_data = [
+                {
+                    z: grab_new_frame(),
+                    type: 'heatmap'
+                }
+            ];
+            Plotly.react('dash', new_data, layout)
+        }, 1000/30);
 
     </script>
+
 {% endblock %}

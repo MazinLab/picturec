@@ -6,6 +6,7 @@ from wtforms import SelectField, SubmitField, StringField
 from wtforms.validators import DataRequired
 import numpy as np
 import json
+import plotly
 
 from picturec.frontend.config import Config
 from picturec.pcredis import PCRedis
@@ -32,7 +33,7 @@ redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS
 
 
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
-FRAME = 0
+
 
 # TODO: Magnet Ramp settings page
 # TODO: Add alarms for serial (dis)connections?
@@ -44,7 +45,7 @@ def index():
     # TODO: Add HS Position (and ability to toggle it)
     # TODO: Cause magnet command buttons to actually trigger commands
     form = MainPageForm()
-    FRAME = 0
+
     return render_template('index.html', form=form)
 
 
@@ -122,7 +123,39 @@ def hemts():
 @app.route('/ramp_settings', methods=['GET', 'POST'])
 def ramp_settings():
     form = RampConfigForm()
+    #
+    # trace1 = {
+    #     'x': list(np.arange(0, 10, 1)),
+    #     'y': list(2*np.arange(0, 10, 1)),
+    #     'name': 'Test'
+    # }
+    # plot_data = [trace1]
+    # plot_layout = {
+    #     'title': 'trying something new'
+    # }
+    # print(trace1)
+    # d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
+    # l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
+
     return render_template('ramp_settings.html', title='Ramp Settings', form=form)
+
+
+@app.route('/pytest', methods=['POST'])
+def pytest():
+    s = np.random.randint(10,50)
+    trace1 = {
+        'x': list(np.arange(0, s, 1)),
+        'y': list((s/10)*np.arange(0, s, 1)),
+        # 'name': 'Test'
+    }
+    plot_data = [trace1]
+    plot_layout = {
+        'title': 'trying something new'
+    }
+    print(trace1)
+    d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
+    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
+    return jsonify({'plot_data': d, 'plot_layout': l})
 
 
 @app.route('/reporter', methods=['POST'])
