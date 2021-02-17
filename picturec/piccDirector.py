@@ -142,20 +142,10 @@ def ramp_settings():
 
 @app.route('/pytest', methods=['POST'])
 def pytest():
-    s = np.random.randint(10,50)
-    trace1 = {
-        'x': list(np.arange(0, s, 1)),
-        'y': list((s/10)*np.arange(0, s, 1)),
-        # 'name': 'Test'
-    }
-    plot_data = [trace1]
-    plot_layout = {
-        'title': 'trying something new'
-    }
-    print(trace1)
-    d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
-    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
-    return jsonify({'plot_data': d, 'plot_layout': l})
+    x = [np.random.normal(i) for i in range(10)]
+    y = [np.random.normal(i) for i in range(10)]
+    title = 'test'
+    return jsonify({'x': x, 'y': y, 'title':title})
 
 
 @app.route('/reporter', methods=['POST'])

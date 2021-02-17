@@ -10,7 +10,44 @@
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     </head>
 
-    <form>
+    <div id="test"></div>
+    <script>
+        var layout = {
+                title:''
+        };
+        var data = [
+            {
+                x: [],
+                y: [],
+                name:'test_trace'
+            }
+        ];
+
+        Plotly.newPlot('test', data, layout)
+
+        function update() {
+            $.ajax({
+                url: '/pytest',
+                type: 'post',
+                async: false,
+                success: function(response) {
+                    console.log(response)
+                    data[0].x = response['x']
+                    data[0].y = response['y']
+                    layout.title = response['title']
+                },
+                error: function() {
+                    console.log('Test Error!')
+                }
+            });
+        }
+
+        Plotly.newPlot('test', data, layout)
+        var interval = setInterval(function() {
+            update()
+            Plotly.react('test', data, layout)
+        }, 500)
+    </script>
 
 <!--    <div style="width:1500px">-->
 <!--    <div style="float:left; width:1000px; height:500px">-->
