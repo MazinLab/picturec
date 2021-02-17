@@ -140,10 +140,11 @@ def ramp_settings():
     return render_template('ramp_settings.html', title='Ramp Settings', form=form)
 
 
-@app.route('/pytest', methods=['POST'])
-def pytest():
-    x = [np.random.normal(i) for i in range(10)]
-    y = [np.random.normal(i) for i in range(10)]
+@app.route('/pytest/<len>', methods=['POST'])
+def pytest(len):
+    len = int(len)
+    x = [np.random.normal(i) for i in range(len)]
+    y = [np.random.normal(i) for i in range(len)]
     title = 'test'
     return jsonify({'x': x, 'y': y, 'title':title})
 
