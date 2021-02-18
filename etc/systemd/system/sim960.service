@@ -1,5 +1,5 @@
 [Unit]
-Description=SIM960 Agent
+Description=Pic-C SIM960 Agent
 Wants=sim921.service
 After=sim921.service
 Wants=quenchmon.service

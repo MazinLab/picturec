@@ -1,5 +1,5 @@
 [Unit]
-Description=LakeShore240 Agent
+Description=Pic-C LakeShore240 Agent
 
 [Install]
 WantedBy=picc.service

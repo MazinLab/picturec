@@ -31,5 +31,5 @@ dependencies:
   - bitstruct
   - pip:
       - fpbinary
-      - redistimeseries>=0.8.0
+      - redistimeseries==0.8.0
 

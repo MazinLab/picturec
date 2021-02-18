@@ -5,7 +5,11 @@
 #  root
 #  TODO
 
+#sudo usermod -a -G adm,dialout,cdrom,sudo,dip,plugdev,lpadmin,lxd,sambashare mazinlab
 
+#https://github.com/RedisTimeSeries/RedisTimeSeries
+#https://oss.redislabs.com/redistimeseries/
+#https://github.com/redis/redis
 sudo apt install zsh vim
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 touch ~/.Xauthority
@@ -17,6 +21,7 @@ touch ~/.Xauthority
 # wget https://repo.anaconda.com/archive/Anaconda3-2020.11-Linux-x86_64.sh
 # chmod +x Anaconda-latest-Linux-x86_64.sh
 # bash Anaconda-latest-Linux-x86_64.sh
+conda config --add channels conda-forge
 cd ~/picturec
 conda env create -f conda.yml
 
@@ -25,6 +30,8 @@ conda env create -f conda.yml
 # Make sure all necessary repositories are installed (mkidcore/readout/pipeline)
 #  if they become necessary
 
+
+#TODO pcredis needs default log level of warning or "Setting key..." messages need to be debug!
 
 
 # Install the different configuration necessities for picturec

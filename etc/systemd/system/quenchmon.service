@@ -1,5 +1,5 @@
 [Unit]
-Description=Quench Monitor
+Description=Pic-C Quench Agent
 After=currentduino.service
 Wants=currentduino.service
 
