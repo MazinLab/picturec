@@ -22,6 +22,8 @@ dependencies:
   - ruamel_yaml
   - scikit-image
   - flask
+  - flask-bootstrap=3.3.7.1=py_0
+  - flask-wtf=0.14.3=py_0
   - scipy>=1.4.1
   - seaborn
   - tk
