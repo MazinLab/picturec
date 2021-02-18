@@ -4,8 +4,8 @@
 <!--    <h1>-->
 <!--        <div><p>PICTURE-C</p></div>-->
 <!--    </h1>-->
+
     <head>
-<!--        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>-->
         <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     </head>
@@ -76,142 +76,164 @@
             });
         });
     </script>
-    <div style="width:1500px">
-    <div style="float:left; width:1000px; height:500px">
-        <div id="device-temp" style="float:left;width:450px;height:450px"></div>
-        <script>
-            function init_device_temp() {
-                var time = 0;
-                var temp = 0;
 
-                $.ajax({
-                    url: '/device_t',
-                    type: 'post',
-                    async: false,
-                    success: function(response) {
-                        time = response['times']
-                        temp = response['temps']
-                    },
-                    error: function() {
-                        time = -1
-                        temp = -1
-                    }
-                });
+    <script type="text/javascript">
+        function aq(key, qtype='init', dtype='line') {
+            $.ajax({
+                url: '/sensor_plot/'+key+'/'+qtype+'/'+dtype,
+                type: 'post',
+                async: false,
+                success: function(response) {
+                    console.log('Success')
+                },
+                error: function() {
+                    console.log('Error')
+                }
+            });
+        }
 
-                var trace0 = {
-                    x: [time],
-                    y: [temp],
-                    name: 'Device T',
-                    mode: 'line'
-                };
-                console.log(time, temp)
-                var data = [trace0];
-                return data;
-            }
+        aq('status:highcurrentboard:current');
+    </script>
 
-            function grabdevicetemp() {
-                var time = [];
-                var temp = [];
-                $.ajax({
-                    url: '/device_t',
-                    type: 'post',
-                    async: false,
-                    success: function(response) {
-                        time = response['times']
-                        temp = response['temps']
-                    },
-                    error: function() {
-                        time = [-1]
-                        temp = [-1]
-                    }
-                });
-                console.log(time, temp)
-                return [[time], [temp]];
-            }
+    <div id="test_pilot"></div>
 
-            var tank_data = init_device_temp()
-            var layout = {
-                title:'Device T'
-            };
 
-            Plotly.newPlot('device-temp', tank_data, layout);
+<!--    <div style="width:1500px">-->
+<!--    <div style="float:left; width:1000px; height:500px">-->
+<!--        <div id="device-temp" style="float:left;width:450px;height:450px"></div>-->
+<!--        <script>-->
+<!--            function init_device_temp() {-->
+<!--                var time = 0;-->
+<!--                var temp = 0;-->
 
-            var interval = setInterval(function () {
-                var new_data = grabdevicetemp();
-                Plotly.extendTraces('device-temp', {
-                    x: [new_data[0]],
-                    y: [new_data[1]]
-                }, [0])
-            }, 10000);
-        </script>
+<!--                $.ajax({-->
+<!--                    url: '/device_t',-->
+<!--                    type: 'post',-->
+<!--                    async: false,-->
+<!--                    success: function(response) {-->
+<!--                        time = response['times']-->
+<!--                        temp = response['temps']-->
+<!--                    },-->
+<!--                    error: function() {-->
+<!--                        time = -1-->
+<!--                        temp = -1-->
+<!--                    }-->
+<!--                });-->
 
-        <div id="magnet-current" style="float:left;width:450px;height:450px"></div>
-        <script>
-            function init_current() {
-                var time = 0;
-                var current = 0;
+<!--                var trace0 = {-->
+<!--                    x: [time],-->
+<!--                    y: [temp],-->
+<!--                    name: 'Device T',-->
+<!--                    mode: 'line'-->
+<!--                };-->
+<!--                console.log(time, temp)-->
+<!--                var data = [trace0];-->
+<!--                return data;-->
+<!--            }-->
 
-                $.ajax({
-                    url: '/magnet_current',
-                    type: 'post',
-                    async: false,
-                    success: function(response) {
-                        time = response['times']
-                        current = response['currents']
-                    },
-                    error: function() {
-                        time = -1
-                        current = -1
-                    }
-                });
+<!--            function grabdevicetemp() {-->
+<!--                var time = [];-->
+<!--                var temp = [];-->
+<!--                $.ajax({-->
+<!--                    url: '/device_t',-->
+<!--                    type: 'post',-->
+<!--                    async: false,-->
+<!--                    success: function(response) {-->
+<!--                        time = response['times']-->
+<!--                        temp = response['temps']-->
+<!--                    },-->
+<!--                    error: function() {-->
+<!--                        time = [-1]-->
+<!--                        temp = [-1]-->
+<!--                    }-->
+<!--                });-->
+<!--                console.log(time, temp)-->
+<!--                return [[time], [temp]];-->
+<!--            }-->
 
-                var trace0 = {
-                    x: [time],
-                    y: [current],
-                    name: 'Magnet Current',
-                    mode: 'line'
-                };
-                console.log(time, current)
-                var data = [trace0];
-                return data;
-            }
+<!--            var tank_data = init_device_temp()-->
+<!--            var layout = {-->
+<!--                title:'Device T'-->
+<!--            };-->
 
-            function grabcurrent() {
-                var time = [];
-                var currents = [];
-                $.ajax({
-                    url: '/magnet_current',
-                    type: 'post',
-                    async: false,
-                    success: function(response) {
-                        time = response['times']
-                        currents = response['currents']
-                    },
-                    error: function() {
-                        time = [-1]
-                        currents = [-1]
-                    }
-                });
-                console.log(time, currents)
-                return [[time], [currents]];
-            }
+<!--            Plotly.newPlot('device-temp', tank_data, layout);-->
 
-            var tank_data = init_current()
-            var layout = {
-                title:'Magnet Current'
-            };
+<!--            var interval = setInterval(function () {-->
+<!--                var new_data = grabdevicetemp();-->
+<!--                Plotly.extendTraces('device-temp', {-->
+<!--                    x: [new_data[0]],-->
+<!--                    y: [new_data[1]]-->
+<!--                }, [0])-->
+<!--            }, 10000);-->
+<!--        </script>-->
 
-            Plotly.newPlot('magnet-current', tank_data, layout);
+<!--        <div id="magnet-current" style="float:left;width:450px;height:450px"></div>-->
+<!--        <script>-->
+<!--            function init_current() {-->
+<!--                var time = 0;-->
+<!--                var current = 0;-->
 
-            var interval = setInterval(function () {
-                var new_data = grabcurrent();
-                Plotly.extendTraces('magnet-current', {
-                    x: [new_data[0]],
-                    y: [new_data[1]]
-                }, [0])
-            }, 10000);
-        </script>
-    </div>
+<!--                $.ajax({-->
+<!--                    url: '/magnet_current',-->
+<!--                    type: 'post',-->
+<!--                    async: false,-->
+<!--                    success: function(response) {-->
+<!--                        time = response['times']-->
+<!--                        current = response['currents']-->
+<!--                    },-->
+<!--                    error: function() {-->
+<!--                        time = -1-->
+<!--                        current = -1-->
+<!--                    }-->
+<!--                });-->
+
+<!--                var trace0 = {-->
+<!--                    x: [time],-->
+<!--                    y: [current],-->
+<!--                    name: 'Magnet Current',-->
+<!--                    mode: 'line'-->
+<!--                };-->
+<!--                console.log(time, current)-->
+<!--                var data = [trace0];-->
+<!--                return data;-->
+<!--            }-->
+
+<!--            function grabcurrent() {-->
+<!--                var time = [];-->
+<!--                var currents = [];-->
+<!--                $.ajax({-->
+<!--                    url: '/magnet_current',-->
+<!--                    type: 'post',-->
+<!--                    async: false,-->
+<!--                    success: function(response) {-->
+<!--                        time = response['times']-->
+<!--                        currents = response['currents']-->
+<!--                    },-->
+<!--                    error: function() {-->
+<!--                        time = [-1]-->
+<!--                        currents = [-1]-->
+<!--                    }-->
+<!--                });-->
+<!--                console.log(time, currents)-->
+<!--                return [[time], [currents]];-->
+<!--            }-->
+
+<!--            var tank_data = init_current()-->
+<!--            var layout = {-->
+<!--                title:'Magnet Current'-->
+<!--            };-->
+
+<!--            Plotly.newPlot('magnet-current', tank_data, layout);-->
+
+<!--            var interval = setInterval(function () {-->
+<!--                var new_data = grabcurrent();-->
+<!--                Plotly.extendTraces('magnet-current', {-->
+<!--                    x: [new_data[0]],-->
+<!--                    y: [new_data[1]]-->
+<!--                }, [0])-->
+<!--            }, 10000);-->
+<!--        </script>-->
+<!--    </div>-->
 
     <div style="float:left">
         <div style="padding:15px">Magnet Commands</div>
@@ -235,141 +257,141 @@
     </div>
     </div>
 
-    <div style="width:1000px; height:500px">
-        <div id="ln2-tank-temp" style="float:left;width:450px;height:450px"></div>
-        <script>
-            function init_tank_temps_n2() {
-                var time = 0;
-                var temp = 0;
+<!--    <div style="width:1000px; height:500px">-->
+<!--        <div id="ln2-tank-temp" style="float:left;width:450px;height:450px"></div>-->
+<!--        <script>-->
+<!--            function init_tank_temps_n2() {-->
+<!--                var time = 0;-->
+<!--                var temp = 0;-->
 
-                $.ajax({
-                    url: '/tempvals_n2',
-                    type: 'post',
-                    async: false,
-                    success: function(response) {
-                        time = response['times']
-                        temp = response['temps']
-                    },
-                    error: function() {
-                        time = -1
-                        temp = -1
-                    }
-                });
+<!--                $.ajax({-->
+<!--                    url: '/tempvals_n2',-->
+<!--                    type: 'post',-->
+<!--                    async: false,-->
+<!--                    success: function(response) {-->
+<!--                        time = response['times']-->
+<!--                        temp = response['temps']-->
+<!--                    },-->
+<!--                    error: function() {-->
+<!--                        time = -1-->
+<!--                        temp = -1-->
+<!--                    }-->
+<!--                });-->
 
-                var trace0 = {
-                    x: [time],
-                    y: [temp],
-                    name: 'LN2 Tank',
-                    mode: 'line'
-                };
-                console.log(time, temp)
-                var data = [trace0];
-                return data;
-            }
+<!--                var trace0 = {-->
+<!--                    x: [time],-->
+<!--                    y: [temp],-->
+<!--                    name: 'LN2 Tank',-->
+<!--                    mode: 'line'-->
+<!--                };-->
+<!--                console.log(time, temp)-->
+<!--                var data = [trace0];-->
+<!--                return data;-->
+<!--            }-->
 
-            function grabtanktemps_n2() {
-                var time = [];
-                var temp = [];
-                $.ajax({
-                    url: '/tempvals_n2',
-                    type: 'post',
-                    async: false,
-                    success: function(response) {
-                        time = response['times']
-                        temp = response['temps']
-                    },
-                    error: function() {
-                        time = [-1]
-                        temp = [-1]
-                    }
-                });
-                console.log(time, temp)
-                return [[time], [temp]];
-            }
+<!--            function grabtanktemps_n2() {-->
+<!--                var time = [];-->
+<!--                var temp = [];-->
+<!--                $.ajax({-->
+<!--                    url: '/tempvals_n2',-->
+<!--                    type: 'post',-->
+<!--                    async: false,-->
+<!--                    success: function(response) {-->
+<!--                        time = response['times']-->
+<!--                        temp = response['temps']-->
+<!--                    },-->
+<!--                    error: function() {-->
+<!--                        time = [-1]-->
+<!--                        temp = [-1]-->
+<!--                    }-->
+<!--                });-->
+<!--                console.log(time, temp)-->
+<!--                return [[time], [temp]];-->
+<!--            }-->
 
-            var tank_data = init_tank_temps_n2()
-            var layout = {
-                title:'LN2 T'
-            };
+<!--            var tank_data = init_tank_temps_n2()-->
+<!--            var layout = {-->
+<!--                title:'LN2 T'-->
+<!--            };-->
 
-            Plotly.newPlot('ln2-tank-temp', tank_data, layout);
+<!--            Plotly.newPlot('ln2-tank-temp', tank_data, layout);-->
 
-            var interval = setInterval(function () {
-                var new_data = grabtanktemps_n2();
-                Plotly.extendTraces('ln2-tank-temp', {
-                    x: [new_data[0]],
-                    y: [new_data[1]]
-                }, [0])
-            }, 10000);
-        </script>
+<!--            var interval = setInterval(function () {-->
+<!--                var new_data = grabtanktemps_n2();-->
+<!--                Plotly.extendTraces('ln2-tank-temp', {-->
+<!--                    x: [new_data[0]],-->
+<!--                    y: [new_data[1]]-->
+<!--                }, [0])-->
+<!--            }, 10000);-->
+<!--        </script>-->
 
-        <div id="lhe-tank-temp" style="float:left;width:450px;height:450px"></div>
-        <script>
-            function init_tank_temps_he() {
-                var time = 0;
-                var temp = 0;
+<!--        <div id="lhe-tank-temp" style="float:left;width:450px;height:450px"></div>-->
+<!--        <script>-->
+<!--            function init_tank_temps_he() {-->
+<!--                var time = 0;-->
+<!--                var temp = 0;-->
 
-                $.ajax({
-                    url: '/tempvals_he',
-                    type: 'post',
-                    async: false,
-                    success: function(response) {
-                        time = response['times']
-                        temp = response['temps']
-                    },
-                    error: function() {
-                        time = -1
-                        temp = -1
-                    }
-                });
+<!--                $.ajax({-->
+<!--                    url: '/tempvals_he',-->
+<!--                    type: 'post',-->
+<!--                    async: false,-->
+<!--                    success: function(response) {-->
+<!--                        time = response['times']-->
+<!--                        temp = response['temps']-->
+<!--                    },-->
+<!--                    error: function() {-->
+<!--                        time = -1-->
+<!--                        temp = -1-->
+<!--                    }-->
+<!--                });-->
 
-                var trace0 = {
-                    x: [time],
-                    y: [temp],
-                    name: 'LHe Tank',
-                    mode: 'line'
-                };
-                console.log(time, temp)
-                var data = [trace0];
-                return data;
-            }
+<!--                var trace0 = {-->
+<!--                    x: [time],-->
+<!--                    y: [temp],-->
+<!--                    name: 'LHe Tank',-->
+<!--                    mode: 'line'-->
+<!--                };-->
+<!--                console.log(time, temp)-->
+<!--                var data = [trace0];-->
+<!--                return data;-->
+<!--            }-->
 
-            function grabtanktemps_he() {
-                var time = [];
-                var temp = [];
-                $.ajax({
-                    url: '/tempvals_he',
-                    type: 'post',
-                    async: false,
-                    success: function(response) {
-                        time = response['times']
-                        temp = response['temps']
-                    },
-                    error: function() {
-                        time = [-1]
-                        temp = [-1]
-                    }
-                });
-                console.log(time, temp)
-                return [[time], [temp]];
-            }
+<!--            function grabtanktemps_he() {-->
+<!--                var time = [];-->
+<!--                var temp = [];-->
+<!--                $.ajax({-->
+<!--                    url: '/tempvals_he',-->
+<!--                    type: 'post',-->
+<!--                    async: false,-->
+<!--                    success: function(response) {-->
+<!--                        time = response['times']-->
+<!--                        temp = response['temps']-->
+<!--                    },-->
+<!--                    error: function() {-->
+<!--                        time = [-1]-->
+<!--                        temp = [-1]-->
+<!--                    }-->
+<!--                });-->
+<!--                console.log(time, temp)-->
+<!--                return [[time], [temp]];-->
+<!--            }-->
 
-            var tank_data = init_tank_temps_he()
-            var layout = {
-                title:'LHe T'
-            };
+<!--            var tank_data = init_tank_temps_he()-->
+<!--            var layout = {-->
+<!--                title:'LHe T'-->
+<!--            };-->
 
-            Plotly.newPlot('lhe-tank-temp', tank_data, layout);
+<!--            Plotly.newPlot('lhe-tank-temp', tank_data, layout);-->
 
-            var interval = setInterval(function () {
-                var new_data = grabtanktemps_he();
-                Plotly.extendTraces('lhe-tank-temp', {
-                    x: [new_data[0]],
-                    y: [new_data[1]]
-                }, [0])
-            }, 10000);
-        </script>
-    </div>
+<!--            var interval = setInterval(function () {-->
+<!--                var new_data = grabtanktemps_he();-->
+<!--                Plotly.extendTraces('lhe-tank-temp', {-->
+<!--                    x: [new_data[0]],-->
+<!--                    y: [new_data[1]]-->
+<!--                }, [0])-->
+<!--            }, 10000);-->
+<!--        </script>-->
+<!--    </div>-->
 
 <!--    <div>-->
 <!--        <a href="{{ url_for('index') }}">Refresh</a>-->
