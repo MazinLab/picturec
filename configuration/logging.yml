@@ -34,7 +34,7 @@ disable_existing_loggers: False
 handlers:
   default:
     class : logging.StreamHandler
-    formatter: defaultfmt
+    formatter: default
     level   : INFO
     stream  : ext://sys.stdout
 formatters:

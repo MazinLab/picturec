@@ -17,7 +17,6 @@ e) for i in cycle: redis.store({'status:highcurrentboard:current': i}, timeserie
 import picturec.pcredis as redis
 from picturec.pcredis import RedisError
 import picturec.util as util
-import picturec.currentduinoAgent as heatswitch
 import numpy as np
 from scipy.stats import linregress
 from logging import getLogger
@@ -52,6 +51,7 @@ class QuenchMonitor:
         self.fit, self.fit_stddev = self.fit_data(data)
         diff_from_expected = abs(data[-1][1] - self.fit(data[-1][0]))
         return diff_from_expected > 3 * self.fit_stddev and not self.fit_stddev <= 1e-5
+
 
 if __name__ == "__main__":
 
