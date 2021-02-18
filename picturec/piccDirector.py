@@ -123,30 +123,33 @@ def hemts():
 @app.route('/ramp_settings', methods=['GET', 'POST'])
 def ramp_settings():
     form = RampConfigForm()
-    #
-    # trace1 = {
-    #     'x': list(np.arange(0, 10, 1)),
-    #     'y': list(2*np.arange(0, 10, 1)),
-    #     'name': 'Test'
-    # }
-    # plot_data = [trace1]
-    # plot_layout = {
-    #     'title': 'trying something new'
-    # }
-    # print(trace1)
-    # d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
-    # l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
 
-    return render_template('ramp_settings.html', title='Ramp Settings', form=form)
+    d, l = create_plot('l')
+
+    return render_template('ramp_settings.html', title='Ramp Settings', form=form, dat=d, lay=l)
 
 
-@app.route('/pytest/<len>', methods=['POST'])
-def pytest(len):
-    len = int(len)
-    x = [np.random.normal(i) for i in range(len)]
-    y = [np.random.normal(i) for i in range(len)]
-    title = 'test'
-    return jsonify({'x': x, 'y': y, 'title':title})
+@app.route('/create_plot/<var>', methods=['POST'])
+def create_plot(var):
+    trace1 = {
+        'x': [0,1,2,3,4,5,6,7,8,9,10],
+        'y': [np.random.normal(i) for i in range(11)],
+        'name': 'Test'
+    }
+    plot_data = [trace1]
+    plot_layout = {
+        'title': 'trying something new'
+    }
+    print(trace1)
+    d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
+    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
+
+    if var == 'd':
+        return jsonify(plot_data)
+    elif var == 'l':
+        return jsonify(plot_layout)
+    else:
+        return d, l
 
 
 @app.route('/reporter', methods=['POST'])
