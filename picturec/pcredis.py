@@ -70,11 +70,11 @@ class PCRedis(object):
             if self.redis_ts is None:
                 self._connect_ts()
             for k, v in generator:
-                logging.getLogger(__name__).info(f"Setting key:value - {k}:{v} at {int(time.time())}")
+                logging.getLogger(__name__).info(f"Setting ts {k} to {v}")
                 self.redis_ts.add(key=k, value=v, timestamp='*')
         else:
             for k, v in generator:
-                logging.getLogger(__name__).info(f"Setting key:value - {k}:{v}")
+                logging.getLogger(__name__).info(f"Setting {k} to {v}")
                 self.redis.set(k, v)
 
     def publish(self, channel, message, store=True):

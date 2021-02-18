@@ -1,0 +1,45 @@
+loggers:
+  piccDirector:
+    piccDirector:
+      handlers: [ default ]
+      level: DEBUG
+      propagate: False
+    "":
+      handlers: [ default ]
+      level: WARNING
+      propagate': False
+    __main__:
+      handlers: [ default ]
+      level: DEBUG
+      propagate': False
+  lakeshore240Agent: info
+  currentduinoAgent:
+    currentduinoAgent: debug
+    picturec.pcredis: info
+  hemttempAgent:
+    hemttempAgent: debug
+    picturec.pcredis: info
+  quenchAgent:
+      quenchAgent: debug
+      picturec.pcredis: info
+  sim921Agent:
+    sim921Agent: debug
+    picturec.pcredis: info
+  sim960Agent:
+    sim960Agent: debug
+    picturec.devices: debug
+
+version: 1
+disable_existing_loggers: False
+handlers:
+  default:
+    class : logging.StreamHandler
+    formatter: defaultfmt
+    level   : INFO
+    stream  : ext://sys.stdout
+formatters:
+  brieffmt:
+    format: '%(message)s'
+  default:
+    format: '%(asctime)s %(name):%(levelname)-8s %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'

@@ -121,7 +121,7 @@ class Hemtduino(picturec.devices.SerialDevice):
 
 if __name__ == "__main__":
 
-    util.setup_logging()
+    util.setup_logging('hemttempAgent')
 
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=KEYS)
     hemtduino = Hemtduino(port=DEVICE, baudrate=115200, timeout=0.1)

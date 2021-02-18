@@ -191,7 +191,7 @@ class Currentduino(picturec.devices.SerialDevice):
 
 if __name__ == "__main__":
 
-    util.setup_logging()
+    util.setup_logging('currentduinoAgent')
 
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=[CURRENT_VALUE_KEY])
     currentduino = Currentduino(port=DEVICE, baudrate=115200, timeout=0.1)

@@ -19,7 +19,6 @@ import picturec.pcredis
 
 
 DEVICE = '/dev/sim921'
-REDIS_DB = 0
 QUERY_INTERVAL = 1
 
 SETTING_KEYS = ['device-settings:sim921:output-mode',
@@ -74,8 +73,8 @@ def in_manual_output():
 
 if __name__ == "__main__":
 
-    util.setup_logging()
-    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
+    util.setup_logging('sim921Agent')
+    redis = PCRedis(create_ts_keys=TS_KEYS)
 
 
     # TODO JB The whole point of not erroring out on a connection failure in __init__ is to allow

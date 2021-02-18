@@ -7,6 +7,7 @@ from wtforms.validators import DataRequired
 import numpy as np
 import json
 
+import picturec.util as util
 from picturec.frontend.config import Config
 from picturec.pcredis import PCRedis
 from picturec.devices import COMMAND_DICT
@@ -261,5 +262,6 @@ class Sim921SettingForm(FlaskForm):
 
 if __name__ == "__main__":
 
+    util.setup_logging('piccDirector')
     app.debug=True
     app.run(port=8000)

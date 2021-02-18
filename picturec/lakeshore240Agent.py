@@ -136,7 +136,7 @@ class LakeShore240(picturec.devices.SerialDevice):
 
 if __name__ == "__main__":
 
-    util.setup_logging()
+    util.setup_logging('lakeshore240Agent')
     redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
     lakeshore = LakeShore240(name='LAKESHORE240', port='/dev/lakeshore', baudrate=115200, timeout=0.1)
 

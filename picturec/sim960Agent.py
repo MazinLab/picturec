@@ -581,7 +581,7 @@ class MagnetController(LockedMachine):
 
 if __name__ == "__main__":
 
-    util.setup_logging()
+    util.setup_logging('sim960Agent')
     redis.setup_redis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
     controller = MagnetController(statefile=redis.read(STATEFILE_PATH_KEY, return_dict=False)[0])
 
