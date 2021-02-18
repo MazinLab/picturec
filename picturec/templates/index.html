@@ -21,6 +21,9 @@
                     success: function (data) {
                         console.log(data, data['msg'])
                         $("#dest").text(data['msg'])
+                        $("#dest2").text('')
+                        $("#dest3").text('')
+                        $("#dest4").text('')
                     },
                     error: function () {
                     }
@@ -36,6 +39,24 @@
                         console.log(data, data['msg'])
                         $("#dest2").text(data['msg'])
                         $("#dest").text('')
+                        $("#dest3").text('')
+                        $("#dest4").text('')
+                    },
+                    error: function () {
+                    }
+                });
+            });
+            $('a#test3').on('click', function (e) {
+                e.preventDefault();
+                $.ajax({
+                    url: '/cancel_scheduled_cooldown',
+                    type: 'post',
+                    async: false,
+                    success: function (data) {
+                        console.log(data, data['msg'])
+                        $("#dest3").text(data['msg'])
+                        $("#dest").text('')
+                        $("#dest2").text('')
                         $("#dest4").text('')
                     },
                     error: function () {
@@ -52,6 +73,9 @@
                     success: function (data) {
                         console.log(data, data['msg'])
                         $("#dest4").text(data['msg'])
+                        $("#dest").text('')
+                        $("#dest2").text('')
+                        $("#dest3").text('')
                     },
                     error: function () {
                         console.log('failure')
@@ -213,6 +237,8 @@
         <div style="padding:15px">
             <div><div style="float:left" id="t2">{{ form.be_cold_time.label }} {{ form.be_cold_time() }}</div><div style="float:left"><a href="#" id="test4" style="float:left">{{ form.schedule_cooldown() }}</a></div></div>
             <div id="dest4"></div>
+            <a href="#" id="test3" style="float:left">{{ form.cancel_scheduled() }}</a>
+            <div id="dest3"></div>
         </div>
     </div>
     </div>

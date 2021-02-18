@@ -5,7 +5,7 @@ from flask import request, redirect, url_for, render_template, jsonify
 from wtforms import SelectField, SubmitField, StringField
 from wtforms.validators import DataRequired
 import numpy as np
-import json
+import time, datetime
 
 import picturec.util as util
 from picturec.frontend.config import Config
@@ -142,23 +142,39 @@ def reporter():
 
 @app.route('/start_cooldown', methods=['POST'])
 def start_cooldown():
-    print('This would be a magnet command!')
-    data = {'msg':'nothing'}
+    redis.publish('command:get-cold', 'get-cold')
+    data = {'msg': f'Cooldown started at {datetime.datetime.fromtimestamp(time.time()).strftime("%c")}'}
     return jsonify(data)
 
 
 @app.route('/abort_cooldown', methods=['POST'])
 def abort_cooldown():
-    print('This would be a magnet command!')
-    data = {'msg':'something'}
+    redis.publish('command:abort-cooldown', 'abort-cooldown')
+    data = {'msg': f'Cooldown aborted at {datetime.datetime.fromtimestamp(time.time()).strftime("%c")}'}
     return jsonify(data)
 
 
 @app.route('/schedule_be_cold_at', methods=['POST'])
 def schedule_be_cold_at():
-    time = request.form['time']
-    print('This would be a magnet command!')
-    data = {'msg':f'Scheduled to be cold at {time}'}
+    try:
+        stime = [int(i) for i in request.form['time'].split(":")]
+    except ValueError:
+        data = {'msg': f'Illegal format! Cannot use {request.form["time"]}'}
+        return jsonify(data)
+    today = datetime.date.today()
+    if len(stime) == 2:
+        time.append(0)
+    t = datetime.time(stime[0], stime[1], stime[2])
+    time_to_be_cold = datetime.datetime.timestamp(datetime.datetime.combine(today, t))
+    redis.publish('command:be-cold-at', time_to_be_cold)
+    data = {'msg':f'Scheduled to be cold at {datetime.datetime.fromtimestamp(time_to_be_cold).strftime("%c")}'}
+    return jsonify(data)
+
+
+@app.route('/cancel_scheduled_cooldown', methods=['POST'])
+def cancel_scheduled_cooldown():
+    redis.publish('command:cancel-scheduled-cooldown', 'cancel-scheduled-cooldown')
+    data = {'msg': f'Scheduled cooldown has been cancelled!'}
     return jsonify(data)
 
 
@@ -209,6 +225,7 @@ class MainPageForm(FlaskForm):
     abort_cooldown = SubmitField('Abort Cooldown')
     be_cold_time = StringField("Be cold at", default="HH:MM:SS")
     schedule_cooldown = SubmitField('Schedule')
+    cancel_scheduled = SubmitField('Cancel Scheduled Cooldown')
 
 
 class RampConfigForm(FlaskForm):
