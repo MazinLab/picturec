@@ -124,7 +124,7 @@ def hemts():
 def ramp_settings():
     form = RampConfigForm()
 
-    d, l = create_plot('l')
+    d, l = create_plot('both')
 
     return render_template('ramp_settings.html', title='Ramp Settings', form=form, dat=d, lay=l)
 
