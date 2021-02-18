@@ -20,19 +20,17 @@ import picturec.util as util
 import picturec.currentduinoAgent as heatswitch
 import numpy as np
 from scipy.stats import linregress
-import logging
+from logging import getLogger
 import time
 
 
-TS_KEYS = ['status:temps:mkidarray:temp', 'status:highcurrentboard:current', 'status:temps:lhetank', 'status:temps:ln2tank']
+TS_KEYS = ['status:temps:mkidarray:temp', 'status:highcurrentboard:current',
+           'status:temps:lhetank', 'status:temps:ln2tank']
 LOOP_INTERVAL = .25
-
 QUENCH_KEY = 'event:quenching'
 
-log = logging.getLogger(__name__)
 
 class QuenchMonitor:
-
     def __init__(self):
         self.fit = None
         self.fit_stddev = None
@@ -50,17 +48,10 @@ class QuenchMonitor:
 
     def check_quench_from_current(self):
         data = self.data
-        log.debug(data)
+        getLogger(__name__).debug(data)
         self.fit, self.fit_stddev = self.fit_data(data)
-
         diff_from_expected = abs(data[-1][1] - self.fit(data[-1][0]))
-        if self.fit_stddev <= 1e-5:
-            return False
-        if diff_from_expected > 3 * self.fit_stddev:
-            return True
-        else:
-            return False
-
+        return diff_from_expected > 3 * self.fit_stddev and not self.fit_stddev <= 1e-5
 
 if __name__ == "__main__":
 
@@ -69,32 +60,25 @@ if __name__ == "__main__":
 
     q = QuenchMonitor()
 
-    quench = False
     warning = False
-
+    log = getLogger('quenchAgent')
     log.debug('Starting quench monitoring')
 
     while True:
         try:
-            log.debug('Start loop')
             quench = q.check_quench_from_current()
-            log.debug(quench)
 
+            log.debug(f"Checked for quench - quench={quench}")
             if quench:
                 if warning:
-                    redis.publish(QUENCH_KEY, 'Quenched!!!')
-                    log.critical(f"Quench occurred!")
-                    break
+                    redis.publish(QUENCH_KEY, f'QUENCH:{time.time()}')
+                    log.critical(f"Quench detected.")
                 else:
                     warning = True
             else:
-                if warning:
-                    warning = False
-                log.debug(f"Checked at {time.time()} - no quench")
-                pass
+                warning = False
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
             break
-        log.debug('End loop')
         time.sleep(LOOP_INTERVAL)
 
