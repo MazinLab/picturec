@@ -36,23 +36,7 @@
                         console.log(data, data['msg'])
                         $("#dest2").text(data['msg'])
                         $("#dest").text('')
-                        $("#dest3").text('')
                         $("#dest4").text('')
-                    },
-                    error: function () {
-                    }
-                });
-            });
-            $('a#test3').on('click', function (e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/schedule_cooldown_at',
-                    type: 'post',
-                    data: {'time': $('#schedule_time')[0].value},
-                    async: false,
-                    success: function (data) {
-                        // console.log(data, data['msg'])
-                        $("#dest3").text(data['msg'])
                     },
                     error: function () {
                     }
@@ -227,8 +211,6 @@
         </div>
 
         <div style="padding:15px">
-            <div><div style="float:left" id="t1">{{form.schedule_time.label }} {{ form.schedule_time() }}</div><div style="float:left"><a href="#" id="test3" style="float:left">{{ form.schedule_cooldown() }}</a></div></div>
-            <div id="dest3"></div>
             <div><div style="float:left" id="t2">{{ form.be_cold_time.label }} {{ form.be_cold_time() }}</div><div style="float:left"><a href="#" id="test4" style="float:left">{{ form.schedule_cooldown() }}</a></div></div>
             <div id="dest4"></div>
         </div>

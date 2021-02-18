@@ -45,7 +45,6 @@ def index():
     # TODO: Add HS Position (and ability to toggle it)
     # TODO: Cause magnet command buttons to actually trigger commands
     form = MainPageForm()
-    FRAME = 0
     return render_template('index.html', form=form)
 
 
@@ -156,14 +155,6 @@ def abort_cooldown():
     return jsonify(data)
 
 
-@app.route('/schedule_cooldown_at', methods=['POST'])
-def schedule_cooldown_at():
-    time = request.form['time']
-    print('This would be a magnet command!')
-    data = {'msg':f'Scheduled a cooldown for {time}'}
-    return jsonify(data)
-
-
 @app.route('/schedule_be_cold_at', methods=['POST'])
 def schedule_be_cold_at():
     time = request.form['time']
@@ -217,7 +208,6 @@ def make_choices(key):
 class MainPageForm(FlaskForm):
     start_cooldown = SubmitField('Start Cooldown')
     abort_cooldown = SubmitField('Abort Cooldown')
-    schedule_time = StringField("Cooldown at", default="HH:MM:SS")
     be_cold_time = StringField("Be cold at", default="HH:MM:SS")
     schedule_cooldown = SubmitField('Schedule')
 
@@ -259,6 +249,7 @@ class Sim921SettingForm(FlaskForm):
     sim921_vout = StringField('Output Voltage (V)', default=redis.read('device-settings:sim921:manual-vout', return_dict=False)[0])
 
     submit = SubmitField('Update', [DataRequired()])
+
 
 if __name__ == "__main__":
 
