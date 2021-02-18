@@ -15,7 +15,6 @@ from picturec.devices import COMMAND_DICT
 app = flask.Flask(__name__)
 bootstrap = Bootstrap(app)
 app.config.from_object(Config)
-REDIS_DB = 0
 
 TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', 'status:temps:lhetank',
            'status:temps:ln2tank', 'status:feedline1:hemt:gate-voltage-bias',
@@ -29,7 +28,7 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
            'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current']
 
 
-redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
+redis = PCRedis(create_ts_keys=TS_KEYS)
 
 
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')

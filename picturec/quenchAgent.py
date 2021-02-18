@@ -24,7 +24,6 @@ import logging
 import time
 
 
-REDIS_DB = 0
 TS_KEYS = ['status:temps:mkidarray:temp', 'status:highcurrentboard:current', 'status:temps:lhetank', 'status:temps:ln2tank']
 LOOP_INTERVAL = .25
 
@@ -66,7 +65,7 @@ class QuenchMonitor:
 if __name__ == "__main__":
 
     util.setup_logging('quenchAgent')
-    redis.setup_redis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
+    redis.setup_redis(create_ts_keys=TS_KEYS)
 
     q = QuenchMonitor()
 

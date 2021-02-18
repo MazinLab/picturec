@@ -28,7 +28,6 @@ import picturec.util as util
 import time
 
 DEVICE = "/dev/hemtduino"
-REDIS_DB = 0
 QUERY_INTERVAL = 1
 
 HEMT_VALUES = ['gate-voltage-bias', 'drain-current-bias', 'drain-voltage-bias']
@@ -123,7 +122,7 @@ if __name__ == "__main__":
 
     util.setup_logging('hemttempAgent')
 
-    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=KEYS)
+    redis = PCRedis(create_ts_keys=KEYS)
     hemtduino = Hemtduino(port=DEVICE, baudrate=115200, timeout=0.1)
 
     try:

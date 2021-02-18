@@ -25,7 +25,6 @@ import picturec.devices
 from picturec.pcredis import PCRedis, RedisError
 import picturec.util as util
 
-REDIS_DB = 0
 
 KEYS = ['device-settings:ls240:lhe-profile',
         'device-settings:ls240:ln2-profile',
@@ -137,7 +136,7 @@ class LakeShore240(picturec.devices.SerialDevice):
 if __name__ == "__main__":
 
     util.setup_logging('lakeshore240Agent')
-    redis = PCRedis(host='127.0.0.1', port=6379, db=REDIS_DB, create_ts_keys=TS_KEYS)
+    redis = PCRedis(create_ts_keys=TS_KEYS)
     lakeshore = LakeShore240(name='LAKESHORE240', port='/dev/lakeshore', baudrate=115200, timeout=0.1)
 
     try:

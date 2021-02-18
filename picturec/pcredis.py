@@ -16,9 +16,8 @@ from redis import RedisError, ConnectionError, TimeoutError, AuthenticationError
     ReadOnlyError, ChildDeadlockedError, AuthenticationWrongNumberOfArgsError
 from redistimeseries.client import Client as _RTSClient
 import logging
-import time
-import sys
 
+REDIS_DB = 0
 
 class PCRedis(object):
     """
@@ -30,7 +29,7 @@ class PCRedis(object):
     Redistimeseries keys should be created with the PCRedis object. Unlike normal redis keys, they must be created
     explicitly and should be done at the each program's start for clarity and ease.
     """
-    def __init__(self, host='localhost', port=6379, db=0, create_ts_keys=tuple()):
+    def __init__(self, host='localhost', port=6379, db=REDIS_DB, create_ts_keys=tuple()):
         self.redis = _Redis(host, port, db, socket_keepalive=True)
         self.redis_ts = None
         self.create_ts_keys(create_ts_keys)
