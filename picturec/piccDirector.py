@@ -54,27 +54,6 @@ def sensor_plot(querystr, method, data_type):
     print(querystr, method, data_type)
     return 'a'
 
-def create_plot(var):
-    trace1 = {
-        'x': [0,1,2,3,4,5,6,7,8,9,10],
-        'y': [np.random.normal(i) for i in range(11)],
-        'name': 'Test'
-    }
-    plot_data = [trace1]
-    plot_layout = {
-        'title': 'trying something new'
-    }
-    print(trace1)
-    d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
-    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
-
-    if var == 'd':
-        return jsonify(plot_data)
-    elif var == 'l':
-        return jsonify(plot_layout)
-    else:
-        return d, l
-
 
 @app.route('/dashboard', methods=['GET'])
 def dashboard():
@@ -167,17 +146,14 @@ def create_plot(var=''):
     plot_layout = {
         'title': 'trying something new'
     }
-    print(trace1)
     d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
 
-    if var == 'd':
-        return jsonify(plot_data)
-    elif var == 'l':
-        return jsonify(plot_layout)
-    else:
-        return d, l
-
+    if var =='d':
+        return d
+    if var == 'l':
+        return l
+    return d, l
 
 @app.route('/reporter', methods=['POST'])
 def reporter():

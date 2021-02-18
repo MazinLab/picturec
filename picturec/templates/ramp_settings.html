@@ -12,28 +12,26 @@
 
     <div id="testplot"></div>
     <script>
-        var d = {{ dat | safe }};
-        var l = {{ lay | safe }};
-        Plotly.newPlot('testplot', d, l)
+        Plotly.newPlot('testplot', {{ dat | safe }}, {{ lay | safe }})
 
-        function newdata() {
+        function newdata(type) {
+            var update = [];
             $.ajax({
-                url:'/create_plot/d',
+                url:'/create_plot/'+type,
                 type: 'post',
                 async: false,
                 success: function(data) {
-                    d = data
+                    update = JSON.parse(data)
                 },
                 error: function() {
                     console.log('Error!!')
                 }
             });
-            return d;
+            return update;
         }
 
         var interval = setInterval(function() {
-            newdata()
-            Plotly.react('testplot', d, l)
+            Plotly.react('testplot', newdata('d'), newdata('l'))
         }, 1000);
     </script>
 
