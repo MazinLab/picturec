@@ -612,7 +612,6 @@ class SIM960(SimDevice):
         self.last_output_voltage = ov
         return ov
 
-
     @staticmethod
     def _out_volt_2_current(volt:float, inverse=False):
         """
@@ -871,26 +870,17 @@ class Currentduino(SerialDevice):
     def check_hs_pos(self, pos):
         """ Return True if the HS is in the expected position, False if it is not. """
         return True
-        # pos = pos.lower()
         # if pos not in (HeatswitchPosition.OPEN, HeatswitchPosition.CLOSE):
         #     raise ValueError(f"'{pos} is not a vaild ({HeatswitchPosition.OPEN}, {HeatswitchPosition.CLOSE})'"
         #                      f"' heat switch position")
         #
         # # NB: The same sensor on the HS checks for open/closed HS position. If there is a thermal touch (HS close) it
         # #  will report a LOW voltage (GND) and if there are no touches (HS open) it will report a HIGH voltage (+5V)
-        # if pos[0] == 'o':
-        #     checkVal = 'h'
-        # elif pos[0] == 'c':
-        #     checkVal = 'l'
-        #
         # try:
         #     log.debug(f"Checking Heatswitch position is {pos}")
-        #     response = self.query(checkVal)
+        #     response = self.query('h' if pos[0] == 'o' else 'l')
         #     pos, _, desired = response.partition(" ")
-        #     if pos == desired:
-        #         return True
-        #     else:
-        #         return False
+        #     return pos == desired
         # except IOError as e:
         #     log.error(f"Serial error: {e}")
         #     raise e
