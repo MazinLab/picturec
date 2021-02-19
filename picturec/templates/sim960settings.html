@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
+    <h1> IF YOU TRY TO CHANGE TO AN ILLEGAL SETTING, IT WILL NOT BE UPDATED </h1>
     <form action="{{ url_for('sim960settings') }}" method="post">
         {{ form.hidden_tag() }}
         {% for field in form %}
