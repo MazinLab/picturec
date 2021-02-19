@@ -527,13 +527,13 @@ class SimDevice(SerialDevice):
                                 try:
                                     cb(v)
                                 except Exception as e:
-                                    log.error(f"Callback {cb} raised {e} when called with {v}.")
+                                    log.error(f"Callback {cb} error. arg={v}.", exc_info=True)
                     else:
                         cb = value_callback[0]
                         try:
                             cb(*vals)
                         except Exception as e:
-                            log.error(f"Callback {cb} raised {e} when called with {vals}.")
+                            log.error(f"Callback {cb} error. args={vals}.", exc_info=True)
 
                 time.sleep(interval)
 
@@ -732,8 +732,9 @@ class SIM921(SimDevice):
             log.debug("SIM921 voltage output is in scaled mode!")
             voltage = float(self.query("VOHM?")) * float(self.query("RDEV?"))
         else:
-            log.critical(f"SIM921 voltage output is in an unknown mode! -> {aman}")
-            raise ValueError(f"SIM921 voltage output is in an unknown mode! -> {aman}")
+            msg = f"SIM921 did not respond to AMAN? with 0 or 1! -> '{aman}'"
+            log.critical(msg)
+            raise IOError(msg)
         self.last_voltage_read = voltage
         return voltage
 
