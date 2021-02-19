@@ -67,13 +67,21 @@ def sim960settings():
     if request.method == 'POST':
         # TODO: There must be a different better way to do this (matching redis keys to field labels)
         # TODO: Highlight 'changed' values
-        # TODO: Add 'notes' to the side of the string fields about what values are legal
+        # TODO: Add 'notes' to the side of the string fields about what values are legal, check that they're legal!
         # TODO: Block changes of specific values
         keys = ['device-settings:sim960:vin-setpoint-mode',
                 'device-settings:sim960:vin-setpoint-slew-enable',
                 'device-settings:sim960:pid-p:enabled',
                 'device-settings:sim960:pid-i:enabled',
-                'device-settings:sim960:pid-d:enabled']
+                'device-settings:sim960:pid-d:enabled',
+                'device-settings:sim960:pid-p:value',
+                'device-settings:sim960:pid-i:value',
+                'device-settings:sim960:pid-d:value',
+                'device-settings:sim960:vout-min-limit',
+                'device-settings:sim960:vout-max-limit',
+                'device-settings:sim960:vin-setpoint',
+                'device-settings:sim960:vin-setpoint-slew-rate']
+
         desired_vals = form.data
         current_vals = redis.read(keys)
         for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
@@ -92,14 +100,20 @@ def sim921settings():
     if request.method == 'POST':
         # TODO: There must be a different better way to do this (matching redis keys to field labels)
         # TODO: Highlight 'changed' values
-        # TODO: Add 'notes' to the side of the string fields about what values are legal
+        # TODO: Add 'notes' to the side of the string fields about what values are legal, check that they're legal!
         # TODO: Block changes of specific values
         keys = ['device-settings:sim921:resistance-range',
                 'device-settings:sim921:excitation-value',
                 'device-settings:sim921:excitation-mode',
                 'device-settings:sim921:time-constant',
                 'device-settings:sim921:output-mode',
-                'device-settings:sim921:curve-number']
+                'device-settings:sim921:curve-number',
+                'device-settings:sim921:temp-offset',
+                'device-settings:sim921:resistance-offset',
+                'device-settings:sim921:temp-slope',
+                'device-settings:sim921:resistance-slope',
+                'device-settings:sim921:manual-vout']
+
         desired_vals = form.data
         current_vals = redis.read(keys)
         for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
@@ -163,7 +177,7 @@ def schedule_be_cold_at():
         return jsonify(data)
     today = datetime.date.today()
     if len(stime) == 2:
-        time.append(0)
+        stime.append(0)
     t = datetime.time(stime[0], stime[1], stime[2])
     time_to_be_cold = datetime.datetime.timestamp(datetime.datetime.combine(today, t))
     redis.publish('command:be-cold-at', time_to_be_cold)
