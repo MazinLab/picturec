@@ -355,7 +355,7 @@ class SerialDevice:
 
 
 class SimDevice(SerialDevice):
-    def __init__(self, name, port, baudrate=9600, timeout=0.1, connect=True, initilizer=None):
+    def __init__(self, name, port, baudrate=9600, timeout=0.1, connect=True, initializer=None):
         """The initialize callback is called after _simspecificconnect iff _initialized is false. The callback
         will be passed this object and should raise IOError if the device can not be initialized. If it completes
         without exception (or is not specified) the device will then be considered initialized
@@ -368,7 +368,7 @@ class SimDevice(SerialDevice):
         self.firmware = None
         self.mainframe_slot = None
         self.mainframe_exitstring = 'XYZ'
-        self.initilizer = initilizer
+        self.initializer = initializer
         self._monitor_thread = None
         self._initialized = False
         self.initialized_at_last_connect = False
@@ -454,8 +454,8 @@ class SimDevice(SerialDevice):
 
         self._simspecificconnect()
 
-        if self.initilizer and not self._initialized:
-            self.initilizer(self)
+        if self.initializer and not self._initialized:
+            self.initializer(self)
             self._initialized = True
 
     @property
@@ -565,7 +565,7 @@ class SIM960(SimDevice):
         self._last_manual_change = time.time() - 1  # This requires that in the case the program fails that systemd does
         # not try to restart the sim960Agent program more frequently than once per second (i.e. if sim960Agent crashes,
         # hold off on trying to start it again for at least 1s)
-        super().__init__('SIM960', port, baudrate, timeout, connect=connect, initilizer=initializer)
+        super().__init__('SIM960', port, baudrate, timeout, connect=connect, initializer=initializer)
 
     @property
     def state(self):
@@ -681,9 +681,15 @@ class SIM960(SimDevice):
                 self.send("AMAN 1")
 
 
+class SIM921OutputMode:
+    SCALED = 'scaled'
+    MANUAL = 'manual'
+
+
 class SIM921(SimDevice):
-    def __init__(self, port, timeout=0.1, connect=True, connection_callback=None):
-        super().__init__(name='SIM921', port=port, baudrate=9600, timeout=timeout, connect=connect, connection_callback=connection_callback)
+    def __init__(self, port, timeout=0.1, connect=True, initializer=None):
+        super().__init__(name='SIM921', port=port, baudrate=9600, timeout=timeout, connect=connect,
+                         initializer=initializer)
         self.scale_units = 'resistance'
         self.last_voltage = None
         self.last_monitored_values = None

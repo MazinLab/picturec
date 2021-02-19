@@ -14,7 +14,7 @@ import logging
 import sys
 from picturec.pcredis import PCRedis, RedisError
 import picturec.util as util
-from picturec.devices import SIM921, SimCommand
+from picturec.devices import SIM921, SimCommand, SIM921OutputMode
 import picturec.pcredis
 
 
@@ -48,9 +48,7 @@ SN_KEY = 'status:device:sim921:sn'
 log = logging.getLogger(__name__)
 
 
-class SIM921OutputMode:
-    SCALED = 'scaled'
-    MANUAL = 'manual'
+
 
 
 def to_scaled_output():
@@ -71,51 +69,53 @@ def in_manual_output():
                                  return_dict=False)[0] == SIM921OutputMode.MANUAL
 
 
+def firmware_pull(sim):
+    # Grab and store device info
+    try:
+        info = sim.device_info
+        d = {FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['sn']}
+    except IOError as e:
+        log.error(f"When checking device info: {e}")
+        d = {FIRMWARE_KEY: '', MODEL_KEY: '', SN_KEY: ''}
+
+    try:
+        redis.store(d)
+    except RedisError:
+        log.warning('Storing device info to redis failed')
+
+
+def initializer(sim):
+    """
+    Callback run on connection to the sim whenever it is not initialized. This will only happen if the sim loses all
+    of its settings, which should never every happen. Any settings applied take immediate effect
+    """
+    firmware_pull(sim)
+    try:
+        settings_to_load = redis.read(SETTING_KEYS, error_missing=True)
+        initialized_settings = sim.apply_schema_settings(settings_to_load)
+    except RedisError as e:
+        log.critical('Unable to pull settings from redis to initialize sim960')
+        raise IOError(e)
+    except KeyError as e:
+        log.critical('Unable to pull setting {e} from redis to initialize sim960')
+        raise IOError(e)
+
+    try:
+        redis.store(initialized_settings)
+    except RedisError:
+        log.warning('Storing device settings to redis failed')
+
+
 if __name__ == "__main__":
 
     util.setup_logging('sim921Agent')
     redis = PCRedis(create_ts_keys=TS_KEYS)
-
-
-    # TODO JB The whole point of not erroring out on a connection failure in __init__ is to allow
-    #  execution to start without the device online. These calls here in main, that are required for operation,
-    #  completely defeats that
-    def initialize(sim):
-        try:
-            info = sim.device_info
-            redis.store({FIRMWARE_KEY: info['firmware'], MODEL_KEY: info['model'], SN_KEY: info['sn']})
-        except IOError as e:
-            log.error(f"When checking device info: {e}")
-            redis.store({FIRMWARE_KEY: '', MODEL_KEY: '', SN_KEY: ''})
-        except RedisError as e:
-            log.critical(f"Redis server error! {e}")
-            sys.exit(1)
-
-        from_state = 'defaults'
-        keys = SETTING_KEYS if from_state.lower() in ('previous', 'last_state', 'last') else DEFAULT_SETTING_KEYS
-        try:
-            settings_to_load = redis.read(keys, error_missing=True)
-            # settings_to_load = {setting.lstrip('default:'): value for setting, value in settings_to_load.items()}
-            if from_state == 'defaults':
-                settings_to_load = {setting[8:]: value for setting, value in settings_to_load.items()}
-            initialized_settings = sim.initialize_sim(settings_to_load)
-            redis.store(initialized_settings)  # TODO JB Exception handling
-        except IOError:
-            raise
-        except RedisError:
-            sys.exit(1)
-        except KeyError:
-            sys.exit(1)
-
-    sim = SIM921(port=DEVICE, timeout=0.1, connection_callback=initialize)
-
+    sim = SIM921(port=DEVICE, timeout=0.1, initializer=initializer)
 
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
     def callback(t, r, v):
-        d = {}
-        for k, val in zip((TEMP_KEY, RES_KEY, OUTPUT_VOLTAGE_KEY), (t, r, v)):
-            if val is not None:  # TODO JB: Since we don't want to store bad data
-                d[k] = val
+        # Since we don't want to store bad data
+        d = {k: x for k, x in zip((TEMP_KEY, RES_KEY, OUTPUT_VOLTAGE_KEY), (t, r, v)) if x is not None}
         redis.store(d, timeseries=True)
     sim.monitor(QUERY_INTERVAL, (sim.temp, sim.resistance, sim.output_voltage), value_callback=callback)
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                     redis.store({cmd.setting: cmd.value})
                     redis.store({STATUS_KEY: "OK"})
                 except IOError as e:
-                    redis.store({STATUS_KEY: f"Error {e}"}) # todo jb: didnt we decide that we could just write the error to the schema key?
+                    redis.store({STATUS_KEY: f"Error {e}"})  # todo jb: didnt we decide that we could just write the error to the schema key?
                     log.error(f"Comm error: {e}")
 
         except RedisError as e:
