@@ -107,7 +107,7 @@ def compute_initial_state(sim, statefile):
                 initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
             else:
                 initial_state = load_persisted_state(statefile)[1].rstrip()
-                current = sim.setpoint  # TODO: I'm torn on whether this needs to be setpoint vs manual current (or if it matters)
+                current = sim.setpoint()  # TODO: I'm torn on whether this needs to be setpoint vs manual current (or if it matters)
                 if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0]):
                     initial_state = 'ramping'  # we can recover
 
@@ -263,7 +263,7 @@ class MagnetController(LockedMachine):
         try:
             self.set_redis_settings(init_blocked=True) # If called the sim is in a blank state and needs everything!
         except (RedisError, KeyError) as e:
-            raise IOError(e) #we can't initialize!
+            raise IOError(e)  # we can't initialize!
 
     def firmware_pull(self):
         # Grab and store device info
@@ -321,7 +321,7 @@ class MagnetController(LockedMachine):
                     initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
                 else:
                     initial_state = load_persisted_state(self.statefile)
-                    current = self.sim.setpoint
+                    current = self.sim.setpoint()
                     if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
                         initial_state = 'ramping'  # we can recover
 
@@ -375,7 +375,7 @@ class MagnetController(LockedMachine):
         soak_time = float(redis.read(SOAK_TIME_KEY, return_dict=False)[0])
         ramp_rate = float(redis.read(RAMP_SLOPE_KEY, return_dict=False)[0])
         deramp_rate = float(redis.read(DERAMP_SLOPE_KEY, return_dict=False)[0])
-        current_current = self.sim.setpoint
+        current_current = self.sim.setpoint()
         current_state = self.state # NB: If current_state is regulating time_to_cool will return 0 since it is already cool.
 
         time_to_cool = 0
@@ -537,7 +537,7 @@ class MagnetController(LockedMachine):
 
     def current_at_soak(self, event):
         try:
-            return self.sim.setpoint >= float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0])
+            return self.sim.setpoint() >= float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0])
         except RedisError:
             return False
 
@@ -629,7 +629,7 @@ if __name__ == "__main__":
 
         try:
             while not controller.is_off():
-                getLogger(__name__).info(f'Waiting (10s) for magnet to deramp from ({controller.sim.setpoint}) before exiting...')
+                getLogger(__name__).info(f'Waiting (10s) for magnet to deramp from ({controller.sim.setpoint()}) before exiting...')
                 time.sleep(10)
         except IOError:
             pass

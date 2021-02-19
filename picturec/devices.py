@@ -515,7 +515,7 @@ class SimDevice(SerialDevice):
                 vals = []
                 for func in monitor_func:
                     try:
-                        vals.append(func)
+                        vals.append(func())
                     except IOError as e:
                         log.error(f"Failed to poll {func}: {e}")
                         vals.append(None)
@@ -533,7 +533,7 @@ class SimDevice(SerialDevice):
                         try:
                             cb(*vals)
                         except Exception as e:
-                            log.error(f"Callback {cb} raised {e} when called with {v}.")
+                            log.error(f"Callback {cb} raised {e} when called with {vals}.")
 
                 time.sleep(interval)
 
@@ -595,16 +595,12 @@ class SIM960(SimDevice):
             self._initialized = polarity == '0'
             self.initialized_at_last_connect = self._initialized
 
-
-    @property
     def input_voltage(self):
         """Read the voltage being sent to the input monitor of the SIM960 from the SIM921"""
         iv = float(self.query("MMON?"))
         self.last_input_voltage = iv
         return iv
 
-
-    @property
     def output_voltage(self):
         """Report the voltage at the output of the SIM960. In manual mode, this will be explicitly controlled using MOUT
         and in PID mode this will be the value set by the function Output = P(e + I * int(e) + D * derv(e)) + Offset"""
@@ -626,10 +622,9 @@ class SIM960(SimDevice):
         else:
             return 1.0*volt
 
-    @property
     def setpoint(self):
         """ return the current that is currently commanded by the sim960 """
-        return self._out_volt_2_current(self.output_voltage)
+        return self._out_volt_2_current(self.output_voltage())
 
     @property
     def manual_current(self):
@@ -646,7 +641,7 @@ class SIM960(SimDevice):
         if not self._initialized:
             raise ValueError('Sim is not initialized')
         x = min(max(x, 0), self.MAX_CURRENT)
-        delta = abs((self.setpoint - x)/(time.time()-self._last_manual_change))
+        delta = abs((self.setpoint() - x)/(time.time()-self._last_manual_change))
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
@@ -673,7 +668,7 @@ class SIM960(SimDevice):
             if mode == value:
                 return
             if value == MagnetState.MANUAL:
-                self.send(f'MOUT {self._out_volt_2_current(self.setpoint, inverse=True):.3f}')
+                self.send(f'MOUT {self._out_volt_2_current(self.setpoint(), inverse=True):.3f}')
                 self.send("AMAN 0")
                 #NB no need to set the _lat_manual_change time as we arent actually changing the current
             else:
