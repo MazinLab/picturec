@@ -13,10 +13,10 @@ TODO NS: Add 'resetting' to last stable state to SIM960
 import logging
 import sys
 import time
-from picturec.pcredis import PCRedis, RedisError
+from picturec.pcredis import RedisError
 import picturec.util as util
 from picturec.devices import SIM921, SimCommand, SIM921OutputMode
-import picturec.pcredis
+import picturec.pcredis as redis
 
 
 DEVICE = '/dev/sim921'
@@ -53,20 +53,20 @@ log = logging.getLogger(__name__)
 
 
 def to_scaled_output():
-    picturec.pcredis.publish('device-settings:sim921:output-mode', SIM921OutputMode.SCALED, store=False)
+    redis.publish('device-settings:sim921:output-mode', SIM921OutputMode.SCALED, store=False)
 
 
 def to_manual_output():
-    picturec.pcredis.publish('device-settings:sim921:output-mode', SIM921OutputMode.MANUAL, store=False)
+    redis.publish('device-settings:sim921:output-mode', SIM921OutputMode.MANUAL, store=False)
 
 
 def in_scaled_output():
-    return picturec.pcredis.read('device-settings:sim921:output-mode',
+    return redis.read('device-settings:sim921:output-mode',
                                  return_dict=False)[0] == SIM921OutputMode.SCALED
 
 
 def in_manual_output():
-    return picturec.pcredis.read('device-settings:sim921:output-mode',
+    return redis.read('device-settings:sim921:output-mode',
                                  return_dict=False)[0] == SIM921OutputMode.MANUAL
 
 
@@ -111,7 +111,7 @@ def initializer(sim):
 if __name__ == "__main__":
 
     util.setup_logging('sim921Agent')
-    redis = PCRedis(create_ts_keys=TS_KEYS)
+    redis.setup_redis(create_ts_keys=TS_KEYS)
     sim = SIM921(port=DEVICE, timeout=.05, initializer=initializer)
 
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------

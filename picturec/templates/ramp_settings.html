@@ -19,12 +19,13 @@
                        $("#hs_report").text(data['msg'])
                    },
                    error: function() {
-                       console.log('error in return?')
+                       console.log('Open heatswitch button did not work!')
                    }
                });
             });
            $('a#closer').on('click', function(e) {
                e.preventDefault();
+               console.log('closer clicked')
                $.ajax({
                    url: '/closer',
                    type: 'post',
@@ -33,7 +34,7 @@
                        $("#hs_report").text(data['msg'])
                    },
                    error: function() {
-
+                       console.log('Close heatswitch button did not work!')
                    }
                });
             });

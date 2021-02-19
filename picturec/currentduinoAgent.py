@@ -21,8 +21,8 @@ import logging
 import threading
 
 from picturec.devices import Currentduino, HeatswitchPosition
-import picturec.pcredis
-from picturec.pcredis import PCRedis, RedisError
+import picturec.pcredis as redis
+from picturec.pcredis import RedisError
 import picturec.util as util
 
 
@@ -48,22 +48,20 @@ CURRENT_VALUE_KEY = 'status:highcurrentboard:current'
 log = logging.getLogger(__name__)
 
 
-
-
 def close():
-    picturec.pcredis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.CLOSE)
+    redis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.CLOSE)
 
 
 def open():
-    picturec.pcredis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.OPEN)
+    redis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.OPEN)
 
 
 def is_opened():
-    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.OPEN
+    return redis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.OPEN
 
 
 def is_closed():
-    return picturec.pcredis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.CLOSE
+    return redis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.CLOSE
 
 
 
@@ -71,7 +69,7 @@ if __name__ == "__main__":
 
     util.setup_logging('currentduinoAgent')
 
-    redis = PCRedis(create_ts_keys=[CURRENT_VALUE_KEY])
+    redis.setup_redis(create_ts_keys=TS_KEYS)
     currentduino = Currentduino(port=DEVICE, baudrate=115200, timeout=0.1)
 
     try:

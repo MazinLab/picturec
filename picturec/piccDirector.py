@@ -9,7 +9,7 @@ import time, datetime
 
 import picturec.util as util
 from picturec.frontend.config import Config
-from picturec.pcredis import PCRedis
+import picturec.pcredis as redis
 from picturec.devices import COMMAND_DICT
 import picturec.currentduinoAgent as heatswitch
 
@@ -30,11 +30,10 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
            'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current']
 
 
-redis = PCRedis(create_ts_keys=TS_KEYS)
-
-
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
-FRAME = 0
+
+
+redis.setup_redis(create_ts_keys=TS_KEYS)
 
 # TODO: Magnet Ramp settings page
 # TODO: Add alarms for serial (dis)connections?
@@ -339,5 +338,6 @@ class Sim921SettingForm(FlaskForm):
 if __name__ == "__main__":
 
     util.setup_logging('piccDirector')
+    redis.setup_redis(create_ts_keys=TS_KEYS)
     app.debug=True
     app.run(port=8000)
