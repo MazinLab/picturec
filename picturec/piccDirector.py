@@ -6,6 +6,8 @@ from wtforms import SelectField, SubmitField, StringField
 from wtforms.validators import DataRequired
 import numpy as np
 import time, datetime
+import json
+import plotly
 
 import picturec.util as util
 from picturec.frontend.config import Config
@@ -45,7 +47,15 @@ def index():
     # TODO: Add HS Position (and ability to toggle it)
     # TODO: Cause magnet command buttons to actually trigger commands
     form = MainPageForm()
-    return render_template('index.html', form=form)
+
+    init_lhe_d, init_lhe_l = sensor_plot('status:temps:lhetank', 'LHe Temp', 'old')
+    init_ln2_d, init_ln2_l = sensor_plot('status:temps:ln2tank', 'LN2 Temp', 'old')
+    init_devt_d, init_devt_l = sensor_plot('status:temps:mkidarray:temp', 'Device Temp', 'old')
+    init_magc_d, init_magc_l = sensor_plot('status:highcurrentboard:current', 'Magnet Current', 'old')
+
+    return render_template('index.html', form=form, init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l,
+                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
+                           init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l)
 
 
 @app.route('/dashboard', methods=['GET'])
@@ -160,6 +170,44 @@ def ramp_settings():
         return render_template('ramp_settings.html', title='Ramp Settings', form=form)
 
 
+@app.route('/sensor_plot/<key>/<title>/<typ>', methods=['GET', 'POST'])
+def sensor_plot(key, title, typ):
+    """
+    :param key: Redis key plot data is needed for
+    :param title: Plot title. If '-', not used
+    :param typ: <'new'|'old'> Type of updating required. 'new' gives the most recent point. 'old' gives up to 30 minutes of data.
+    :return: data to be plotted.
+    """
+
+    if typ == 'old':
+        ts = np.array(redis.redis_ts.range(key, '-', '+'))
+        last_tval = time.time() # In seconds
+        first_tval = last_tval - 1800  # Allow data from up to 30 minutes beforehand to be plotted (30 m = 1800 s)
+        m = (ts[:,0]/1000 >= first_tval) & (ts[:, 0]/1000 <= last_tval)
+        times = [datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ts[m][:,0]]
+        vals = list(ts[m][:,1])
+        if len(times) == 0:
+            val = redis.redis_ts.get(key)
+            times = [datetime.datetime.fromtimestamp(val[0] / 1000).strftime("%H:%M:%S")]
+            vals = [val[1]]
+    elif typ == 'new':
+        val = redis.redis_ts.get(key)
+        times = [datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S")]
+        vals = [val[1]]
+
+    plot_data = [{
+        'x': times,
+        'y': vals,
+        'name': key
+    }]
+    plot_layout = {
+        'title': title
+    }
+    d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
+    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
+
+    return d, l
+
 
 @app.route('/reporter', methods=['POST'])
 def reporter():
@@ -241,38 +289,6 @@ def closer():
     else:
         data = {'msg': 'Heatswitch failed to close'}
     return jsonify(data)
-
-
-@app.route('/tempvals_n2', methods=['POST'])
-def tempvals_n2():
-    temperature_key = 'status:temps:ln2tank'
-    val = redis.redis_ts.get(temperature_key)
-    # print(f"LN2 time/temp: {val}")
-    return jsonify({'times': datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S"), 'temps': val[1]})
-
-
-@app.route('/tempvals_he', methods=['POST'])
-def tempvals_he():
-    temperature_key = 'status:temps:lhetank'
-    val = redis.redis_ts.get(temperature_key)
-    # print(f"LHe time/temp: {val}")
-    return jsonify({'times': datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S"), 'temps': val[1]})
-
-@app.route('/device_t', methods=['POST'])
-def device_t():
-    temperature_key = 'status:temps:mkidarray:temp'
-    val = redis.redis_ts.get(temperature_key)
-    print(val)
-    # print(f"Device time/temp: {val}")
-    return jsonify({'times': datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S"), 'temps': val[1]})
-
-
-@app.route('/magnet_current', methods=['POST'])
-def magnet_current():
-    temperature_key = 'status:highcurrentboard:current'
-    val = redis.redis_ts.get(temperature_key)
-    # print(f"Magnet time/current: {val}")
-    return jsonify({'times': datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S"), 'currents': val[1]})
 
 
 def make_choices(key):
