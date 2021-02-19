@@ -18,7 +18,7 @@ from redistimeseries.client import Client as _RTSClient
 import logging
 
 # TODO: Make this part of the configuration
-REDIS_DB = 1
+REDIS_DB = 0
 
 class PCRedis(object):
     """
