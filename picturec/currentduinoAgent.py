@@ -44,7 +44,6 @@ HEATSWITCH_STATUS_KEY = 'status:heatswitch'
 HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
 CURRENT_VALUE_KEY = 'status:highcurrentboard:current'
 
-
 log = logging.getLogger(__name__)
 
 
@@ -69,7 +68,7 @@ if __name__ == "__main__":
 
     util.setup_logging('currentduinoAgent')
 
-    redis.setup_redis(create_ts_keys=TS_KEYS)
+    redis.setup_redis(create_ts_keys=CURRENT_VALUE_KEY)
     currentduino = Currentduino(port=DEVICE, baudrate=115200, timeout=0.1)
 
     try:
