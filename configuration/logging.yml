@@ -39,6 +39,14 @@ loggers:
   sim960Agent:
     sim960Agent: debug
     picturec.devices: debug
+    "":
+      handlers: [ default ]
+      level: WARNING
+      propagate': False
+    __main__:
+      handlers: [ default ]
+      level: DEBUG
+      propagate': False
 
 version: 1
 disable_existing_loggers: False
