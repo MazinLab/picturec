@@ -17,6 +17,7 @@ from redis import RedisError, ConnectionError, TimeoutError, AuthenticationError
 from redistimeseries.client import Client as _RTSClient
 import logging
 
+# TODO: Make this part of the configuration
 REDIS_DB = 1
 
 class PCRedis(object):
@@ -173,7 +174,7 @@ publish = None
 redis_ts = None
 
 
-def setup_redis(host='localhost', port=6379, db=0, create_ts_keys=tuple()):
+def setup_redis(host='localhost', port=6379, db=REDIS_DB, create_ts_keys=tuple()):
     global pcredis, store, read, listen, publish, redis_ts
     pcredis = PCRedis(host=host, port=port, db=db, create_ts_keys=create_ts_keys)
     store = pcredis.store
