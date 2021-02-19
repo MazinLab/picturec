@@ -146,14 +146,18 @@ def ramp_settings():
                 'device-settings:sim960:soak-time',
                 'device-settings:sim960:soak-current']
 
+        print(form.data)
         desired_vals = form.data
         current_vals = redis.read(keys)
         for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
+            if k1 == 'device-settings:sim960:soak-time':
+                v2 = float(v2) * 60
+                v1 = float(v1)
             if v1 != v2:
                 print(f"Change {k1} from {v1} to {v2}")
                 # redis.publish(k1, v2)
 
-        return redirect(url_for('ramp_settings.html'))
+        return redirect(url_for('ramp_settings'))
     else:
         return render_template('ramp_settings.html', title='Ramp Settings', form=form)
 
@@ -215,6 +219,7 @@ def cancel_scheduled_cooldown():
 
 @app.route('/opener', methods=['POST'])
 def opener():
+    print('opening hs!')
     heatswitch.open()
     time.sleep(2)
     if heatswitch.is_opened():
@@ -226,6 +231,7 @@ def opener():
 
 @app.route('/closer', methods=['POST'])
 def closer():
+    print('closing hs!')
     heatswitch.close()
     time.sleep(2)
     if heatswitch.is_closed():
@@ -286,11 +292,11 @@ class MainPageForm(FlaskForm):
 
 
 class RampConfigForm(FlaskForm):
-    open_hs = SubmitField('Open HS')
-    close_hs = SubmitField('Close HS')
     ramp_rate = StringField('Ramp Rate (A/s)', default=redis.read('device-settings:sim960:ramp-rate', return_dict=False)[0])
     soak_time = StringField('Soak Time (m)', default=str(float(redis.read('device-settings:sim960:soak-time', return_dict=False)[0])/60))
     soak_current = StringField('Soak Current (A)', default=redis.read('device-settings:sim960:soak-current', return_dict=False)[0])
+    open_hs = SubmitField('Open HS')
+    close_hs = SubmitField('Close HS')
     submit = SubmitField('Update')
 
 
