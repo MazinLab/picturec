@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import threading
 from transitions import MachineError, State, Transition
 from transitions.extensions import LockedMachine
+import pkg_resources
 
 import picturec.util as util
 from picturec.devices import SIM960, SimCommand, MagnetState, COMMANDS960, enable_simulator
@@ -22,10 +23,8 @@ import picturec.currentduinoAgent as heatswitch
 import picturec.sim921Agent as sim921
 
 
-enable_simulator()
-
 DEVICE = '/dev/sim960'
-STATEFILE = '/picturec/picturec/logs/statefile.txt'
+MAX_PERSISTED_STATE_LIFE_SECONDS = 3600
 
 #  Standard values have been input for these keys
 RAMP_SLOPE_KEY = 'device-settings:sim960:ramp-rate'  # .005 A/s
@@ -81,10 +80,10 @@ def write_persisted_state(statefile, state):
 
 
 def load_persisted_state(statefile):
-
     try:
         with open(statefile, 'r') as f:
             persisted_state_time, persisted_state = f.readline().split(':')
+            persisted_state_time, persisted_state = float(persisted_state_time.strip()), persisted_state.strip()
     except Exception:
         persisted_state_time, persisted_state = None, None
     return persisted_state_time, persisted_state
@@ -98,6 +97,7 @@ def monitor_callback(iv, ov, oc):
     except RedisError:
         getLogger(__name__).warning('Storing magnet status to redis failed')
 
+
 def compute_initial_state(sim, statefile):
     initial_state = 'deramping'  #always safe to start here
     try:
@@ -106,8 +106,12 @@ def compute_initial_state(sim, statefile):
             if mag_state == MagnetState.PID:
                 initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
             else:
-                initial_state = load_persisted_state(statefile)[1].rstrip()
-                current = sim.setpoint()  # TODO: I'm torn on whether this needs to be setpoint vs manual current (or if it matters)
+                state_time, persisted_state = load_persisted_state(statefile)
+                if persisted_state is None or time.time()-state_time>MAX_PERSISTED_STATE_LIFE_SECONDS:
+                    return initial_state
+                else:
+                    initial_state = persisted_state
+                current = sim.setpoint()
                 if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0]):
                     initial_state = 'ramping'  # we can recover
 
@@ -580,7 +584,16 @@ if __name__ == "__main__":
 
     util.setup_logging('sim960Agent')
     redis.setup_redis(create_ts_keys=TS_KEYS)
-    controller = MagnetController(statefile=redis.read(STATEFILE_PATH_KEY, return_dict=False)[0])
+
+    try:
+        statefile = redis.read(STATEFILE_PATH_KEY, return_dict=False, error_missing=True)[0]
+    except KeyError:
+        statefile = pkg_resources.resource_filename('picturec', '../configuration/magnet.statefile')
+        redis.store({STATEFILE_PATH_KEY: statefile})
+
+    enable_simulator()
+
+    controller = MagnetController(statefile=statefile)
 
     # main loop, listen for commands and handle them
     try:
