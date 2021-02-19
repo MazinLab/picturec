@@ -32,6 +32,7 @@ dependencies:
   - redis-py
   - bitstruct
   - transitions
+  - plotly
   - pip:
       - fpbinary
       - redistimeseries==0.8.0
