@@ -96,7 +96,12 @@
 
             var hemt_data = init_vals1()
             var layout = {
-                title:'HEMT Gate Voltages'
+                title:'HEMT Gate Voltages',
+                xaxis: {
+                    tickmode: 'array',
+                    dtick: 0.75
+                }
+
             };
 
             Plotly.newPlot('gate-voltages', hemt_data, layout);
@@ -199,7 +204,11 @@
 
             var hemt_data = init_vals2()
             var layout = {
-                title:'HEMT Drain Voltages'
+                title:'HEMT Drain Voltages',
+                xaxis: {
+                    tickmode: 'array',
+                    dtick: 0.75
+                }
             };
 
             Plotly.newPlot('drain-voltages', hemt_data, layout);
@@ -302,7 +311,11 @@
 
             var hemt_data = init_vals3()
             var layout = {
-                title:'HEMT Drain Currents'
+                title:'HEMT Drain Currents',
+                xaxis: {
+                    tickmode: 'array',
+                    dtick: 0.75
+                }
             };
 
             Plotly.newPlot('drain-currents', hemt_data, layout);

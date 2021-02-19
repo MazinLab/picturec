@@ -145,7 +145,6 @@ def ramp_settings():
                 'device-settings:sim960:soak-time',
                 'device-settings:sim960:soak-current']
 
-        print(form.data)
         desired_vals = form.data
         current_vals = redis.read(keys)
         for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
@@ -171,11 +170,15 @@ def reporter():
     vgs = np.array([redis.redis_ts.get(i) for i in vg_keys])
     ids = np.array([redis.redis_ts.get(i) for i in id_keys])
     vds = np.array([redis.redis_ts.get(i) for i in vd_keys])
+    
+    vgtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vgs[:, 0]])
+    idtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ids[:, 0]])
+    vdtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vds[:, 0]])
 
     print(vgs[:,1], ids[:, 1], vds[:, 1])
-    return jsonify({'vg_times': list(vgs[:, 0]), 'gate_voltages': list(vgs[:, 1]),
-                    'id_times': list(ids[:, 0]), 'drain_currents': list(ids[:, 1]),
-                    'vd_times': list(vds[:, 0]), 'drain_voltages': list(vds[:, 1])})
+    return jsonify({'vg_times': vgtimes, 'gate_voltages': list(vgs[:, 1]),
+                    'id_times': idtimes, 'drain_currents': list(ids[:, 1]),
+                    'vd_times': vdtimes, 'drain_voltages': list(vds[:, 1])})
 
 
 @app.route('/start_cooldown', methods=['POST'])
@@ -245,7 +248,7 @@ def tempvals_n2():
     temperature_key = 'status:temps:ln2tank'
     val = redis.redis_ts.get(temperature_key)
     # print(f"LN2 time/temp: {val}")
-    return jsonify({'times': val[0], 'temps': val[1]})
+    return jsonify({'times': datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S"), 'temps': val[1]})
 
 
 @app.route('/tempvals_he', methods=['POST'])
@@ -253,14 +256,15 @@ def tempvals_he():
     temperature_key = 'status:temps:lhetank'
     val = redis.redis_ts.get(temperature_key)
     # print(f"LHe time/temp: {val}")
-    return jsonify({'times': val[0], 'temps': val[1]})
+    return jsonify({'times': datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S"), 'temps': val[1]})
 
 @app.route('/device_t', methods=['POST'])
 def device_t():
     temperature_key = 'status:temps:mkidarray:temp'
     val = redis.redis_ts.get(temperature_key)
+    print(val)
     # print(f"Device time/temp: {val}")
-    return jsonify({'times': val[0], 'temps': val[1]})
+    return jsonify({'times': datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S"), 'temps': val[1]})
 
 
 @app.route('/magnet_current', methods=['POST'])
@@ -268,7 +272,7 @@ def magnet_current():
     temperature_key = 'status:highcurrentboard:current'
     val = redis.redis_ts.get(temperature_key)
     # print(f"Magnet time/current: {val}")
-    return jsonify({'times': val[0], 'currents': val[1]})
+    return jsonify({'times': datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S"), 'currents': val[1]})
 
 
 def make_choices(key):

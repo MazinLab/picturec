@@ -135,7 +135,11 @@
 
             var tank_data = init_device_temp()
             var layout = {
-                title:'Device T'
+                title:'Device T',
+                xaxis: {
+                    tickmode: 'array',
+                    dtick: 0.75
+                }
             };
 
             Plotly.newPlot('device-temp', tank_data, layout);
@@ -202,7 +206,11 @@
 
             var tank_data = init_current()
             var layout = {
-                title:'Magnet Current'
+                title:'Magnet Current',
+                xaxis: {
+                    tickmode: 'array',
+                    dtick: 0.75
+                }
             };
 
             Plotly.newPlot('magnet-current', tank_data, layout);
@@ -293,7 +301,11 @@
 
             var tank_data = init_tank_temps_n2()
             var layout = {
-                title:'LN2 T'
+                title:'LN2 T',
+                xaxis: {
+                    tickmode: 'array',
+                    dtick: 0.75
+                }
             };
 
             Plotly.newPlot('ln2-tank-temp', tank_data, layout);
@@ -360,7 +372,11 @@
 
             var tank_data = init_tank_temps_he()
             var layout = {
-                title:'LHe T'
+                title:'LHe T',
+                xaxis: {
+                    tickmode: 'array',
+                    dtick: 0.75
+                }
             };
 
             Plotly.newPlot('lhe-tank-temp', tank_data, layout);
