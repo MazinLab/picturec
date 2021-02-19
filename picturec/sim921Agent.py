@@ -12,6 +12,7 @@ TODO NS: Add 'resetting' to last stable state to SIM960
 """
 import logging
 import sys
+import time
 from picturec.pcredis import PCRedis, RedisError
 import picturec.util as util
 from picturec.devices import SIM921, SimCommand, SIM921OutputMode
@@ -93,6 +94,7 @@ def initializer(sim):
     try:
         settings_to_load = redis.read(SETTING_KEYS, error_missing=True)
         initialized_settings = sim.apply_schema_settings(settings_to_load)
+        time.sleep(1)
     except RedisError as e:
         log.critical('Unable to pull settings from redis to initialize sim960')
         raise IOError(e)
@@ -110,7 +112,7 @@ if __name__ == "__main__":
 
     util.setup_logging('sim921Agent')
     redis = PCRedis(create_ts_keys=TS_KEYS)
-    sim = SIM921(port=DEVICE, timeout=0.1, initializer=initializer)
+    sim = SIM921(port=DEVICE, timeout=.05, initializer=initializer)
 
     # ---------------------------------- MAIN OPERATION (The eternal loop) BELOW HERE ----------------------------------
     def callback(t, r, v):
