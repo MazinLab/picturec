@@ -17,7 +17,7 @@ from redis import RedisError, ConnectionError, TimeoutError, AuthenticationError
 from redistimeseries.client import Client as _RTSClient
 import logging
 
-REDIS_DB = 0
+REDIS_DB = 1
 
 class PCRedis(object):
     """
