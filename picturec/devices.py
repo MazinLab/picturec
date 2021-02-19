@@ -228,13 +228,14 @@ class SimCommand:
 
 
 class SerialDevice:
-    def __init__(self, port, baudrate=115200, timeout=0.1, name=None, terminator='\n'):
+    def __init__(self, port, baudrate=115200, timeout=0.1, name=None, terminator='\n', response_terminator=''):
         self.ser = None
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.name = name if name else self.port
         self.terminator = terminator
+        self._response_terminator = response_terminator
         self._rlock = threading.RLock()
 
     def _preconnect(self):
@@ -333,9 +334,11 @@ class SerialDevice:
         """
         with self._rlock:
             try:
-                data = self.ser.readline().decode("utf-8").strip()
-                getLogger(__name__).debug(f"read {escapeString(data)} from {self.name}")
-                return data
+                data = self.ser.readline().decode("utf-8")
+                getLogger(__name__).debug(f"Read {escapeString(data)} from {self.name}")
+                if not data.endswith(self._response_terminator):
+                    raise IOError("Got incomplete response. Consider increasing timeout.")
+                return data.strip()
             except (IOError, serial.SerialException) as e:
                 self.disconnect()
                 getLogger(__name__).debug(f"Send failed {e}")
@@ -362,7 +365,7 @@ class SimDevice(SerialDevice):
         The .initialized_at_last_connect attribute may be checked to see if initilization ran.
         """
 
-        super().__init__(port, baudrate, timeout, name=name)
+        super().__init__(port, baudrate, timeout, name=name, response_terminator='\r\n')
 
         self.sn = None
         self.firmware = None
@@ -703,8 +706,8 @@ class SIM921(SimDevice):
             log.critical(msg)
             raise IOError(msg)
 
-        # Make sure that the excitation is turned on. If not successful, exit the program
-        # TODO: This can be like the vin-setpoint-slew-enable for the SIM960 (
+        # Make sure that the excitation is turned on. If not successful we can't use the device
+        # TODO: This can be like the vin-setpoint-slew-enable for the SIM960
         self.send("EXON 1", connect=False)
         exon = self.query("EXON?", connect=False)
         if exon != '1':
