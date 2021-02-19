@@ -265,6 +265,7 @@ class Sim960SettingForm(FlaskForm):
 
 
 class Sim921SettingForm(FlaskForm):
+    # TODO: Only use temperature setpoint and have it convert to resistance value
     sim921_resistance_range = SelectField('Resistance Range', choices=make_choices('device-settings:sim921:resistance-range'))
     sim921_excitation_val = SelectField('Excitation Value', choices=make_choices('device-settings:sim921:excitation-value'))
     sim921_excitation_mode = SelectField('Excitation Mode', choices=make_choices('device-settings:sim921:excitation-mode'))
