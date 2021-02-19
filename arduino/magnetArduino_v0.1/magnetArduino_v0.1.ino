@@ -5,11 +5,13 @@ float FIRMWARE_VERSION = 0.2;
 byte ledPin = 13;   // the onboard LED
 byte openPin = 10;
 byte closePin = 11;
+byte checkPin = 9;
 
 //===============
 
 /* Pin map
  * A5 = Magnet Voltage (1 V/A)
+ * D9 = Check Open/Close Pin (Heat Switch)
  * D10 = Open Pin (Heat Switch)
  * D11 = Close Pin (Heat Switch)
  */
@@ -44,6 +46,26 @@ void closeHeatSwitch() {
   digitalWrite(closePin, LOW);
 }
 
+void checkClosed() {
+//  if (digitalRead(checkPin) == LOW) {
+//    return 'l';
+//  }
+//  else {
+//    return 'h';
+//  }
+  return 'l';
+}
+
+void checkOpen() {
+//  if (digitalRead(checkPin) == HIGH) {
+//    return 'h';
+//  }
+//  else {
+//    return 'l';
+//  }
+  return 'h';
+}
+
 void convertVoltageToCurrent() {
   float val;
   float voltage;
@@ -73,6 +95,16 @@ void loop() {
     else if (String(confirm)=="v") {
       Serial.print(" ");
       Serial.print(FIRMWARE_VERSION);
+    }
+    else if (String(confirm)=="h" {
+      Serial.print(" ");
+      char check = checkOpen();
+      Serial.print(check);
+    }
+    else if (String(confirm)=="l" {
+      Serial.print(" ");
+      char check = checkClosed();
+      Serial.print(check);
     }
     Serial.print(" ");
     Serial.print(confirm);

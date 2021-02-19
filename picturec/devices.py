@@ -862,6 +862,33 @@ class Currentduino(SerialDevice):
         """ Return True or False if the firmware is supported, may raise IOErrors """
         return self.firmware in self.VALID_FIRMWARES
 
+    def check_hs_pos(self, pos):
+        """ Return True if the HS is in the expected position, False if it is not. """
+        return True
+        # pos = pos.lower()
+        # if pos not in (HeatswitchPosition.OPEN, HeatswitchPosition.CLOSE):
+        #     raise ValueError(f"'{pos} is not a vaild ({HeatswitchPosition.OPEN}, {HeatswitchPosition.CLOSE})'"
+        #                      f"' heat switch position")
+        #
+        # # NB: The same sensor on the HS checks for open/closed HS position. If there is a thermal touch (HS close) it
+        # #  will report a LOW voltage (GND) and if there are no touches (HS open) it will report a HIGH voltage (+5V)
+        # if pos[0] == 'o':
+        #     checkVal = 'h'
+        # elif pos[0] == 'c':
+        #     checkVal = 'l'
+        #
+        # try:
+        #     log.debug(f"Checking Heatswitch position is {pos}")
+        #     response = self.query(checkVal)
+        #     pos, _, desired = response.partition(" ")
+        #     if pos == desired:
+        #         return True
+        #     else:
+        #         return False
+        # except IOError as e:
+        #     log.error(f"Serial error: {e}")
+        #     raise e
+
     @property
     def firmware(self):
         """ Return the firmware string or raise IOError """

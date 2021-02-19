@@ -97,7 +97,12 @@ if __name__ == "__main__":
                 hspos = val.lower()
                 try:
                     currentduino.move_heat_switch(hspos)
-                    redis.store({HEATSWITCH_STATUS_KEY: hspos})
+                    time.sleep(2)
+                    # TODO: Wire this sensor up. Until it is properly wired, check_hs_pos() defaults to True
+                    if currentduino.check_hs_pos(hspos):
+                        redis.store({HEATSWITCH_STATUS_KEY: hspos})
+                    else:
+                        pass
                 except IOError as e:
                     log.info(f"Some error communicating with the arduino! {e}")
                 except ValueError as e:
