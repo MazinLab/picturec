@@ -1,5 +1,6 @@
 loggers:
   piccDirector:
+    werkzeug: warning
     piccDirector:
       handlers: [ default ]
       level: DEBUG
@@ -41,5 +42,5 @@ formatters:
   brieffmt:
     format: '%(message)s'
   default:
-    format: '%(asctime)s %(name):%(levelname)-8s %(message)s'
+    format: '%(asctime)s %(name)s:%(levelname)-8s %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'

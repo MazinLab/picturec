@@ -31,3 +31,4 @@ def setup_logging(name):
         config['loggers'] = loggers
 
     logging.config.dictConfig(config)
+    return logging.getLogger(name)
