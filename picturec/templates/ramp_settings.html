@@ -1,7 +1,77 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div>
-        Put together ramp settings.
-    </div>
+    <head>
+        <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    </head>
+
+    <script type="text/javascript">
+        $(function () {
+           $('a#opener').on('click', function(e) {
+               e.preventDefault();
+               $.ajax({
+                   url: '/open_hs',
+                   type: 'post',
+                   async: false,
+                   success: function(data) {
+                       $("#hs_report").text(data['msg'])
+                   },
+                   error: function() {
+
+                   }
+               });
+            });
+           $('a#closer').on('click', function(e) {
+               e.preventDefault();
+               $.ajax({
+                   url: '/close_hs',
+                   type: 'post',
+                   async: false,
+                   success: function(data) {
+                       $("#hs_report").text(data['msg'])
+                   },
+                   error: function() {
+
+                   }
+               });
+            });
+        });
+    </script>
+
+    <form action="{{ url_for('ramp_settings') }}" method="post">
+        {{ form.hidden_tag() }}
+        {% for field in form %}
+            {% if field.type == "SelectField" %}
+                <div style="padding: 10px">
+                    {{ field.label}}
+                    {{ field() }}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+                {% for field in form %}
+            {% if field.type == "StringField" %}
+                <div style="padding: 10px">
+                    {{ field.label}}
+                    {{ field() }}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        <div style="padding: 10px">
+            <div style="float:left"><a href="#" id="opener" style="float: left">{{ form.open_hs() }}</a></div>
+            <div style="float:left"><a href="#" id="closer" style="float: left">{{ form.open_hs() }}</a></div>
+            <div id="hs_report"></div>
+        </div>
+
+        <div style="padding: 10px">
+            {{ form.submit() }}
+            <a href="{{ url_for('ramp_settings') }}">Reset</a>
+        </div>
+
+        <div style="padding: 10px">
+            {{ messages }}
+        </div>
+    </form>
 {% endblock %}

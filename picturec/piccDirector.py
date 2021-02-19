@@ -11,6 +11,8 @@ import picturec.util as util
 from picturec.frontend.config import Config
 from picturec.pcredis import PCRedis
 from picturec.devices import COMMAND_DICT
+import picturec.currentduinoAgent as heatswitch
+
 
 app = flask.Flask(__name__)
 bootstrap = Bootstrap(app)
@@ -135,7 +137,26 @@ def hemts():
 @app.route('/ramp_settings', methods=['GET', 'POST'])
 def ramp_settings():
     form = RampConfigForm()
-    return render_template('ramp_settings.html', title='Ramp Settings', form=form)
+    if request.method == 'POST':
+        # TODO: There must be a different better way to do this (matching redis keys to field labels)
+        # TODO: Highlight 'changed' values
+        # TODO: Add 'notes' to the side of the string fields about what values are legal, check that they're legal!
+        # TODO: Block changes of specific values
+        keys = ['device-settings:sim960:ramp-rate',
+                'device-settings:sim960:soak-time',
+                'device-settings:sim960:soak-current']
+
+        desired_vals = form.data
+        current_vals = redis.read(keys)
+        for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
+            if v1 != v2:
+                print(f"Change {k1} from {v1} to {v2}")
+                # redis.publish(k1, v2)
+
+        return redirect(url_for('ramp_settings.html'))
+    else:
+        return render_template('ramp_settings.html', title='Ramp Settings', form=form)
+
 
 
 @app.route('/reporter', methods=['POST'])
@@ -192,6 +213,28 @@ def cancel_scheduled_cooldown():
     return jsonify(data)
 
 
+@app.route('/opener', methods=['POST'])
+def opener():
+    heatswitch.open()
+    time.sleep(2)
+    if heatswitch.is_opened():
+        data = {'msg': 'Successfully opened heatswitch'}
+    else:
+        data = {'msg': 'Heatswitch failed to open'}
+    return jsonify(data)
+
+
+@app.route('/closer', methods=['POST'])
+def closer():
+    heatswitch.close()
+    time.sleep(2)
+    if heatswitch.is_closed():
+        data = {'msg': 'Successfully closed heatswitch'}
+    else:
+        data = {'msg': 'Heatswitch failed to close'}
+    return jsonify(data)
+
+
 @app.route('/tempvals_n2', methods=['POST'])
 def tempvals_n2():
     temperature_key = 'status:temps:ln2tank'
@@ -243,6 +286,11 @@ class MainPageForm(FlaskForm):
 
 
 class RampConfigForm(FlaskForm):
+    open_hs = SubmitField('Open HS')
+    close_hs = SubmitField('Close HS')
+    ramp_rate = StringField('Ramp Rate (A/s)', default=redis.read('device-settings:sim960:ramp-rate', return_dict=False)[0])
+    soak_time = StringField('Soak Time (m)', default=str(float(redis.read('device-settings:sim960:soak-time', return_dict=False)[0])/60))
+    soak_current = StringField('Soak Current (A)', default=redis.read('device-settings:sim960:soak-current', return_dict=False)[0])
     submit = SubmitField('Update')
 
 
