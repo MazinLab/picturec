@@ -97,7 +97,7 @@ if __name__ == "__main__":
                 hspos = val.lower()
                 try:
                     currentduino.move_heat_switch(hspos)
-                    time.sleep(2)
+                    time.sleep(1)
                     # TODO: Wire this sensor up. Until it is properly wired, check_hs_pos() defaults to True
                     if currentduino.check_hs_pos(hspos):
                         redis.store({HEATSWITCH_STATUS_KEY: hspos})

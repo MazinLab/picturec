@@ -10,22 +10,23 @@
         $(function () {
            $('a#opener').on('click', function(e) {
                e.preventDefault();
+               console.log('opener clicked')
                $.ajax({
-                   url: '/open_hs',
+                   url: '/opener',
                    type: 'post',
                    async: false,
                    success: function(data) {
                        $("#hs_report").text(data['msg'])
                    },
                    error: function() {
-
+                       console.log('error in return?')
                    }
                });
             });
            $('a#closer').on('click', function(e) {
                e.preventDefault();
                $.ajax({
-                   url: '/close_hs',
+                   url: '/closer',
                    type: 'post',
                    async: false,
                    success: function(data) {
