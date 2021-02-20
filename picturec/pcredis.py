@@ -20,6 +20,7 @@ import logging
 # TODO: Make this part of the configuration
 REDIS_DB = 0
 
+
 class PCRedis(object):
     """
     The PCRedis class is the wrapper created for use in the PICTURE-C control software. A host, port, and database (db)

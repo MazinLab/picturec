@@ -1,14 +1,10 @@
 import os
 import argparse
 
+
 def stop_all():
-    os.system('sudo systemctl stop currentduino.service')
-    os.system('sudo systemctl stop hemtduino.service')
-    os.system('sudo systemctl stop quenchmon.service')
-    os.system('sudo systemctl stop picc.service')
-    os.system('sudo systemctl stop lakeshore240.service')
-    os.system('sudo systemctl stop sim960.service')
-    os.system('sudo systemctl stop sim921.service')
+    os.system('sudo systemctl stop currentduino.service hemtduino.service '
+              'lakeshore240.service quenchmon.service sim921.service sim960.service picc.service ')
 
 helpdesc=('Picture-C CLI')
 VERSION=0.1
