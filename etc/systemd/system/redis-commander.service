@@ -1,0 +1,11 @@
+[Unit]
+Description=Redis Commander
+After=redis.service
+
+[Service]
+#WorkingDirectory=/usr/lib/node_modules/redis-commander/bin/
+ExecStart=/usr/local/bin/redis-commander
+User=mazinlab
+
+[Install]
+WantedBy=multi-user.target
