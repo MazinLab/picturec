@@ -8,6 +8,7 @@ import numpy as np
 import time, datetime
 import json
 import plotly
+from logging import getLogger
 
 import picturec.util as util
 from picturec.frontend.config import Config
@@ -96,11 +97,9 @@ def sim960settings():
         for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
             if v1 != v2:
                 print(f"Change {k1} from {v1} to {v2}")
-                # redis.publish(k1, v2)
+                redis.publish(k1, v2)
 
-        return redirect(url_for('sim960settings'))
-    else:
-        return render_template('sim960settings.html', title='SIM960 Settings', form=form)
+    return render_template('sim960settings.html', title='SIM960 Settings', form=form)
 
 
 @app.route('/sim921settings', methods=['GET', 'POST'])
@@ -127,8 +126,8 @@ def sim921settings():
         current_vals = redis.read(keys)
         for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
             if v1 != v2:
-                print(f"Change {k1} from {v1} to {v2}")
-                # redis.publish(k1, v2)
+                getLogger(__name__).debug(f"Change {k1} from {v1} to {v2}")
+                redis.publish(k1, v2)
 
         return redirect(url_for('sim921settings'))
     else:
@@ -160,8 +159,8 @@ def ramp_settings():
                 v2 = float(v2) * 60
                 v1 = float(v1)
             if v1 != v2:
-                print(f"Change {k1} from {v1} to {v2}")
-                # redis.publish(k1, v2)
+                getLogger(__name__).debug(f"Change {k1} from {v1} to {v2}")
+                redis.publish(k1, v2)
 
         return redirect(url_for('ramp_settings'))
     else:
