@@ -44,8 +44,6 @@ redis.setup_redis(create_ts_keys=TS_KEYS)
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
-    # TODO: Add HS Position (and ability to toggle it)
-    # TODO: Cause magnet command buttons to actually trigger commands
     form = MainPageForm()
 
     init_lhe_d, init_lhe_l = sensor_plot('status:temps:lhetank', 'LHe Temp', 'old')
@@ -269,9 +267,7 @@ def cancel_scheduled_cooldown():
 
 @app.route('/opener', methods=['POST'])
 def opener():
-    print('opening hs!')
     heatswitch.open()
-    time.sleep(2)
     if heatswitch.is_opened():
         data = {'msg': 'Successfully opened heatswitch'}
     else:
@@ -281,9 +277,7 @@ def opener():
 
 @app.route('/closer', methods=['POST'])
 def closer():
-    print('closing hs!')
     heatswitch.close()
-    time.sleep(2)
     if heatswitch.is_closed():
         data = {'msg': 'Successfully closed heatswitch'}
     else:
