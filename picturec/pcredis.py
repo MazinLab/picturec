@@ -34,6 +34,7 @@ class PCRedis(object):
     def __init__(self, host='localhost', port=6379, db=REDIS_DB, create_ts_keys=tuple()):
         self.redis = _Redis(host, port, db, socket_keepalive=True)
         self.redis_ts = None
+        self.ts_keys = create_ts_keys
         self.create_ts_keys(create_ts_keys)
         self.ps = None  # Redis pubsub object. None until initialized, used for inter-program communication
 
