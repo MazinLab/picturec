@@ -60,7 +60,8 @@ class PCRedis(object):
     def store(self, data, timeseries=False):
         """
         Function for storing data in redis. This is a wrapper that allows us to store either type of redis key:value
-        pairs (timeseries or 'normal'). Any TS keys must have been previously created
+        pairs (timeseries or 'normal'). Any TS keys must have been previously created.
+        If not storing timeseries keys, the value is published to the channel with the name of the key.
         :param data: Dict or iterable of key value pairs.
         :param timeseries: Bool
         If True: uses redis_ts.add() and uses the automatic UNIX timestamp generation keyword (timestamp='*')
@@ -78,6 +79,7 @@ class PCRedis(object):
             for k, v in generator:
                 logging.getLogger(__name__).info(f"Setting {k} to {v}")
                 self.redis.set(k, v)
+                self.publish(k, v)
 
     def publish(self, channel, message, store=True):
         """
