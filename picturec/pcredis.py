@@ -79,7 +79,7 @@ class PCRedis(object):
             for k, v in generator:
                 logging.getLogger(__name__).info(f"Setting {k} to {v}")
                 self.redis.set(k, v)
-                self.publish(k, v)
+                self.publish(k, v, store=False)
 
     def publish(self, channel, message, store=True):
         """
