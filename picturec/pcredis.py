@@ -93,8 +93,10 @@ class PCRedis(object):
             self.store({channel: message})
         return self.redis.publish(channel, message)
 
-    def read(self, keys: (list, tuple, str), return_dict=True, error_missing=True):
+    def read(self, keys: (list, tuple, str), error_missing=True):
         """
+        TODO: autodetermine non- vs timeseries.
+        TODO: Update docstring
         Function for reading values from corresponding keys in the redis database.
         :param error_missing: raise an error if a key isn't in redis, else silently omit it. Forced true if not
          returning a dict.
@@ -108,15 +110,24 @@ class PCRedis(object):
         if isinstance(keys, str):
             keys = [keys]
 
-        vals = [self.redis.get(k) for k in keys]
-        missing = [k for k, v in zip(keys, vals) if v is None]
-        keys, vals = list(zip(*filter(lambda x: x[1] is not None, zip(keys, vals))))
+        if len(keys) > 1:
+            vals = [self.redis.get(k) for k in keys]
+            missing = [k for k, v in zip(keys, vals) if v is None]
+            keys, vals = list(zip(*filter(lambda x: x[1] is not None, zip(keys, vals))))
 
-        if (error_missing or not return_dict) and missing:
-            raise KeyError(f'Keys not in redis: {missing}')
+            if error_missing and missing:
+                raise KeyError(f'Keys not in redis: {missing}')
 
-        vals = list(map(lambda v: v.decode('utf-8'), vals))
-        return vals if not return_dict else dict(zip(keys, vals))
+            vals = list(map(lambda v: v.decode('utf-8'), vals))
+
+            return dict(zip(keys, vals))
+        else:
+            val = self.redis.get(keys[0])
+
+            if error_missing and not val:
+                raise KeyError(f'Key not in redis: {keys[0]}')
+
+            return val
 
     def _ps_subscribe(self, channels: list, ignore_sub_msg=False):
         """
