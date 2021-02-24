@@ -5,8 +5,6 @@ A wrapper class to conveniently use redis-py and redistimeseries with PICTURE-C.
 inter-program communication (using pubsub), information storage (of device settings), and data storage (thermometry,
 current, etc.).
 
-TODO: Remake PCRedis.publish into a function that can store to DB, publish using pubsub, or both
-
 TODO: Would it be convenient to have PCRedis.read be able to return just a single value?
 """
 
