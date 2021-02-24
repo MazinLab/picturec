@@ -32,6 +32,8 @@ class PCRedis(object):
     def __init__(self, host='localhost', port=6379, db=REDIS_DB, create_ts_keys=tuple()):
         self.redis = _Redis(host, port, db, socket_keepalive=True)
         self.redis_ts = None
+        if isinstance(create_ts_keys, str):
+            create_ts_keys = [create_ts_keys]
         self.ts_keys = create_ts_keys
         self.create_ts_keys(create_ts_keys)
         self.ps = None  # Redis pubsub object. None until initialized, used for inter-program communication
@@ -47,6 +49,9 @@ class PCRedis(object):
         :param keys: List of strings to create as redis timeseries keys. If the keys have been created it will be
         logged but no other action will be taken.
         """
+        if isinstance(keys,str):
+            keys = [keys]
+
         if self.redis_ts is None and keys:
             self._connect_ts()
         for k in keys:
@@ -102,6 +107,7 @@ class PCRedis(object):
         """
         if isinstance(keys, str):
             keys = [keys]
+
         vals = [self.redis.get(k) for k in keys]
         missing = [k for k, v in zip(keys, vals) if v is None]
         keys, vals = list(zip(*filter(lambda x: x[1] is not None, zip(keys, vals))))
