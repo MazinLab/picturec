@@ -93,17 +93,15 @@ class PCRedis(object):
 
     def read(self, keys: (list, tuple, str), error_missing=True):
         """
-        TODO: autodetermine non- vs timeseries.
-        TODO: Update docstring
         Function for reading values from corresponding keys in the redis database.
-        :param error_missing: raise an error if a key isn't in redis, else silently omit it. Forced true if not
-         returning a dict.
-        :param keys: List. If the key being searched for exists, will return the value, otherwise returns an empty string
+        :param error_missing: raise an error if a key isn't in redis, else silently omit it and return None
+        :param keys: List|str|tuple, the redis keys to search
         :param return_dict: Bool
-        If True returns a dict with matching key:value pairs
-        If False returns a list whose elements correspond to the input keys list. (Not recommended if you have more
-        than one key you are looking for the value of)
-        :return: Dict. {'key1':'value1', 'key2':'value2', ...}
+        :return: Dict | Str | Tuple | None
+        If multiple keys are queried, a dict is returned where dict = {'k1':'v1', 'k2':'v2', ... }
+        If a single timeseries key is queried, a tuple is returned where tuple = (UNIX timestamp in ms, val)
+        If a single non-timeseries key is queried, str = 'val'
+        If the key does not exist and error_missing=False, returns None
         """
         if isinstance(keys, str):
             keys = [keys]
