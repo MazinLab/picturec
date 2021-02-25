@@ -8,12 +8,6 @@ for the fridge monitor to store/determine that the amplifiers are working proper
 TODO: Add HEMT rack temperature reporting (after rack thermometers installed)
 
 TODO: Account for HEMT Power On/Off?
-
-TODO: STORE HEMT S/N Value? Maybe here, maybe static config location
-
-TODO: Currently (3 November 2020) this purely stores bias voltages. Drain-current-bias can be stored as a current using
- the conversion formula -> drain-current-bias = (0.1 V/mA) * drain-current
-                        -> drain-current = drain-current-bias / (0.1 V/mA)
 """
 import sys
 import numpy as np

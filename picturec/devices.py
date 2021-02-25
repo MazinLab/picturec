@@ -997,6 +997,15 @@ class Hemtduino(SerialDevice):
             confirm = resp[-1]
             if confirm == '?':
                 getLogger(__name__).debug("HEMT values successfully queried")
+                pvals = []
+                for i, voltage in enumerate(values):
+                    if not i % 3:
+                        pvals.append(2 * ((voltage * (5.0 / 1023.0)) - 2.5))
+                    if not (i+1) % 3:
+                        pvals.append(voltage * (5.0 / 1023.0))
+                    if not (i+2) % 3:
+                        pvals.append(voltage * (5.0 / 1023.0) / 0.1)
+
                 pvals = [v * (5.0 / 1023.0) if i % 3 else 2 * ((v * (5.0 / 1023.0)) - 2.5) for i, v in enumerate(values)]
                 return pvals
             else:
