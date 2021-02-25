@@ -34,6 +34,8 @@ class PCRedis(object):
             create_ts_keys = [create_ts_keys]
         self.ts_keys = create_ts_keys
         self.create_ts_keys(create_ts_keys)
+        if self.redis_ts:
+            self.range = self.redis_ts.range
         self.ps = None  # Redis pubsub object. None until initialized, used for inter-program communication
 
     def _connect_ts(self):
@@ -206,6 +208,7 @@ store = None
 read = None
 listen = None
 publish = None
+pcr_range = None  # This breaks the naming mold since range is already a python special function
 redis_ts = None
 
 
@@ -216,4 +219,5 @@ def setup_redis(host='localhost', port=6379, db=REDIS_DB, create_ts_keys=tuple()
     read = pcredis.read
     listen = pcredis.listen
     publish = pcredis.publish
+    pcr_range = pcredis.range
     redis_ts = pcredis.redis_ts
