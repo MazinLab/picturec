@@ -4,8 +4,6 @@ Author: Noah Swimmer 29 June 2020
 A wrapper class to conveniently use redis-py and redistimeseries with PICTURE-C. This includes but is not limited to
 inter-program communication (using pubsub), information storage (of device settings), and data storage (thermometry,
 current, etc.).
-
-TODO: Would it be convenient to have PCRedis.read be able to return just a single value?
 """
 
 from redis import Redis as _Redis
@@ -111,21 +109,43 @@ class PCRedis(object):
             keys = [keys]
 
         if len(keys) > 1:
-            vals = [self.redis.get(k) for k in keys]
+            vals = []
+
+            for k in keys:
+                if k in self.ts_keys:
+                    try:
+                        vals.append(self.redis_ts.get(k))
+                    except ResponseError:
+                        vals.append(None)
+                else:
+                    try:
+                        vals.append(self.redis.get(k).decode('utf-8'))
+                    except AttributeError:
+                        vals.append(None)
+
             missing = [k for k, v in zip(keys, vals) if v is None]
-            keys, vals = list(zip(*filter(lambda x: x[1] is not None, zip(keys, vals))))
 
             if error_missing and missing:
                 raise KeyError(f'Keys not in redis: {missing}')
 
-            vals = list(map(lambda v: v.decode('utf-8'), vals))
-
             return dict(zip(keys, vals))
         else:
-            val = self.redis.get(keys[0])
-
-            if error_missing and not val:
-                raise KeyError(f'Key not in redis: {keys[0]}')
+            if keys[0] in self.ts_keys:
+                try:
+                    val = self.redis_ts.get(keys[0])
+                except ResponseError:
+                    if error_missing:
+                        raise KeyError(f"Key not in redis: {keys[0]}")
+                    else:
+                        val = None
+            else:
+                try:
+                    val = self.redis.get(keys[0]).decode('utf-8')
+                except AttributeError:
+                    if error_missing:
+                        raise KeyError(f"Key not in redis: {keys[0]}")
+                    else:
+                        val = None
 
             return val
 
