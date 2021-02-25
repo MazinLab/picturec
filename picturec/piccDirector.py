@@ -188,7 +188,7 @@ def sensor_plot(key, title, typ):
             times = [datetime.datetime.fromtimestamp(val[0] / 1000).strftime("%H:%M:%S")]
             vals = [val[1]]
     elif typ == 'new':
-        val = redis.get(key)
+        val = redis.read(key)
         times = [datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S")]
         vals = [val[1]]
 
@@ -212,9 +212,9 @@ def reporter():
     id_keys = [f'status:feedline{i}:hemt:drain-current-bias' for i in [1, 2, 3, 4, 5]]
     vd_keys = [f'status:feedline{i}:hemt:drain-voltage-bias' for i in [1, 2, 3, 4, 5]]
 
-    vgs = np.array([redis.get(i) for i in vg_keys])
-    ids = np.array([redis.get(i) for i in id_keys])
-    vds = np.array([redis.get(i) for i in vd_keys])
+    vgs = np.array([redis.read(i) for i in vg_keys])
+    ids = np.array([redis.read(i) for i in id_keys])
+    vds = np.array([redis.read(i) for i in vd_keys])
     
     vgtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vgs[:, 0]])
     idtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ids[:, 0]])
