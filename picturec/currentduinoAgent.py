@@ -56,11 +56,11 @@ def open():
 
 
 def is_opened():
-    return redis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.OPEN
+    return redis.read(HEATSWITCH_STATUS_KEY) == HeatswitchPosition.OPEN
 
 
 def is_closed():
-    return redis.read(HEATSWITCH_STATUS_KEY, return_dict=False)[0] == HeatswitchPosition.CLOSE
+    return redis.read(HEATSWITCH_STATUS_KEY) == HeatswitchPosition.CLOSE
 
 
 
@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
     while True:
         try:
-            for key, val in redis.listen([HEATSWITCH_MOVE_KEY]):
+            for key, val in redis.listen(HEATSWITCH_MOVE_KEY):
                 hspos = val.lower()
                 try:
                     currentduino.move_heat_switch(hspos)
