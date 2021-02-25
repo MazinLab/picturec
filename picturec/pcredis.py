@@ -171,15 +171,17 @@ class PCRedis(object):
             logging.getLogger(__name__).warning(f"Cannot create and subscribe to redis pubsub. Check to make sure redis is running! {e}")
             raise e
 
-    def listen(self, channels):
+    def listen(self, channels:(list, tuple, str)):
         """
         Sets up a subscription for the iterable keys, yielding decoded messages as (k,v) strings.
         Passes up any redis errors that are raised
         """
         log = logging.getLogger(__name__)
+        if isinstance(channels, str):
+            channels = [channels]
         try:
             ps = self.redis.pubsub()
-            ps.subscribe(list(channels))
+            ps.subscribe(channels)
         except RedisError as e:
             log.debug(f"Redis error while subscribing to redis pubsub!! {e}")
             raise e
