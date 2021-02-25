@@ -111,8 +111,8 @@ def compute_initial_state(sim, statefile):
                     return initial_state
                 else:
                     initial_state = persisted_state
-                current = sim.setpoint()
-                if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0]):
+                current = sim.setpoint()  # TODO: Should this be manual current?
+                if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
                     initial_state = 'ramping'  # we can recover
 
                 # be sure the command is sent
@@ -375,10 +375,10 @@ class MagnetController(LockedMachine):
         """
         return an estimate of the time to cool from the current state
         """
-        soak_current = float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0])
-        soak_time = float(redis.read(SOAK_TIME_KEY, return_dict=False)[0])
-        ramp_rate = float(redis.read(RAMP_SLOPE_KEY, return_dict=False)[0])
-        deramp_rate = float(redis.read(DERAMP_SLOPE_KEY, return_dict=False)[0])
+        soak_current = float(redis.read(SOAK_CURRENT_KEY))
+        soak_time = float(redis.read(SOAK_TIME_KEY))
+        ramp_rate = float(redis.read(RAMP_SLOPE_KEY))
+        deramp_rate = float(redis.read(DERAMP_SLOPE_KEY))
         current_current = self.sim.setpoint()
         current_state = self.state # NB: If current_state is regulating time_to_cool will return 0 since it is already cool.
 
@@ -391,7 +391,6 @@ class MagnetController(LockedMachine):
             time_to_cool = (0 - soak_current) / deramp_rate
 
         return timedelta(seconds=time_to_cool)
-
 
     def schedule_cooldown(self, time):
         """time specifies the time by which to be cold"""
@@ -489,7 +488,7 @@ class MagnetController(LockedMachine):
         limit = self.sim.MAX_CURRENT_SLOPE
         interval = self.LOOP_INTERVAL
         try:
-            slope = abs(float(redis.read(RAMP_SLOPE_KEY, return_dict=False)[0]))
+            slope = abs(float(redis.read(RAMP_SLOPE_KEY)))
         except RedisError:
             getLogger(__name__).warning(f'Unable to pull {RAMP_SLOPE_KEY} using {limit}.')
             slope = limit
@@ -513,7 +512,7 @@ class MagnetController(LockedMachine):
         limit = self.sim.MAX_CURRENT_SLOPE
         interval = self.LOOP_INTERVAL # No need to do this faster than increment current.
         try:
-            slope = abs(float(redis.read(DERAMP_SLOPE_KEY, return_dict=False)[0]))
+            slope = abs(float(redis.read(DERAMP_SLOPE_KEY)))
         except RedisError:
             getLogger(__name__).warning(f'Unable to pull {DERAMP_SLOPE_KEY} using {limit}.')
             slope = limit
@@ -535,13 +534,13 @@ class MagnetController(LockedMachine):
 
     def soak_time_expired(self, event):
         try:
-            return (time.time() - self.state_entry_time['soaking']) >= float(redis.read(SOAK_TIME_KEY, return_dict=False)[0])
+            return (time.time() - self.state_entry_time['soaking']) >= float(redis.read(SOAK_TIME_KEY))
         except RedisError:
             return False
 
     def current_at_soak(self, event):
         try:
-            return self.sim.setpoint() >= float(redis.read(SOAK_CURRENT_KEY, return_dict=False)[0])
+            return self.sim.setpoint() >= float(redis.read(SOAK_CURRENT_KEY))
         except RedisError:
             return False
 
@@ -586,7 +585,7 @@ if __name__ == "__main__":
     redis.setup_redis(create_ts_keys=TS_KEYS)
 
     try:
-        statefile = redis.read(STATEFILE_PATH_KEY, return_dict=False, error_missing=True)[0]
+        statefile = redis.read(STATEFILE_PATH_KEY)
     except KeyError:
         statefile = pkg_resources.resource_filename('picturec', '../configuration/magnet.statefile')
         redis.store({STATEFILE_PATH_KEY: statefile})
