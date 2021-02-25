@@ -177,18 +177,18 @@ def sensor_plot(key, title, typ):
     """
 
     if typ == 'old':
-        ts = np.array(redis.redis_ts.range(key, '-', '+'))
+        ts = np.array(redis.range(key, '-', '+'))
         last_tval = time.time() # In seconds
         first_tval = last_tval - 1800  # Allow data from up to 30 minutes beforehand to be plotted (30 m = 1800 s)
         m = (ts[:,0]/1000 >= first_tval) & (ts[:, 0]/1000 <= last_tval)
         times = [datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ts[m][:,0]]
         vals = list(ts[m][:,1])
         if len(times) == 0:
-            val = redis.redis_ts.get(key)
+            val = redis.read(key)
             times = [datetime.datetime.fromtimestamp(val[0] / 1000).strftime("%H:%M:%S")]
             vals = [val[1]]
     elif typ == 'new':
-        val = redis.redis_ts.get(key)
+        val = redis.get(key)
         times = [datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S")]
         vals = [val[1]]
 
@@ -212,9 +212,9 @@ def reporter():
     id_keys = [f'status:feedline{i}:hemt:drain-current-bias' for i in [1, 2, 3, 4, 5]]
     vd_keys = [f'status:feedline{i}:hemt:drain-voltage-bias' for i in [1, 2, 3, 4, 5]]
 
-    vgs = np.array([redis.redis_ts.get(i) for i in vg_keys])
-    ids = np.array([redis.redis_ts.get(i) for i in id_keys])
-    vds = np.array([redis.redis_ts.get(i) for i in vd_keys])
+    vgs = np.array([redis.get(i) for i in vg_keys])
+    ids = np.array([redis.get(i) for i in id_keys])
+    vds = np.array([redis.get(i) for i in vd_keys])
     
     vgtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vgs[:, 0]])
     idtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ids[:, 0]])
@@ -285,7 +285,7 @@ def closer():
 
 
 def make_choices(key):
-    current_value = redis.read(key, return_dict=False)[0]
+    current_value = redis.read(key)
     rest = list(COMMAND_DICT[key]['vals'].keys())
     choice = [current_value]
     rest.remove(current_value)
@@ -304,9 +304,9 @@ class MainPageForm(FlaskForm):
 
 
 class RampConfigForm(FlaskForm):
-    ramp_rate = StringField('Ramp Rate (A/s)', default=redis.read('device-settings:sim960:ramp-rate', return_dict=False)[0])
-    soak_time = StringField('Soak Time (m)', default=str(float(redis.read('device-settings:sim960:soak-time', return_dict=False)[0])/60))
-    soak_current = StringField('Soak Current (A)', default=redis.read('device-settings:sim960:soak-current', return_dict=False)[0])
+    ramp_rate = StringField('Ramp Rate (A/s)', default=redis.read('device-settings:sim960:ramp-rate'))
+    soak_time = StringField('Soak Time (m)', default=str(float(redis.read('device-settings:sim960:soak-time'))/60))
+    soak_current = StringField('Soak Current (A)', default=redis.read('device-settings:sim960:soak-current'))
     open_hs = SubmitField('Open HS')
     close_hs = SubmitField('Close HS')
     submit = SubmitField('Update')
@@ -319,13 +319,13 @@ class Sim960SettingForm(FlaskForm):
     sim960_i_on = SelectField('PID: I Enabled', choices=make_choices('device-settings:sim960:pid-i:enabled'))
     sim960_d_on = SelectField('PID: D Enabled', choices=make_choices('device-settings:sim960:pid-d:enabled'))
 
-    sim960_p_value = StringField('PID: P Value', default=redis.read('device-settings:sim960:pid-p:value', return_dict=False)[0])
-    sim960_i_value = StringField('PID: I Value', default=redis.read('device-settings:sim960:pid-i:value', return_dict=False)[0])
-    sim960_d_value = StringField('PID: D Value', default=redis.read('device-settings:sim960:pid-d:value', return_dict=False)[0])
-    sim960_vout_min = StringField('Minimum Output Voltage', default=redis.read('device-settings:sim960:vout-min-limit', return_dict=False)[0])
-    sim960_vout_max = StringField('Maximum Output Voltage', default=redis.read('device-settings:sim960:vout-max-limit', return_dict=False)[0])
-    sim960_setpoint = StringField('Internal Setpoint (V)', default=redis.read('device-settings:sim960:vin-setpoint', return_dict=False)[0])
-    sim960_slew_rate = StringField('Setpoint Slew Rate (V/s)', default=redis.read('device-settings:sim960:vin-setpoint-slew-rate', return_dict=False)[0])
+    sim960_p_value = StringField('PID: P Value', default=redis.read('device-settings:sim960:pid-p:value'))
+    sim960_i_value = StringField('PID: I Value', default=redis.read('device-settings:sim960:pid-i:value'))
+    sim960_d_value = StringField('PID: D Value', default=redis.read('device-settings:sim960:pid-d:value'))
+    sim960_vout_min = StringField('Minimum Output Voltage', default=redis.read('device-settings:sim960:vout-min-limit'))
+    sim960_vout_max = StringField('Maximum Output Voltage', default=redis.read('device-settings:sim960:vout-max-limit'))
+    sim960_setpoint = StringField('Internal Setpoint (V)', default=redis.read('device-settings:sim960:vin-setpoint'))
+    sim960_slew_rate = StringField('Setpoint Slew Rate (V/s)', default=redis.read('device-settings:sim960:vin-setpoint-slew-rate'))
 
     submit = SubmitField('Update', [DataRequired()])
 
