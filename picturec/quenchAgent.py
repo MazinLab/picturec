@@ -4,14 +4,7 @@ Author: Noah Swimmer, 3 February 2021
 The goal of this program is to monitor for the potential signs of a quench in the PICTURE-C Magnet and, if found,
 to report the quench as fast as possible to shut of the magnet and prevent any damage to it.
 
-To run this in a testing capacity:
-a) Open ipython
-b) import numpy as np; import time; import picturec.pcredis as redis
-c) redis.setup_redis(host='127.0.0.1', port=6379, db=0, create_ts_keys=['status:highcurrentboard:current'])
-d) syntheticdata = np.load('/home/kids/simulatedlogs/synthetic_data.npz')
-e) cycle = syntheticdata['cycle']; quench = syntheticdata['quench']
-f) Run quench.py
-e) for i in cycle: redis.store({'status:highcurrentboard:current': i}, timeseries=True); time.sleep(.1)
+TODO: Complete testing with simulated data
 """
 
 import picturec.pcredis as redis
