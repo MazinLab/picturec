@@ -18,7 +18,7 @@ import time
 
 TS_KEYS = ['status:temps:mkidarray:temp', 'status:highcurrentboard:current',
            'status:temps:lhetank', 'status:temps:ln2tank']
-LOOP_INTERVAL = .25
+LOOP_INTERVAL = .1
 QUENCH_KEY = 'event:quenching'
 
 MAX_STARTUP_LAG_TIME_SECONDS = 600
