@@ -26,11 +26,9 @@ MAX_STARTUP_LAG_TIME_SECONDS = 600
 
 class QuenchMonitor:
     def __init__(self):
-        self.fit = None
-        self.fit_stddev = None
         self.timestream = self.initialize_data()
         self.di_dt = self.initialize_di_dt()
-        self.max_ramp_rate = float(redis.read('device-settings:sim960:deramp-rate'))
+        self.max_deramp_rate = float(redis.read('device-settings:sim960:deramp-rate'))
 
     def update(self):
         new_data = redis.read('status:highcurrentboard:current')
