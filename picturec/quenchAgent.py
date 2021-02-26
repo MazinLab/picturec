@@ -28,29 +28,50 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:highcurrentboard:current',
 LOOP_INTERVAL = .25
 QUENCH_KEY = 'event:quenching'
 
+MAX_STARTUP_LAG_TIME_SECONDS = 600
+
 
 class QuenchMonitor:
     def __init__(self):
         self.fit = None
         self.fit_stddev = None
+        self.timestream = self.initialize_data()
+        self.di_dt = self.initialize_di_dt()
+        self.max_ramp_rate = float(redis.read('device-settings:sim960:deramp-rate'))
 
-    @property
-    def data(self):
-        return np.array(redis.redis_ts.range('status:highcurrentboard:current', '-', '+')[-11:])
+    def update(self):
+        new_data = redis.read('status:highcurrentboard:current')
+        if new_data[0] == self.timestream[-1][0]:
+            pass
+        else:
+            self.di_dt.append((new_data[0], 1000 * (new_data[1] - self.timestream[-1][1])/(new_data[0] - self.timestream[-1][0])))
+            self.timestream.append(new_data)
 
-    def fit_data(self, data):
-        data = data[:-1]
-        reg_line = linregress(data[:, 0], data[:, 1])
-        p = np.poly1d([reg_line[0], reg_line[1]])
-        std_dev = np.std(data[:, 1] - p(data[:, 0]))
-        return p, std_dev
+    def initialize_data(self):
+        """
+        returns a 2 column array where column 0 is time (ms) and column 1 is current (A) up to the
+        last MAX_STARTUP_LAG_TIME_SECONDS. If there is no data in this time range, it will return an empty array
+        """
+        now = time.time() * 1000
+        first_time = MAX_STARTUP_LAG_TIME_SECONDS * 1000
+        return redis.pcr_range('status:highcurrentboard:current', int(now-first_time), int(now))
 
-    def check_quench_from_current(self):
-        data = self.data
-        getLogger(__name__).debug(data)
-        self.fit, self.fit_stddev = self.fit_data(data)
-        diff_from_expected = abs(data[-1][1] - self.fit(data[-1][0]))
-        return diff_from_expected > 3 * self.fit_stddev and not self.fit_stddev <= 1e-5
+    def initialize_di_dt(self):
+        """
+        returns a 2 column array where column 0 is time (ms) and column 1 is the current di/dt (A/s). The timestamps
+        will match those from initialize_data
+        """
+        tsl = len(self.timestream)
+        di_dt = []
+        if tsl > 1:
+            for i in range(len(self.timestream)-1):
+                di_dt.append((self.timestream[i+1][0],
+                              1000*((self.timestream[i+1][1] - self.timestream[i][1])/(self.timestream[i+1][0] - self.timestream[i][0]))))
+
+        return di_dt
+
+    def check_quench(self):
+        return self.di_dt[-1][1] <= -5 * self.max_ramp_rate
 
 
 if __name__ == "__main__":
@@ -66,7 +87,8 @@ if __name__ == "__main__":
 
     while True:
         try:
-            quench = q.check_quench_from_current()
+            q.update()
+            quench = q.check_quench()
 
             log.debug(f"Checked for quench - quench={quench}")
             if quench:
