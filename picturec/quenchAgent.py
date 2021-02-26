@@ -76,20 +76,27 @@ if __name__ == "__main__":
     log = getLogger('quenchAgent')
     log.debug('Starting quench monitoring')
 
+    steps_since_first_quench = 0
     while True:
         try:
             q.update()
             quench = q.check_quench()
 
             log.debug(f"Checked for quench - quench={quench}")
+
             if quench:
+                steps_since_first_quench += 1
                 if warning:
                     redis.publish(QUENCH_KEY, f'QUENCH:{time.time()}')
                     log.critical(f"Quench detected.")
                 else:
                     warning = True
             else:
-                warning = False
+                if steps_since_first_quench > 0:
+                    steps_since_first_quench += 1
+                if steps_since_first_quench > 10:
+                    warning = False
+                    steps_since_first_quench = 0
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
             break
