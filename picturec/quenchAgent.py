@@ -62,7 +62,7 @@ class QuenchMonitor:
         return di_dt
 
     def check_quench(self):
-        return self.di_dt[-1][1] <= -5 * self.max_ramp_rate
+        return self.di_dt[-1][1] <= 5 * self.max_deramp_rate
 
 
 if __name__ == "__main__":
