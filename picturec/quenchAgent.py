@@ -4,7 +4,7 @@ Author: Noah Swimmer, 3 February 2021
 The goal of this program is to monitor for the potential signs of a quench in the PICTURE-C Magnet and, if found,
 to report the quench as fast as possible to shut of the magnet and prevent any damage to it.
 
-TODO: Complete testing with simulated data
+TODO: Add smoothing into
 """
 
 import picturec.pcredis as redis
