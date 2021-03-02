@@ -339,11 +339,11 @@ class Sim921SettingForm(FlaskForm):
     sim921_output_mode = SelectField('Output Mode', choices=make_choices('device-settings:sim921:output-mode'))
     sim921_curve = SelectField('Calibration Curve', choices=make_choices('device-settings:sim921:curve-number'))
 
-    sim921_t_offset = StringField('Temperature Setpoint', default=redis.read('device-settings:sim921:temp-offset', return_dict=False)[0])
-    sim921_r_offset = StringField('Resistance Setpoint', default=redis.read('device-settings:sim921:resistance-offset', return_dict=False)[0])
-    sim921_t_slope = StringField('Temperature Slope (V/K) { Output = A * (T - Tsetpoint) }', default=redis.read('device-settings:sim921:temp-slope', return_dict=False)[0])
-    sim921_r_slope = StringField('Resistance Slope (V/Ohm) { Output = A * (R - Rsetpoint) }', default=redis.read('device-settings:sim921:resistance-slope', return_dict=False)[0])
-    sim921_vout = StringField('Output Voltage (V)', default=redis.read('device-settings:sim921:manual-vout', return_dict=False)[0])
+    sim921_t_offset = StringField('Temperature Setpoint', default=redis.read('device-settings:sim921:temp-offset'))
+    sim921_r_offset = StringField('Resistance Setpoint', default=redis.read('device-settings:sim921:resistance-offset'))
+    sim921_t_slope = StringField('Temperature Slope (V/K) { Output = A * (T - Tsetpoint) }', default=redis.read('device-settings:sim921:temp-slope'))
+    sim921_r_slope = StringField('Resistance Slope (V/Ohm) { Output = A * (R - Rsetpoint) }', default=redis.read('device-settings:sim921:resistance-slope'))
+    sim921_vout = StringField('Output Voltage (V)', default=redis.read('device-settings:sim921:manual-vout'))
 
     submit = SubmitField('Update', [DataRequired()])
 
