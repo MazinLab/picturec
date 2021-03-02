@@ -177,7 +177,7 @@ def sensor_plot(key, title, typ):
     """
 
     if typ == 'old':
-        ts = np.array(redis.range(key, '-', '+'))
+        ts = np.array(redis.pcr_range(key, '-', '+'))
         last_tval = time.time() # In seconds
         first_tval = last_tval - 1800  # Allow data from up to 30 minutes beforehand to be plotted (30 m = 1800 s)
         m = (ts[:,0]/1000 >= first_tval) & (ts[:, 0]/1000 <= last_tval)
