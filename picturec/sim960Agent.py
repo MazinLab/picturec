@@ -57,9 +57,11 @@ ABORT_CMD = 'command:abort-cooldown'#TODO
 CANCEL_COOLDOWN_CMD = 'command:cancel-scheduled-cooldown'
 QUENCH_KEY = 'event:quenching'#TODO
 
+
 DEVICE_TEMP_KEY = 'status:temps:mkidarray:temp'
-MAX_REGULATE_TEMP = .105  # This value should be HIGHER than the DESIRED regulate_temp. This is so that if there is
-# noise on the signal, it will not kill the loop.
+REGULATION_TEMP_KEY = "device-settings:mkidarray:regulating-temp"
+MAX_REGULATE_TEMP = 1.10 * float(redis.read(REGULATION_TEMP_KEY))  # This value should be HIGHER than
+# the DESIRED regulate_temp. This is so that if there is noise on the signal, it will not kill the loop.
 
 COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
 
@@ -603,11 +605,15 @@ if __name__ == "__main__":
                     try:
                         cmd = SimCommand(key, val)
                         controller.sim_command(cmd)
+                        redis.store({cmd.setting: cmd.value})
                     except (IOError, StateError):
                         pass
                     except ValueError:
                         getLogger(__name__).warning(f"Ignoring invalid command ('{key}={val}'): {e}")
                 # NB I'm disinclined to include forced state overrides but they would go here
+                elif key == REGULATION_TEMP_KEY:
+                    MAX_REGULATE_TEMP = 1.10 * float(val)
+                    redis.store({REGULATION_TEMP_KEY: val})
                 elif key == ABORT_CMD:
                     # abort any cooldown in progress, warm up, and turn things off
                     # e.g. last command before heading to bed
