@@ -50,6 +50,7 @@ MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SN_KEY = 'status:device:sim921:sn'
 
+COMMAND_KEYS = [f"command:{k}" for k in SETTING_KEYS + [REGULATION_TEMP_KEY]]
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ if __name__ == "__main__":
 
     while True:
         try:
-            for key, val in redis.listen([f"command:{k}" for k in SETTING_KEYS + [REGULATION_TEMP_KEY]]):
+            for key, val in redis.listen(COMMAND_KEYS):
                 log.debug(f"sim921agent received {key}, {val}. Trying to send a command.")
                 if key in SETTING_KEYS:
                     try:

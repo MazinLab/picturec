@@ -40,9 +40,11 @@ KEYS = ['device-settings:currentduino:highcurrentboard',
 
 STATUS_KEY = "status:device:currentduino:status"
 FIRMWARE_KEY = "status:device:currentduino:firmware"
-HEATSWITCH_STATUS_KEY = 'status:heatswitch'
-HEATSWITCH_MOVE_KEY = 'device-settings:currentduino:heatswitch'
+HEATSWITCH_STATUS_KEY = 'device-settings:currentduino:heatswitch'
+HEATSWITCH_MOVE_KEY = f'command:{HEATSWITCH_STATUS_KEY}'
 CURRENT_VALUE_KEY = 'status:highcurrentboard:current'
+
+COMMAND_KEYS = [HEATSWITCH_MOVE_KEY]
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ if __name__ == "__main__":
 
     while True:
         try:
-            for key, val in redis.listen(HEATSWITCH_MOVE_KEY):
+            for key, val in redis.listen(COMMAND_KEYS):
                 hspos = val.lower()
                 try:
                     currentduino.move_heat_switch(hspos)

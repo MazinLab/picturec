@@ -63,8 +63,9 @@ REGULATION_TEMP_KEY = "device-settings:mkidarray:regulating-temp"
 MAX_REGULATE_TEMP = 1.10 * float(redis.read(REGULATION_TEMP_KEY))  # This value should be HIGHER than
 # the DESIRED regulate_temp. This is so that if there is noise on the signal, it will not kill the loop.
 
-COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
+MAGNET_COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
 
+COMMAND_KEYS = [f"command:{k}" for k in SETTING_KEYS + MAGNET_COMMAND_KEYS + [QUENCH_KEY, REGULATION_TEMP_KEY]]
 
 log = logging.getLogger(__name__)
 
@@ -599,7 +600,7 @@ if __name__ == "__main__":
     # main loop, listen for commands and handle them
     try:
         while True:
-            for key, val in redis.listen([f"command:{k}" for k in SETTING_KEYS + COMMAND_KEYS + [QUENCH_KEY, REGULATION_TEMP_KEY]]):
+            for key, val in redis.listen(COMMAND_KEYS):
                 getLogger(__name__).debug(f"Redis listened to something! Key: {key} -- Val: {val}")
                 if key in SETTING_KEYS:
                     try:
