@@ -599,7 +599,7 @@ if __name__ == "__main__":
     # main loop, listen for commands and handle them
     try:
         while True:
-            for key, val in redis.listen(SETTING_KEYS + COMMAND_KEYS + (QUENCH_KEY,)):
+            for key, val in redis.listen([f"command:{k}" for k in SETTING_KEYS + COMMAND_KEYS + [QUENCH_KEY, REGULATION_TEMP_KEY]]):
                 getLogger(__name__).debug(f"Redis listened to something! Key: {key} -- Val: {val}")
                 if key in SETTING_KEYS:
                     try:

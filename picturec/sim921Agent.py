@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     while True:
         try:
-            for key, val in redis.listen(SETTING_KEYS):
+            for key, val in redis.listen([f"command:{k}" for k in SETTING_KEYS + [REGULATION_TEMP_KEY]]):
                 log.debug(f"sim921agent received {key}, {val}. Trying to send a command.")
                 try:
                     cmd = SimCommand(key, val)
