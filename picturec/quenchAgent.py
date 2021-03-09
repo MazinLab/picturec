@@ -87,7 +87,7 @@ if __name__ == "__main__":
             if quench:
                 steps_since_first_quench += 1
                 if warning:
-                    redis.publish(QUENCH_KEY, f'QUENCH:{time.time()}')
+                    redis.publish(QUENCH_KEY, f'QUENCH:{time.time()}', store=False)
                     log.critical(f"Quench detected.")
                 else:
                     warning = True

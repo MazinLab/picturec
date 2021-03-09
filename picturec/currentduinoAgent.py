@@ -45,11 +45,11 @@ log = logging.getLogger(__name__)
 
 
 def close():
-    redis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.CLOSE)
+    redis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.CLOSE, store=False)
 
 
 def open():
-    redis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.OPEN)
+    redis.publish(HEATSWITCH_MOVE_KEY, HeatswitchPosition.OPEN, store=False)
 
 
 def is_opened():
