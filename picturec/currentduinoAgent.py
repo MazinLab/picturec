@@ -30,13 +30,8 @@ QUERY_INTERVAL = .1
 
 DEVICE = '/dev/currentduino'
 
-KEYS = ['device-settings:currentduino:highcurrentboard',
-        'device-settings:currentduino:heatswitch',
-        'status:magnet:current',
-        'status:heatswitch',
-        'status:highcurrentboard:powered',
+KEYS = ['device-settings:currentduino:heatswitch',
         'status:highcurrentboard:current']
-
 
 STATUS_KEY = "status:device:currentduino:status"
 FIRMWARE_KEY = "status:device:currentduino:firmware"

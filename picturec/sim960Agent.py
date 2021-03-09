@@ -33,6 +33,8 @@ SOAK_TIME_KEY = 'device-settings:sim960:soak-time'  # 1800 s (30 m)
 SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'  # 9.4 A
 STATEFILE_PATH_KEY = 'device-settings:sim960:statefile'  # /picturec/picturec/logs/statefile.txt
 
+RAMP_CONFIG_KEYS = (RAMP_SLOPE_KEY, DERAMP_SLOPE_KEY, SOAK_TIME_KEY, SOAK_CURRENT_KEY)
+
 SETTING_KEYS = tuple(COMMANDS960.keys())
 
 OUTPUT_VOLTAGE_KEY = 'status:device:sim960:hcfet-control-voltage'  # Set by 'MOUT' in manual mode, monitored by 'OMON?' always
@@ -45,18 +47,16 @@ MODEL_KEY = 'status:device:sim960:model'
 FIRMWARE_KEY = 'status:device:sim960:firmware'
 SN_KEY = 'status:device:sim960:sn'
 
-
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY, MAGNET_STATE_KEY]
 
 # TODO: Should be at most 1 (in production mode)
 QUERY_INTERVAL = 10
 
-COLD_AT_CMD = 'command:be-cold-at'#TODO
-COLD_NOW_CMD = 'command:get-cold'#TODO
-ABORT_CMD = 'command:abort-cooldown'#TODO
-CANCEL_COOLDOWN_CMD = 'command:cancel-scheduled-cooldown'
-QUENCH_KEY = 'event:quenching'#TODO
-
+COLD_AT_CMD = 'be-cold-at'
+COLD_NOW_CMD = 'get-cold'
+ABORT_CMD = 'abort-cooldown'
+CANCEL_COOLDOWN_CMD = 'cancel-scheduled-cooldown'
+QUENCH_KEY = 'event:quenching'
 
 DEVICE_TEMP_KEY = 'status:temps:mkidarray:temp'
 REGULATION_TEMP_KEY = "device-settings:mkidarray:regulating-temp"
@@ -65,7 +65,7 @@ MAX_REGULATE_TEMP = 1.10 * float(redis.read(REGULATION_TEMP_KEY))  # This value 
 
 MAGNET_COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
 
-COMMAND_KEYS = [f"command:{k}" for k in SETTING_KEYS + MAGNET_COMMAND_KEYS + [QUENCH_KEY, REGULATION_TEMP_KEY]]
+COMMAND_KEYS = [f"command:{k}" for k in SETTING_KEYS + MAGNET_COMMAND_KEYS + RAMP_CONFIG_KEYS + (QUENCH_KEY, REGULATION_TEMP_KEY)]
 
 log = logging.getLogger(__name__)
 
@@ -602,6 +602,7 @@ if __name__ == "__main__":
         while True:
             for key, val in redis.listen(COMMAND_KEYS):
                 getLogger(__name__).debug(f"Redis listened to something! Key: {key} -- Val: {val}")
+                key = key.removeprefix('command:')
                 if key in SETTING_KEYS:
                     try:
                         cmd = SimCommand(key, val)
@@ -612,6 +613,16 @@ if __name__ == "__main__":
                     except ValueError:
                         getLogger(__name__).warning(f"Ignoring invalid command ('{key}={val}'): {e}")
                 # NB I'm disinclined to include forced state overrides but they would go here
+                elif key in RAMP_CONFIG_KEYS:
+                    allowed = False
+                    if ((key in [RAMP_SLOPE_KEY, DERAMP_SLOPE_KEY]) and (abs(val) <= controller.sim.MAX_CURRENT_SLOPE)):
+                        allowed = True
+                    if (key == SOAK_CURRENT_KEY) and (abs(val) <= controller.sim.MAX_CURRENT):
+                        allowed = True
+                    if key == SOAK_TIME_KEY:
+                        allowed = True
+                    if allowed:
+                        redis.store({key: val})
                 elif key == REGULATION_TEMP_KEY:
                     MAX_REGULATE_TEMP = 1.10 * float(val)
                     redis.store({REGULATION_TEMP_KEY: val})

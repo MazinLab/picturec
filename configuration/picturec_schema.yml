@@ -1,54 +1,40 @@
-settings:
+status:
   device:
     hemtduino:
-      hemts-enabled: False
-    currentduino:
-      highcurrentboard: 'off'
-      heatswitch: 'close'
+      firmware: '0.1'
+      status: 'OK'
     ls240:
-      lhe-profile: 'linear'
-      ln2-profile: 'linear'
+      firmware: 'x.x'
+      status: 'OK'
+      model: '240-2P'
+      sn: 'xxxxxxx'
+    currentduino:
+      firmware: '0.2'
+      status: 'OK'
     sim921:
-      resistance-range: 20e3
-      excitation-value: 100e-6
-      excitation-mode: 'voltage'
-      time-constant: 3
-      temp-offset: 100e-3
-      temp-slope: 1e-2
-      resistance-offset: 19400.5
-      resistance-slope: 1e-5
-      curve-profile: 'linear'
-      curve-channel: 1
-      manual-vout: 0
-      output-mode: 'manual'
+      firmware: 'x.x'
+      status: 'OFF'
+      model: 'SIM921'
+      sn: 'xxxxxx'
+      sim960-vout: 0.00000
     sim960:
-      mode: 'manual' # To be removed?
-      vout-value: 0 # To be removed?
-      vout-min-limit: -0.1
-      vout-max-limit: 10
-      pid-polarity: 'negative' # Not a key anymore ('Uncommandable'), BUT needs confirmation
-      pid-p:
-        value: 1.6e1
-        enabled: True
-      pid-i:
-        value: 0.2
-        enabled: True
-      pid-d:
-        value: 0
-        enabled: False
-      vin-setpoint-mode: 'internal'
-      vin-setpoint: 0
-      vin-setpoint-slew-rate: 1e-3
-      vin-setpoint-slew-enable: True
-  instrument:
-    magnet:
-      ramp-rate: 0.005 # A/s (5 mA/s)
-      deramp-rate: -0.005 # A/s
-      soak-time: 1800 # seconds (30 min)
-      soak-current: 9.4 # A
-    statefile: './statefile.txt'
-
-status:
+      firmware: 'x.x'
+      status: 'OFF'
+      model: 'SIM960'
+      sn: 'xxxxxx'
+      hcfet-control-voltage: 0.00000
+      vout: 0.00000
+      current-setpoint: 0.00000
+  magnet:
+    state: 'OFF'
+  temps:
+    lhetank: 4.2
+    ln2tank: 77.0
+    mkidarray:
+      temp: 0.100
+      resistance: 19400.46
+  highcurrentboard:
+    current: 0.00
   feedline1:
     hemt:
       powered: False
@@ -84,46 +70,90 @@ status:
       drain-voltage-bias: 0
       drain-current-bias: 0
       gate-voltage-bias: 0
-  temps:
-    lhetank:
-      temp: 4.2
-    ln2tank:
-      temp: 77.0
-    mkidarray:
-      temp: 0.100
-      resistance: 19400.5
-  device:
-    hemtduino:
-      firmware: '0.1'
-      status: 'OK'
+
+device-settings:
+  currentduino:
+    heatswitch: close
+  mkidarray:
+    regulating-temp: 0.100
+  sim921:
+    resistance-range: 20e3
+    excitation-value: 100e-6
+    excitation-mode: 'voltage'
+    time-constant: 3
+    temp-offset: 100e-3
+    temp-slope: 1e-2
+    resistance-offset: 19400.5
+    resistance-slope: 1e-5
+    curve-number: 1
+    manual-vout: 0
+    output-mode: 'manual'
+  sim960:
+    vout-min-limit: -0.1
+    vout-max-limit: 10
+    vin-setpoint-mode: 'internal'
+    vin-setpoint: 0
+    vin-setpoint-slew-rate: 1e-3
+    vin-setpoint-slew-enable: True
+    pid-p:
+      value: 1.6e1
+      enabled: True
+      pid-i:
+        value: 0.2
+        enabled: True
+      pid-d:
+        value: 0
+        enabled: False
+    ramp-rate: 0.005
+    deramp-rate: -0.005
+    soak-time: 1800
+    soak-current: 9.4
+    statefile: '/pictrec/picturec/logs/statefile.txt'
+
+command:
+  be-cold-at: 0000000000
+  get-cold: 'now'
+  abort-cooldown: 'abort'
+  cancel-scheduled-cooldown: 'cancel'
+  event:
+    quenching: False
+  device-settings:
     currentduino:
-      firmware: '0.2'
-      status: 'OK'
-    ls240:
-      firmware: 'x.x'
-      status: 'OFF'
-      model: '240-2P'
-      sn: 'xxxxxxx'
+      heatswitch: close
+    mkidarray:
+      regulating-temp: 0.100
     sim921:
-      firmware: 'x.x'
-      status: 'OFF'
-      model: 'SIM921'
-      sn: 'xxxxxx'
-      sim960-vout: 0
+      resistance-range: 20e3
+      excitation-value: 100e-6
+      excitation-mode: 'voltage'
+      time-constant: 3
+      temp-offset: 100e-3
+      temp-slope: 1e-2
+      resistance-offset: 19400.5
+      resistance-slope: 1e-5
+      curve-number: 1
+      manual-vout: 0
+      output-mode: 'manual'
     sim960:
-      firmware: 'x.x'
-      status: 'OFF'
-      model: 'SIM960'
-      sn: 'xxxxxx'
-      hcfet-control-voltage: 0
-      vout: 0.
-  magnet:
-    current: 0
-    state: 'OFF'
-  heatswitch: 'close'
-  highcurrentboard:
-    powered: 'OFF'
-    current: 0
+      vout-min-limit: -0.1
+      vout-max-limit: 10
+      vin-setpoint-mode: 'internal'
+      vin-setpoint: 0
+      vin-setpoint-slew-rate: 1e-3
+      vin-setpoint-slew-enable: True
+      pid-p:
+        value: 1.6e1
+        enabled: True
+        pid-i:
+          value: 0.2
+          enabled: True
+        pid-d:
+          value: 0
+          enabled: False
+      ramp-rate: 0.005
+      deramp-rate: -0.005
+      soak-time: 1800
+      soak-current: 9.4
 
 site:
   observatory: 'Las Campanas Observatory'
@@ -139,13 +169,3 @@ tcs:
   target-name: 'Vega'
   starttime: 0000000000
   duration: 0
-
-overseer:
-  status:
-    hemttempAgent: 'OFF'
-    currentduinoAgent: 'OFF'
-    lakeshoreAgent: 'OFF'
-    sim921Agent: 'OFF'
-    sim960Agent: 'OFF'
-    fridgeManager: 'OFF'
-    obsController: 'OFF'

@@ -15,24 +15,14 @@ import sys
 import time
 from picturec.pcredis import RedisError
 import picturec.util as util
-from picturec.devices import SIM921, SimCommand, SIM921OutputMode
+from picturec.devices import SIM921, SimCommand, SIM921OutputMode, COMMANDS921
 import picturec.pcredis as redis
 
 
 DEVICE = '/dev/sim921'
 QUERY_INTERVAL = 1
 
-SETTING_KEYS = ['device-settings:sim921:output-mode',
-                'device-settings:sim921:manual-vout',
-                'device-settings:sim921:curve-number',
-                'device-settings:sim921:resistance-slope',
-                'device-settings:sim921:resistance-range',
-                'device-settings:sim921:resistance-offset',
-                'device-settings:sim921:temp-slope',
-                'device-settings:sim921:temp-offset',
-                'device-settings:sim921:excitation-value',
-                'device-settings:sim921:excitation-mode',
-                'device-settings:sim921:time-constant']
+SETTING_KEYS = tuple(COMMANDS921.keys())
 
 
 TEMP_KEY = 'status:temps:mkidarray:temp'
@@ -45,6 +35,9 @@ CALIBRATION_CURVE_KEY = 'device-settings:sim921:curve-number'
 TEMP_SEPOINT_KEY = 'device-settings:sim921:temp-offset'
 RES_SETPOINT_KEY = 'device-settings:sim921:resistance-offset'
 
+OUTPUT_MODE_KEY = 'device-settings:sim921:output-mode'
+OUTPUT_MODE_COMMAND_KEY = f"command:{OUTPUT_MODE_KEY}"
+
 STATUS_KEY = 'status:device:sim921:status'
 MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
@@ -56,19 +49,19 @@ log = logging.getLogger(__name__)
 
 
 def to_scaled_output():
-    redis.publish('device-settings:sim921:output-mode', SIM921OutputMode.SCALED, store=False)
+    redis.publish(OUTPUT_MODE_COMMAND_KEY, SIM921OutputMode.SCALED, store=False)
 
 
 def to_manual_output():
-    redis.publish('device-settings:sim921:output-mode', SIM921OutputMode.MANUAL, store=False)
+    redis.publish(OUTPUT_MODE_COMMAND_KEY, SIM921OutputMode.MANUAL, store=False)
 
 
 def in_scaled_output():
-    return redis.read('device-settings:sim921:output-mode') == SIM921OutputMode.SCALED
+    return redis.read(OUTPUT_MODE_KEY) == SIM921OutputMode.SCALED
 
 
 def in_manual_output():
-    return redis.read('device-settings:sim921:output-mode') == SIM921OutputMode.MANUAL
+    return redis.read(OUTPUT_MODE_KEY) == SIM921OutputMode.MANUAL
 
 
 def firmware_pull(sim):
@@ -126,6 +119,7 @@ if __name__ == "__main__":
         try:
             for key, val in redis.listen(COMMAND_KEYS):
                 log.debug(f"sim921agent received {key}, {val}. Trying to send a command.")
+                key = key.removeprefix('command:')
                 if key in SETTING_KEYS:
                     try:
                         cmd = SimCommand(key, val)
