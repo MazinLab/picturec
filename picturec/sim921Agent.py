@@ -40,16 +40,18 @@ RES_KEY = 'status:temps:mkidarray:resistance'
 OUTPUT_VOLTAGE_KEY = 'status:device:sim921:sim960-vout'
 TS_KEYS = [TEMP_KEY, RES_KEY, OUTPUT_VOLTAGE_KEY]
 
+REGULATION_TEMP_KEY = "device-settings:mkidarray:regulating-temp"
+CALIBRATION_CURVE_KEY = 'device-settings:sim921:curve-number'
+TEMP_SEPOINT_KEY = 'device-settings:sim921:temp-offset'
+RES_SETPOINT_KEY = 'device-settings:sim921:resistance-offset'
 
 STATUS_KEY = 'status:device:sim921:status'
 MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SN_KEY = 'status:device:sim921:sn'
 
+
 log = logging.getLogger(__name__)
-
-
-
 
 
 def to_scaled_output():
@@ -61,13 +63,11 @@ def to_manual_output():
 
 
 def in_scaled_output():
-    return redis.read('device-settings:sim921:output-mode',
-                                 return_dict=False)[0] == SIM921OutputMode.SCALED
+    return redis.read('device-settings:sim921:output-mode') == SIM921OutputMode.SCALED
 
 
 def in_manual_output():
-    return redis.read('device-settings:sim921:output-mode',
-                                 return_dict=False)[0] == SIM921OutputMode.MANUAL
+    return redis.read('device-settings:sim921:output-mode') == SIM921OutputMode.MANUAL
 
 
 def firmware_pull(sim):
@@ -125,19 +125,36 @@ if __name__ == "__main__":
         try:
             for key, val in redis.listen([f"command:{k}" for k in SETTING_KEYS + [REGULATION_TEMP_KEY]]):
                 log.debug(f"sim921agent received {key}, {val}. Trying to send a command.")
-                try:
-                    cmd = SimCommand(key, val)
-                except ValueError as e:
-                    log.warning(f"Ignoring invalid command ('{key}={val}'): {e}")
-                    continue
-                try:
-                    log.info(f"Processing command '{cmd}'")
-                    sim.send(cmd.sim_string)
-                    redis.store({cmd.setting: cmd.value})
-                    redis.store({STATUS_KEY: "OK"})
-                except IOError as e:
-                    redis.store({STATUS_KEY: f"Error {e}"})  # todo jb: didnt we decide that we could just write the error to the schema key?
-                    log.error(f"Comm error: {e}")
+                if key in SETTING_KEYS:
+                    try:
+                        cmd = SimCommand(key, val)
+                    except ValueError as e:
+                        log.warning(f"Ignoring invalid command ('{key}={val}'): {e}")
+                        continue
+                    try:
+                        log.info(f"Processing command '{cmd}'")
+                        sim.send(cmd.sim_string)
+                        redis.store({cmd.setting: cmd.value})
+                        redis.store({STATUS_KEY: "OK"})
+                    except IOError as e:
+                        redis.store({STATUS_KEY: f"Error {e}"})
+                        log.error(f"Comm error: {e}")
+                elif key == REGULATION_TEMP_KEY:
+                    temp = float(val)
+                    curve = int(redis.read(CALIBRATION_CURVE_KEY))
+                    res = sim.convert_temperature_to_resistance(temp, curve)
+
+                    t_cmd = SimCommand(TEMP_SEPOINT_KEY, temp)
+                    r_cmd = SimCommand(RES_SETPOINT_KEY, res)
+                    try:
+                        sim.send(t_cmd.sim_string)
+                        redis.store({t_cmd.setting: t_cmd.value})
+                        sim.send(r_cmd.sim_string)
+                        redis.store({r_cmd.setting: r_cmd.value})
+                        redis.store({STATUS_KEY: "OK"})
+                    except IOError as e:
+                        redis.store({STATUS_KEY: f"Error {e}"})
+                        log.error(f"Comm error: {e}")
 
         except RedisError as e:
             log.critical(f"Redis server error! {e}")

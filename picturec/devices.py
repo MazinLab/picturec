@@ -744,6 +744,37 @@ class SIM921(SimDevice):
     def temp_and_resistance(self):
         return {'temperature': self.temp, 'resistance': self.resistance}
 
+    def convert_temperature_to_resistance(self, temperature:float, curve:int):
+        if curve not in (1, 2, 3):
+            log.error(f"SIM921 does not have a valid curve loaded. "
+                      f"There is no calibrated matching resistance value to {temperature}")
+            return 0
+
+        if curve == 1:
+            import pkg_resources as pkg
+            file = pkg.resource_filename('hardware.thermometry.RX-102A', 'RX-102A_Mean_Curve.tbl')
+        else:
+            log.error(f"Curve {curve} has not been implemented yet. No matching resistance value to {temperature}")
+            return 0
+
+        try:
+            curve_data = np.loadtxt(file)
+            temp_data = np.flip(curve_data[:, 0], axis=0)
+            res_data = np.flip(curve_data[:, 1], axis=0)
+        except OSError:
+            log.error(f"Could not find curve data file.")
+            raise ValueError(f"{file} couldn't be loaded.")
+        except IndexError:
+            raise ValueError(f"{file} couldn't be loaded.")
+
+        if temperature in temp_data:
+            log.info(f"{temperature} K is a regulatable temperature.")
+            m = temperature == temp_data
+            return float(res_data[m])
+        else:
+            log.warning(f"{temperature} K is not a regulatable temperature.")
+            return 0
+
     def _load_calibration_curve(self, curve_num: int, curve_type, curve_name: str, file:str=None):
         """
         This is an engineering function for the SIM921 device. In normal operation of the fridge, the user should never
