@@ -948,6 +948,8 @@ class Currentduino(SerialDevice):
                     current = self.last_current
                 except IOError as e:
                     log.error(f"Unable to poll for current: {e}")
+                except ValueError as e:
+                    log.error(f"Invalid value was read from arduino: {e}")
 
                 if value_callback is not None and current is not None:
                     try:

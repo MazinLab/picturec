@@ -116,6 +116,9 @@ class LakeShore240(picturec.devices.SerialDevice):
             except IOError as e:
                 log.error(f"Serial Error: {e}")
                 raise IOError(f"Serial Error: {e}")
+            except ValueError as e:
+                log.error(f"Parsing error: {e}")
+                raise ValueError(f"Parsing error: {e}")
         temps = {tanks[i]: readings[i] for i in range(len(self.enabled_channels))}
         return temps
 
@@ -155,7 +158,7 @@ if __name__ == "__main__":
             temps = lakeshore.read_temperatures()
             redis.store({'status:temps:ln2tank': temps['ln2'],
                          'status:temps:lhetank': temps['lhe']}, timeseries=True)
-        except IOError as e:
+        except (IOError, ValueError) as e:
             log.error(f"Communication with LakeShore 240 failed: {e}")
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
