@@ -555,7 +555,7 @@ class MagnetController(LockedMachine):
 
     def device_regulatable(self, event):
         try:
-            return float(redis.redis_ts.get(DEVICE_TEMP_KEY)[1]) <= MAX_REGULATE_TEMP
+            return float(redis.read(DEVICE_TEMP_KEY)) <= MAX_REGULATE_TEMP
         except RedisError:
             return False
 
