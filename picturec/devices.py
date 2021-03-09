@@ -552,7 +552,7 @@ class MagnetState(enum.Enum):
 
 class SIM960(SimDevice):
 
-    MAX_CURRENT_SLOPE = .005  # 5 mA/s
+    MAX_CURRENT_SLOPE = .01  # 10 mA/s
     MAX_CURRENT = 10.0
     OFF_SLOPE = 0.5
 
@@ -615,9 +615,10 @@ class SIM960(SimDevice):
     def _out_volt_2_current(volt:float, inverse=False):
         """
         Converts a sim960 output voltage to the expected current.
-        TODO: require volt param to be float
         :param volt:
         :param inverse:
+        If true -> enter a current, return the voltage needed for it
+        If false -> enter a voltage, return the current it will produce
         :return:
         """
         if inverse:
