@@ -297,7 +297,7 @@ class MagnetController(LockedMachine):
         current_settings = {}
         if blocked_init:
             if init_blocked:
-                # TODO: Error below?
+                # TODO: Error below? (11 March 2020: Not sure what error we want here, N.S.)
                 for_logging = "\n\t".join(blocked_init)
                 log.warning(f'Initializing \n\t{for_logging}\n despite being blocked by current state.')
             else:
