@@ -7,12 +7,7 @@ for circuit drawing). Will log values to redis, will also act as a safeguard to 
 control that the current is operating out of normal bounds.
 NOTE: Redis/redistimeseries MUST be set up for the currentduino to work.
 
-TODO: Add ability to compare current value from high current board ('status:highcurrentboard:current') to that
- of the magnet ('status:magnet:current') from the SIM960 - NOTE: This feels like higher level management
-
 TODO: Test the heat switch touch signals to have an open/closed monitor (in lab)
-TODO: Also measure magnet-current-to-currentduino-measurement conversion (does the currentduino report the same thing we
- measure with an ammeter?)
 """
 
 import sys
@@ -92,7 +87,6 @@ if __name__ == "__main__":
                 try:
                     currentduino.move_heat_switch(hspos)
                     time.sleep(1)
-                    # TODO: Wire this sensor up. Until it is properly wired, check_hs_pos() defaults to True
                     if currentduino.check_hs_pos(hspos):
                         redis.store({HEATSWITCH_STATUS_KEY: hspos})
                     else:
