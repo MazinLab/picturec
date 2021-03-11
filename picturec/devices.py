@@ -685,7 +685,6 @@ class SIM921(SimDevice):
             raise IOError(msg)
 
         # Make sure that the excitation is turned on. If not successful we can't use the device
-        # TODO: This can be like the vin-setpoint-slew-enable for the SIM960
         self.send("EXON 1", connect=False)
         exon = self.query("EXON?", connect=False)
         if exon != '1':
@@ -694,7 +693,6 @@ class SIM921(SimDevice):
             raise IOError(msg)
 
     def temp(self):
-        # TODO: Make this (and resistance) more amenable to the SimCommand.sim_query_string property?
         temp = self.query("TVAL?")
         self.last_temp_read = temp
         return temp
@@ -826,9 +824,6 @@ class Currentduino(SerialDevice):
         response = self.query('?', connect=True)
         try:
             value = float(response.split(' ')[0])
-            # TODO: The value of the current measured here assumes that there is no error (i.e. it's what an ammeter
-            #  would read). Measure the values read out compared to an ammeter to make sure this is true or account for
-            #  it if not
             voltage = (value * (5.0 / 1023.0) * ((self.R1 + self.R2) / self.R2))
             if voltage > 0:
                 current = ((2.84386909 * value) + 0.0724939)
@@ -977,11 +972,6 @@ class Hemtduino(SerialDevice):
     @property
     def firmware(self):
         """ Return the firmware string or raise IOError """
-        #TODO JB There is a lot of common code between firmware, idn, and the mains.
-        # Things could be simplified and made more reliable by better encapsulating this
-        #  NS: ^Agreed. Firmware/idn properties are split into 2 groups, arduinos (hemttempAgent+currentduinoAgent just
-        #  use firmware) and non-Arduinos (sim921,sim960,lakeshore have idns).
-        #  Probably could make both agent superclass properties
         try:
             getLogger(__name__).debug(f"Querying currentduino firmware")
             response = self.query("v", connect=True)
