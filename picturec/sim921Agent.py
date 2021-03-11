@@ -5,10 +5,6 @@ Program for communicating with and controlling the SIM921 AC resistance bridge. 
 is monitoring the temperature of the thermometer on the MKID device stage in the PICTURE-C cryostat. It is also
 responsible for properly conditioning its output signal so that the SIM960 (PID Controller) can properly regulate
 the device temperature.
-
-TODO JB: Add value caching? (self.output_mode = 'manual', self.curve_number = 1)
-
-TODO NS: Add 'resetting' to last stable state to SIM960
 """
 import logging
 import sys
