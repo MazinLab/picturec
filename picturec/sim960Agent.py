@@ -233,7 +233,6 @@ class MagnetController(LockedMachine):
         # will not be called
 
         # Kick off a thread to run forever and just log data into redis
-        # TODO bundling these into a sim960.monitor_values if necessary to simplify redundant serial comm.
         sim.monitor(QUERY_INTERVAL, (sim.input_voltage, sim.output_voltage, sim.setpoint),
                     value_callback=monitor_callback)
 
@@ -573,8 +572,8 @@ class MagnetController(LockedMachine):
             self.sim.send(cmd.sim_string)
 
     def record_entry(self, event):
-        # TODO: Also record state to redis
         self.state_entry_time[self.state] = time.time()
+        redis.store({MAGNET_STATE_KEY: self.state})
         write_persisted_state(self.statefile, self.state)
 
 
