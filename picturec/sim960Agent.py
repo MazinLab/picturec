@@ -114,9 +114,8 @@ def compute_initial_state(sim, statefile):
                     return initial_state
                 else:
                     initial_state = persisted_state
-                # TODO: Checking that redis is soaking needs to incorporate that 
-                current = sim.setpoint()
-                if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
+                current = sim.manual_current()
+                if initial_state == 'soaking' and (current >= 0.98 * float(redis.read(SOAK_CURRENT_KEY))) and (current <= 1.02 * float(redis.read(SOAK_CURRENT_KEY))):
                     initial_state = 'ramping'  # we can recover
 
                 # be sure the command is sent
