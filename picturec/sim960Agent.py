@@ -1,8 +1,5 @@
 """
-Author: Noah Swimmer, 21 July 2020
-TODO: Measure output voltage-to-current conversion
-
-TODO: Catch quench
+Author: Noah Swimmer, Jeb Bailey, 21 July 2020
 """
 import logging
 import sys
