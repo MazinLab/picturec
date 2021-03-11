@@ -46,8 +46,7 @@ SN_KEY = 'status:device:sim960:sn'
 
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY, MAGNET_STATE_KEY]
 
-# TODO: Should be at most 1 (in production mode)
-QUERY_INTERVAL = 10
+QUERY_INTERVAL = 1
 
 COLD_AT_CMD = 'be-cold-at'
 COLD_NOW_CMD = 'get-cold'
