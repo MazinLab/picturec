@@ -860,9 +860,14 @@ class Currentduino(SerialDevice):
             # TODO: The value of the current measured here assumes that there is no error (i.e. it's what an ammeter
             #  would read). Measure the values read out compared to an ammeter to make sure this is true or account for
             #  it if not
-            current = (value * (5.0 / 1023.0) * ((self.R1 + self.R2) / self.R2))
+            voltage = (value * (5.0 / 1023.0) * ((self.R1 + self.R2) / self.R2))
+            if voltage > 0:
+                current = ((2.84386909 * value) + 0.0724939)
+            else:
+                current = 0
         except ValueError:
             raise ValueError(f"Could not parse '{response}' into a float")
+        log.info(f"Current value is {current} A")
         return current
 
     def _postconnect(self):
