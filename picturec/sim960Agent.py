@@ -102,7 +102,7 @@ def monitor_callback(iv, ov, oc):
 
 
 def compute_initial_state(sim, statefile):
-    initial_state = 'deramping'  #always safe to start here
+    initial_state = 'deramping'  # always safe to start here
     try:
         if sim.initialized_at_last_connect:
             mag_state = sim.mode
