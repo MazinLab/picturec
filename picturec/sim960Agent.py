@@ -244,7 +244,6 @@ class MagnetController(LockedMachine):
         self._mainthread = None
 
         # TODO: When to initialize locked machine?
-        # initial = self.compute_initial_state()
         initial = compute_initial_state(self.sim, self.statefile)
         self.state_entry_time = {initial: time.time()}
         LockedMachine.__init__(self, transitions=transitions, initial=initial, states=states, machine_context=self.lock,
