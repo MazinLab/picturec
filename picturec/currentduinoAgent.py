@@ -100,7 +100,8 @@ if __name__ == "__main__":
                 except IOError as e:
                     log.info(f"Some error communicating with the arduino! {e}")
                 except ValueError as e:
-                    log.info(f"An invalid value was sent to the arduino. Please check to make sure your program is sending valid heatswitch positions.")
+                    log.info(f"An invalid value was sent to the arduino. "
+                             f"Please check to make sure your program is sending valid heatswitch positions.")
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
             break
