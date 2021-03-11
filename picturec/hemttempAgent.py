@@ -6,8 +6,6 @@ of the cryogenic HEMT amplifiers in the PITCURE-C cryostat. Will log the values 
 for the fridge monitor to store/determine that the amplifiers are working properly.
 
 TODO: Add HEMT rack temperature reporting (after rack thermometers installed)
-
-TODO: Account for HEMT Power On/Off?
 """
 import sys
 import numpy as np
