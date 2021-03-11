@@ -140,7 +140,7 @@ def compute_initial_state(sim, statefile):
 
 class MagnetController(LockedMachine):
     LOOP_INTERVAL = 1
-    BLOCKS = defaultdict(set)  # TODO This holds the sim960 commands that are blocked out in a given state i.e.
+    BLOCKS = defaultdict(set)  # This holds the sim960 commands that are blocked out in a given state i.e.
                                #  'regulating':('device-settings:sim960:setpoint-mode',)
 
     def __init__(self, statefile='./magnetstate.txt'):
