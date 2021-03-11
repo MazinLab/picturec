@@ -13,7 +13,6 @@ Again, the calibration process can be done manually using the LakeShore GUI if s
 HARDWARE NOTE: Ch1 -> LN2, Ch2 -> LHe
 
 See manual in hardware/thermometry/LakeShore240_temperatureMonitor_manual.pdf
-TODO: More Docstrings
 """
 
 import sys
