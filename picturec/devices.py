@@ -636,8 +636,9 @@ class SIM960(SimDevice):
         return the manual current setpoint. Queries the manual output voltage and converts that to the expected current.
         'MOUT?' query returns the value of the user-specified output voltage. This will only be the output voltage in manual mode (not PID).
 
-        0.003 volts are added to the manual_voltage_setpoint because the
-        output_voltage (OMON?) is always ~3mV greater than the desired value (MOUT)
+        0.003 volts are added to the manual_voltage_setpoint because the output_voltage (OMON?) is always ~3mV greater
+        than the desired value (MOUT). Since it is not EXACTLY 3mV, setpoint and manual_current may return slightly
+        different values.
         """
         manual_voltage_setpoint = float(self.query("MOUT?")) + 0.003
         return self._out_volt_2_current(manual_voltage_setpoint)
