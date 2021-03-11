@@ -75,40 +75,8 @@ responses960 = {b'*IDN?\n': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17
                 b'OMON?\n': b"+00.000000\r\n",  # needs a function to generate plausible vals
                 b'MOUT?\n': b"+00.000000\r\n"}  # needs a function to generate plausible vals
 SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': responses960}
-#NB: The responses should be a list of sent strings and their exact responses eg 'foo\n':'barr\r' or sent strings
-# and a callable that given the sent string returns the response string 'foo\n':barr('foo\n') -> 'barr\r'
-responses921 = {'*IDN?': b'Stanford_Research_Systems,SIM921,s/n006241,ver3.6\r\n',
-                'TVAL?': b"+3.426272E-01\r\n",  # needs a function to generate plausible vals
-                'RVAL?': b"+5.003490E+03\r\n",  # needs a function to generate plausible vals
-                'CURV?': b"1\r\n",
-                'RANG?': b"6\r\n",
-                'EXON?': b"1\r\n",
-                'EXCI?': b"3\r\n",
-                'MODE?': b"2\r\n",
-                'TCON?': b"2\r\n",
-                'TSET?': b"+9.999999E-02\r\n",
-                'RSET?': b"+1.940050E+04\r\n",
-                'VKEL?': b"1.000000E-02\r\n",
-                'VOHM?': b"9.999998E-06\r\n",
-                'AMAN?': b"1\r\n",
-                'AOUT?': b"0.00000\r\n",
-                'ATEM?': b"0\r\n"}
-responses_ls240 = {'*IDN?': b"LSCI,MODEL240-2P,LSA2359,1.9\r\n",
-                   'INTYPE? 1': b"1,0,0,0,1,1\r\n",
-                   'INTYPE? 2': b"1,0,0,0,1,1\r\n",
-                   'KRDG? 1': b"+0292.19\r\n",  # needs a function to generate plausible vals
-                   'KRDG? 2': b"+0293.00\r\n",  # needs a function to generate plausible vals
-                   'INNAME? 1': b"LN2            \r\n",
-                   'INNAME? 2': b"LHE            \r\n"}
-responses_currentduino = {'v': b" 0.20 v\r\n",
-                          '?': b" 374 ?\r\n",  # needs a function to generate plausible vals
-                          'o': b" o\r\n",
-                          'c': b" c\r\n"}
-responses_hemtduino = {'v': b" 0.10 v\r\n",
-                       '?': b" 364 355 379 364 351 349 351 350 348 342 362 353 368 362 353 ?\r\n"}  # needs a function to generate plausible vals
 
 class SimulatedSerial:
-    # TODO: Write a more general function to update SIM values than just the 3 currently specified
     def __init__(self, *args, **kwargs):
         self._lastwrite=''
 
