@@ -243,7 +243,6 @@ class MagnetController(LockedMachine):
         self._run = False  # Set to false to kill the main loop
         self._mainthread = None
 
-        # TODO: When to initialize locked machine?
         initial = compute_initial_state(self.sim, self.statefile)
         self.state_entry_time = {initial: time.time()}
         LockedMachine.__init__(self, transitions=transitions, initial=initial, states=states, machine_context=self.lock,
