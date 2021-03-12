@@ -825,8 +825,8 @@ class Currentduino(SerialDevice):
         try:
             value = float(response.split(' ')[0])
             voltage = (value * (5.0 / 1023.0) * ((self.R1 + self.R2) / self.R2))
-            if voltage > 0:
-                current = ((2.84386909 * value) + 0.0724939)
+            if value > 0:
+                current = ((2.81569917 * voltage) + 0.07241487)
             else:
                 current = 0
         except ValueError:
