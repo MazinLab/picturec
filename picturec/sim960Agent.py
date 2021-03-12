@@ -553,8 +553,6 @@ if __name__ == "__main__":
         statefile = pkg_resources.resource_filename('picturec', '../configuration/magnet.statefile')
         redis.store({STATEFILE_PATH_KEY: statefile})
 
-    enable_simulator()
-
     controller = MagnetController(statefile=statefile)
 
     # main loop, listen for commands and handle them
