@@ -312,40 +312,6 @@ class MagnetController(LockedMachine):
         except RedisError:
             log.warning('Storing device settings to redis failed')
 
-    def compute_initial_state(self):
-        initial_state = 'deramping'  #always safe to start here
-        try:
-            if self.sim.initialized_at_last_connect:
-                mag_state = self.sim.mode
-                if mag_state == MagnetState.PID:
-                    initial_state = 'regulating'  # NB if HS in wrong position (closed) device won't stay cold and we'll transition to deramping
-                else:
-                    initial_state = load_persisted_state(self.statefile)
-                    current = self.sim.setpoint()
-                    if initial_state == 'soaking' and current != float(redis.read(SOAK_CURRENT_KEY)):
-                        initial_state = 'ramping'  # we can recover
-
-                    # be sure the command is sent
-                    if initial_state in ('hs_closing',):
-                        heatswitch.close()
-
-                    if initial_state in ('hs_opening',):
-                        heatswitch.open()
-
-                    # failure cases
-                    if ((initial_state in ('ramping', 'soaking') and heatswitch.is_opened()) or
-                            (initial_state in ('cooling',) and heatswitch.is_closed()) or
-                            (initial_state in ('off', 'regulating'))):
-                        initial_state = 'deramping'  # deramp to off, we are out of sync with the hardware
-
-        except IOError:
-            getLogger(__name__).critical('Lost sim960 connection during agent startup. defaulting to deramping')
-            initial_state = 'deramping'
-        except RedisError:
-            getLogger(__name__).critical('Lost redis connection during compute_initial_state startup.')
-            raise
-        return initial_state
-
     def start_main(self):
         self._run = True  # Set to false to kill the m
         self._mainthread = threading.Thread(target=self._main)
