@@ -2,7 +2,7 @@ import flask
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
 from flask import request, redirect, url_for, render_template, jsonify
-from wtforms import SelectField, SubmitField, StringField
+from wtforms import SelectField, SubmitField, StringField, widgets
 from wtforms.validators import DataRequired
 import numpy as np
 import time, datetime
@@ -30,7 +30,8 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
            'status:feedline5:hemt:drain-voltage-bias', 'status:feedline1:hemt:drain-current-bias',
            'status:feedline2:hemt:drain-current-bias', 'status:feedline3:hemt:drain-current-bias',
            'status:feedline4:hemt:drain-current-bias', 'status:feedline5:hemt:drain-current-bias',
-           'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current']
+           'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current',
+           'status:device:sim960:current-setpoint']
 
 
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
@@ -50,11 +51,13 @@ def index():
     init_lhe_d, init_lhe_l = sensor_plot('status:temps:lhetank', 'LHe Temp', 'old')
     init_ln2_d, init_ln2_l = sensor_plot('status:temps:ln2tank', 'LN2 Temp', 'old')
     init_devt_d, init_devt_l = sensor_plot('status:temps:mkidarray:temp', 'Device Temp', 'old')
-    init_magc_d, init_magc_l = sensor_plot('status:highcurrentboard:current', 'Magnet Current', 'old')
+    init_magc_d, init_magc_l = sensor_plot('status:highcurrentboard:current', 'Measured Current', 'old')
+    init_smagc_d, init_smagc_l = sensor_plot('status:device:sim960:current-setpoint', 'Desired Current', 'old')
 
     return render_template('index.html', form=form, init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l,
                            init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
-                           init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l)
+                           init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l,
+                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l)
 
 
 @app.route('/dashboard', methods=['GET'])
@@ -215,7 +218,7 @@ def reporter():
     vgs = np.array([redis.read(i) for i in vg_keys])
     ids = np.array([redis.read(i) for i in id_keys])
     vds = np.array([redis.read(i) for i in vd_keys])
-    
+
     vgtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vgs[:, 0]])
     idtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ids[:, 0]])
     vdtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vds[:, 0]])
