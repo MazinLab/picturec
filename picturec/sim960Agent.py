@@ -56,7 +56,7 @@ QUENCH_KEY = 'event:quenching'
 
 DEVICE_TEMP_KEY = 'status:temps:mkidarray:temp'
 REGULATION_TEMP_KEY = "device-settings:mkidarray:regulating-temp"
-MAX_REGULATE_TEMP = 1.10 * float(redis.read(REGULATION_TEMP_KEY))  # This value should be HIGHER than
+# MAX_REGULATE_TEMP = 1.10 * float(redis.read(REGULATION_TEMP_KEY))  # This value should be HIGHER than
 # the DESIRED regulate_temp. This is so that if there is noise on the signal, it will not kill the loop.
 
 MAGNET_COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
@@ -545,6 +545,7 @@ if __name__ == "__main__":
 
     util.setup_logging('sim960Agent')
     redis.setup_redis(create_ts_keys=TS_KEYS)
+    MAX_REGULATE_TEMP = 1.10 * float(redis.read(REGULATION_TEMP_KEY))
 
     try:
         statefile = redis.read(STATEFILE_PATH_KEY)
