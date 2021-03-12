@@ -416,7 +416,7 @@ class MagnetController(LockedMachine):
 
     def current_off(self, event):
         try:
-            return self.sim.mode == MagnetState.MANUAL and self.sim.setpoint() == 0
+            return self.sim.mode == MagnetState.MANUAL and self.sim.setpoint() <= 0.001
         except IOError:
             return False
 
