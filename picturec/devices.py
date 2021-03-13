@@ -590,9 +590,9 @@ class SIM960(SimDevice):
         :return:
         """
         if inverse:
-            return (volt - 0.00246465) / 1.80740712
+            return (volt + 0.01878498) / 1.90601255
         else:
-            return (1.80740712 * volt) + 0.00246465
+            return (1.90601255 * volt) - 0.01878498
 
     def setpoint(self):
         """ return the current that is currently commanded by the sim960 """
@@ -604,11 +604,11 @@ class SIM960(SimDevice):
         return the manual current setpoint. Queries the manual output voltage and converts that to the expected current.
         'MOUT?' query returns the value of the user-specified output voltage. This will only be the output voltage in manual mode (not PID).
 
-        0.003 volts are added to the manual_voltage_setpoint because the output_voltage (OMON?) is always ~3mV greater
-        than the desired value (MOUT). Since it is not EXACTLY 3mV, setpoint and manual_current may return slightly
+        0.004 volts are added to the manual_voltage_setpoint because the output_voltage (OMON?) is always ~4mV greater
+        than the desired value (MOUT). Since it is not EXACTLY 4mV, setpoint and manual_current may return slightly
         different values.
         """
-        manual_voltage_setpoint = float(self.query("MOUT?")) + 0.003
+        manual_voltage_setpoint = float(self.query("MOUT?")) + 0.004
         return self._out_volt_2_current(manual_voltage_setpoint)
 
     @manual_current.setter
@@ -616,8 +616,8 @@ class SIM960(SimDevice):
         """
         will clip to the range 0,MAX_CURRENT and enforces a maximum absolute current derivative
 
-        0.003 is subtracted from the desired voltage to be commanded because when setting MOUT, the actual output
-        voltage (OMON) is always ~3mV greater than specified (MOUT)
+        0.004 is subtracted from the desired voltage to be commanded because when setting MOUT, the actual output
+        voltage (OMON) is always ~4mV greater than specified (MOUT)
         """
         if not self._initialized:
             raise ValueError('Sim is not initialized')
@@ -626,7 +626,7 @@ class SIM960(SimDevice):
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.003:.3f}')  # Response, there's mV accuracy, so at least 3 decimal places
+        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.004:.3f}')  # Response, there's mV accuracy, so at least 3 decimal places
         self._last_manual_change = time.time()
 
     def kill_current(self):
