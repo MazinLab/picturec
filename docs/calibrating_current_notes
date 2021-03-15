@@ -1,0 +1,54 @@
+To calibrate the current output, there are a number of conversions it is necessary to measure.
+They are:
+a) real current - to - arduino measurement
+b) sim 960 output - to - real current
+
+There is also a 3rd value it is important to note:
+c) sim 960 desired output to sim960 measured output
+
+Measuring these values requires an ammeter, the high current board in its current status, and the currentduino all
+powered up and with their agents running. Instead of running the current through the magnet (DO NOT DO THIS WHEN
+CALIBRATING!), you can run it with the magnet cable attached to the ammeter at its free end.
+
+To do this, there is a plug identical to that on the fridge which has leads to an ammeter soldered to it.
+
+Once you have the ammeter attached to read out the true current, you are ready to take measurements.
+
+These measurements can all be taken at once. You need to check that the PICTURE-C software is storing:
+1) Value measured from the currentduino (nominally the voltage from HCBoost board Isns pin before calibration)
+2) The monitored output from the SIM960 (called the output voltage / monitored by a serial query of "OMON?")
+2b) The desired output from the SIM960 (called the manual output voltage, monitored by serial query "MOUT?", set by command "MOUT {value}")
+
+The value which redis does not store that must be recorded:
+3) The measured current from the Ammeter (if there is a way to communicate with the ammeter and have its data stored
+without manually recording, that is ideal.)
+
+With these values recorded, you can now calibrate the values you need to successfully set and measure the current output
+from the HC Boost board.
+
+First, and most importantly, you must find the conversion between the actual current and the measured value by the
+arduino. (Reference: read_current() function under Currentduino class in devices.py).
+You want to use the VOLTAGE that the currentduino measured and compare that to the current values that were measured by
+the ammeter. You can fit a line (numpy.polyfit(measured voltage, measured current, order=1) works well for this) to the
+data, and then use those values to convert voltage to current (in the read_current() function).
+
+Once this has been measured, the ammeter is no longer necessary (although you have the data needed to get all conversion
+factors now regardless).
+
+Now, you can do the same fitting procedure to find the conversion between the output voltage (item 2) and the measured
+current. This time, you will update the _out_volt_2_current() function in SIM960 class in devices.py. After fitting a
+line to the Control Voltage - to - Measured Current data, you must update this function with the fit values. As noted in
+its docstring, the 'inverse==True' is the reverse of this function, if you fit I = (a * V) + b, then the inverse function
+is V = (I - b) / a.
+
+Finally, you must account for the fact that there is nominally a difference between the output value that you request
+(the so-called SIM960.manual current) and what is actually output (SIM960.output_voltage). This remains roughly constant
+(the controllable precision is less than the level this difference varies at). For this reason, a correciton must be
+applied when reporting and setting the manual current (SIM960.manual_current propert and its setter). If output voltage
+is higher than desired output voltage, you must subtract that difference when SETTING the manual output voltage and add
+it when GETTING/REPORTING the property's value (and vise versa if it is lower).
+
+
+
+A last note: If something changes in the system (components on the HCBoost board are changed, current-limiting resistors
+are changed, etc.) these values need to be re-calibrated.
