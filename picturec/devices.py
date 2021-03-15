@@ -624,6 +624,7 @@ class SIM960(SimDevice):
         x = min(max(x, 0), self.MAX_CURRENT)
         delta = abs((self.setpoint() - x)/(time.time()-self._last_manual_change))
         if delta > self.MAX_CURRENT_SLOPE:
+            # TODO: Handle this error so it doesn't break any agents
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
         self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.004:.3f}')  # Response, there's mV accuracy, so at least 3 decimal places
