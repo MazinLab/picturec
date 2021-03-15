@@ -590,9 +590,9 @@ class SIM960(SimDevice):
         :return:
         """
         if inverse:
-            return (volt + 0.01878498) / 1.90601255
+            return (volt + 0.02533929) / 3.24911498
         else:
-            return (1.90601255 * volt) - 0.01878498
+            return (3.24911498 * volt) - 0.02533929
 
     def setpoint(self):
         """ return the current that is currently commanded by the sim960 """
