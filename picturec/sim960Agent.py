@@ -322,6 +322,7 @@ class MagnetController(LockedMachine):
         while self._run:
             try:
                 self.next()
+                getLogger(__name__).debug(f"Magnet state is: {self.state}")
             except IOError:
                 getLogger(__name__).info(exc_info=True)
             except MachineError:
