@@ -46,8 +46,6 @@ MODEL_KEY = 'status:device:sim960:model'
 FIRMWARE_KEY = 'status:device:sim960:firmware'
 SN_KEY = 'status:device:sim960:sn'
 
-TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY, MAGNET_STATE_KEY]
-
 COLD_AT_CMD = 'be-cold-at'
 COLD_NOW_CMD = 'get-cold'
 ABORT_CMD = 'abort-cooldown'
@@ -62,6 +60,7 @@ REGULATION_TEMP_KEY = "device-settings:mkidarray:regulating-temp"
 MAGNET_COMMAND_KEYS = (COLD_AT_CMD, COLD_NOW_CMD, ABORT_CMD, CANCEL_COOLDOWN_CMD)
 
 COMMAND_KEYS = [f"command:{k}" for k in SETTING_KEYS + MAGNET_COMMAND_KEYS + (QUENCH_KEY, REGULATION_TEMP_KEY)]
+TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY, MAGNET_STATE_KEY, DEVICE_TEMP_KEY]
 
 log = logging.getLogger(__name__)
 
@@ -515,7 +514,7 @@ class MagnetController(LockedMachine):
 
     def device_regulatable(self, event):
         try:
-            return float(redis.read(DEVICE_TEMP_KEY)) <= MAX_REGULATE_TEMP
+            return float(redis.read(DEVICE_TEMP_KEY)[1]) <= MAX_REGULATE_TEMP
         except RedisError:
             return False
 
