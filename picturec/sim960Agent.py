@@ -110,7 +110,7 @@ def compute_initial_state(sim, statefile):
                     return initial_state
                 else:
                     initial_state = persisted_state
-                current = sim.manual_current()
+                current = sim.manual_current
                 if initial_state == 'soaking' and (current >= 0.98 * float(redis.read(SOAK_CURRENT_KEY))) and (current <= 1.02 * float(redis.read(SOAK_CURRENT_KEY))):
                     initial_state = 'ramping'  # we can recover
 
