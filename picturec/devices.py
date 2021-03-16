@@ -633,8 +633,8 @@ class SIM960(SimDevice):
     def kill_current(self):
         """Immediately kill the current"""
         self.mode=MagnetState.MANUAL
-        self.send("MOUT 0.000")
-        self.manual_current = 0
+        self.send(f'MOUT {self._out_volt_2_current(0, inverse=True) - 0.004:.3f}')
+
 
     @property
     def mode(self):
