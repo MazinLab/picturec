@@ -590,10 +590,7 @@ class SIM960(SimDevice):
         :return:
         """
         if inverse:
-            if volt:
-                return 0
-            else:
-                return (volt - 0.00869474) / 1.30007052
+            return (volt - 0.00869474) / 1.30007052
         else:
             return 1.30007052 * volt + 0.00869474
 
