@@ -806,8 +806,8 @@ class HeatswitchPosition:
 
 class Currentduino(SerialDevice):
     VALID_FIRMWARES = (0.0, 0.1, 0.2)
-    R1 = 11760  # Values for R1 resistor in magnet current measuring voltage divider
-    R2 = 11710  # Values for R2 resistor in magnet current measuring voltage divider
+    R1 = 99300
+    R2 = 99100
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='currentduino')
@@ -827,7 +827,7 @@ class Currentduino(SerialDevice):
             value = float(response.split(' ')[0])
             voltage = (value * (5.0 / 1023.0) * ((self.R1 + self.R2) / self.R2))
             if value > 0:
-                current = ((2.81569917 * voltage) + 0.07241487)
+                current = ((3.20902337 * voltage) + 0.07257491)
             else:
                 current = 0
         except ValueError:
