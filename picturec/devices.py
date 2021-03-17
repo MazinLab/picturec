@@ -590,9 +590,9 @@ class SIM960(SimDevice):
         :return:
         """
         if inverse:
-            return (volt + 0.02533929) / 3.24911498
+            return (volt + 0.00340468) / 1.06757087
         else:
-            return (3.24911498 * volt) - 0.02533929
+            return 1.06757087 * volt - 0.00340468
 
     def setpoint(self):
         """ return the current that is currently commanded by the sim960 """
@@ -608,7 +608,7 @@ class SIM960(SimDevice):
         than the desired value (MOUT). Since it is not EXACTLY 4mV, setpoint and manual_current may return slightly
         different values.
         """
-        manual_voltage_setpoint = float(self.query("MOUT?")) + 0.004
+        manual_voltage_setpoint = float(self.query("MOUT?")) + 0.003
         return self._out_volt_2_current(manual_voltage_setpoint)
 
     @manual_current.setter
@@ -626,13 +626,13 @@ class SIM960(SimDevice):
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.004:.3f}')  # Response, there's mV accuracy, so at least 3 decimal places
+        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.003:.3f}')  # Response, there's mV accuracy, so at least 3 decimal places
         self._last_manual_change = time.time()
 
     def kill_current(self):
         """Immediately kill the current"""
         self.mode=MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(0, inverse=True) - 0.004:.3f}')
+        self.send(f'MOUT {self._out_volt_2_current(0, inverse=True) - 0.003:.3f}')
 
 
     @property
@@ -806,8 +806,8 @@ class HeatswitchPosition:
 
 class Currentduino(SerialDevice):
     VALID_FIRMWARES = (0.0, 0.1, 0.2)
-    R1 = 99300
-    R2 = 99100
+    R1 = 11760  # Values for R1 resistor in magnet current measuring voltage divider
+    R2 = 11710  # Values for R2 resistor in magnet current measuring voltage divider
 
     def __init__(self, port, baudrate=115200, timeout=0.1, connect=True):
         super().__init__(port, baudrate, timeout, name='currentduino')
@@ -827,13 +827,14 @@ class Currentduino(SerialDevice):
             value = float(response.split(' ')[0])
             voltage = (value * (5.0 / 1023.0) * ((self.R1 + self.R2) / self.R2))
             if value > 0:
-                current = ((3.20902337 * voltage) + 0.07257491)
+                current = ((2.84324895 * voltage) + 0.0681135)
             else:
                 current = 0
         except ValueError:
             raise ValueError(f"Could not parse '{response}' into a float")
         log.info(f"Current value is {current} A")
         return current
+        return voltage
 
     def _postconnect(self):
         """
