@@ -8,10 +8,10 @@ to report the quench as fast as possible to shut of the magnet and prevent any d
 import picturec.pcredis as redis
 from picturec.pcredis import RedisError
 import picturec.util as util
-import numpy as np
-from scipy.stats import linregress
+from picturec.devices import SIM960
 from logging import getLogger
 import time
+import numpy as np
 
 
 TS_KEYS = ['status:temps:mkidarray:temp', 'status:highcurrentboard:current',
@@ -21,12 +21,17 @@ QUENCH_KEY = 'command:event:quenching'
 
 MAX_STARTUP_LAG_TIME_SECONDS = 600
 
+sim = SIM960('/dev/sim960', connect=False)
+
 
 class QuenchMonitor:
-    def __init__(self):
+    def __init__(self, npoints:int=30):
+        self.npoints_for_smoothing = npoints
         self.timestream = self.initialize_data()
         self.di_dt = self.initialize_di_dt()
-        self.max_deramp_rate = float(redis.read('device-settings:sim960:deramp-rate'))
+        self.smoothed_di_dt = self.initialize_smoothed(self.npoints_for_smoothing)
+        self.max_deramp_rate = -1 * sim.MAX_CURRENT_SLOPE
+
 
     def update(self):
         new_data = redis.read('status:highcurrentboard:current')
@@ -35,6 +40,10 @@ class QuenchMonitor:
         else:
             self.di_dt.append((new_data[0], 1000 * (new_data[1] - self.timestream[-1][1])/(new_data[0] - self.timestream[-1][0])))
             self.timestream.append(new_data)
+            ts_for_smooth = np.array(self.timestream[-self.npoints_for_smoothing:])
+            self.smoothed_di_dt.append((new_data[0], 1000 * np.polyfit(ts_for_smooth[:, 0], ts_for_smooth[:, 1], 1)[0]))
+
+
 
     def initialize_data(self):
         """
@@ -53,14 +62,28 @@ class QuenchMonitor:
         tsl = len(self.timestream)
         di_dt = []
         if tsl > 1:
-            for i in range(len(self.timestream)-1):
+            for i in range(tsl-1):
                 di_dt.append((self.timestream[i+1][0],
-                              1000*((self.timestream[i+1][1] - self.timestream[i][1])/(self.timestream[i+1][0] - self.timestream[i][0]))))
-
+                              1000*((self.timestream[i+1][1] - self.timestream[i][1])/
+                                    (self.timestream[i+1][0] - self.timestream[i][0]))))
         return di_dt
 
+    def initialize_smoothed(self, npoints:int=30):
+        """
+        Do smoothing
+        """
+        tsl = len(self.di_dt)
+        ts = np.array(self.timestream)
+        smoothed = []
+        if tsl > npoints:
+            for i in range(tsl-npoints):
+                smoothed.append((ts[i+npoints][0],
+                                 1000 * np.polyfit(ts[i:i+npoints][:, 0],
+                                                   ts[i:i+npoints][:, 1], 1)[0]))
+        return smoothed
+
     def check_quench(self):
-        return self.di_dt[-1][1] <= 5 * self.max_deramp_rate
+        return self.smoothed_di_dt[-1][1] <= 5 * self.max_deramp_rate
 
 
 if __name__ == "__main__":
