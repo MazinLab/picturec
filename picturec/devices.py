@@ -626,13 +626,13 @@ class SIM960(SimDevice):
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.004:.3f}')  # Response, there's mV accuracy, so at least 3 decimal places
+        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.004:.4f}')  # Response, there's mV accuracy, so at least 3 decimal places
         self._last_manual_change = time.time()
 
     def kill_current(self):
         """Immediately kill the current"""
         self.mode=MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(0, inverse=True) - 0.004:.3f}')
+        self.send(f'MOUT {self._out_volt_2_current(0, inverse=True) - 0.004:.4f}')
 
 
     @property
