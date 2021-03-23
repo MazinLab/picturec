@@ -33,6 +33,10 @@
     </nav>
 {% endblock %}
 
+{% block content %}
+<!--This block will show up on any page IF in the content block you first call {{ super() }}-->
+{% endblock%}
+
 {% block scripts %}
     {{ super() }}
     <script>

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
+    {{ super() }}
     <div>
         {% for f in form %}
             <form action="{{ url_for('development') }}" method="post">
