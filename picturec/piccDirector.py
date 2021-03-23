@@ -2,8 +2,7 @@ import flask
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
 from flask import request, redirect, url_for, render_template, jsonify
-from wtforms import SelectField, SubmitField, StringField, widgets
-from wtforms.validators import DataRequired
+from wtforms import SelectField, SubmitField, StringField
 import numpy as np
 import time, datetime
 import json
