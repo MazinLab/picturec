@@ -1,23 +1,49 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <form action="{{ url_for('settings') }}" method="post">
-        {{ form.hidden_tag() }}
-        {% for field in form %}
-            {% if field.type == "SelectField" %}
-                <div style="padding: 10px">
-                    {{ field.label}}
-                    {{ field() }}
-                </div>
-            {% endif %}
+    {{ super() }}
+    <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
+        <h2>SIM921 Settings</h2>
+        {% for f in sim921form %}
+            <form action="{{ url_for('settings') }}" method="post">
+                {{ f.hidden_tag() }}
+                {% for field in f %}
+                    {% if field.type == "SelectField" %}
+                        {{ field.label }}
+                        {{ field() }}
+                    {% elif field.type == "StringField" %}
+                        {{ field.label }}
+                        {{ field() }}
+                    {% else %}
+                        {{ field() }}
+                    {% endif %}
+                {% endfor %}
+            </form>
         {% endfor %}
-
-        <div style="padding: 10px">
-            {{ form.submit() }}
-        </div>
-
-        <div style="padding: 10px">
-            {{ messages }}
-        </div>
-    </form>
+    </div>
+    <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
+        <h2>SIM960 Settings</h2>
+        {% for f in sim960form %}
+            <form action="{{ url_for('settings') }}" method="post">
+                {{ f.hidden_tag() }}
+                {% for field in f %}
+                    {% if field.type == "SelectField" %}
+                        {{ field.label }}
+                        {{ field() }}
+                    {% elif field.type == "StringField" %}
+                        {{ field.label }}
+                        {{ field() }}
+                    {% else %}
+                        {{ field() }}
+                    {% endif %}
+                {% endfor %}
+            </form>
+        {% endfor %}
+    </div>
+    <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
+        <h2>Heatswitch Override</h2>
+        <form action="{{ url_for('settings') }}" method="post">
+            {{ hs.hsmove() }}
+        </form>
+    </div>
 {% endblock %}

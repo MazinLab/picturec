@@ -2,7 +2,7 @@ import flask
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
 from flask import request, redirect, url_for, render_template, jsonify
-from wtforms import SelectField, SubmitField, StringField
+from wtforms import SelectField, SubmitField, StringField, RadioField
 import numpy as np
 import time, datetime
 import json
@@ -32,6 +32,27 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
            'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current',
            'status:device:sim960:current-setpoint']
 
+FIELD_KEYS = {'sim921resistancerange': 'device-settings:sim921:resistance-range',
+              'sim921excitationvalue': 'device-settings:sim921:excitation-value',
+              'sim921excitationmode': 'device-settings:sim921:excitation-mode',
+              'sim921timeconstant': 'device-settings:sim921:time-constant',
+              'sim921tempslope': 'device-settings:sim921:temp-slope',
+              'sim921resistanceslope': 'device-settings:sim921:resistance-slope',
+              'sim921curve': 'device-settings:sim921:curve-number',
+              'sim960voutmin': 'device-settings:sim960:vout-min-limit',
+              'sim960voutmax': 'device-settings:sim960:vout-max-limit',
+              'sim960vinsetpointmode': 'device-settings:sim960:vin-setpoint-mode',
+              'sim960vinsetpointvalue': 'device-settings:sim960:vin-setpoint',
+              'sim960vinsetpointslewenable': 'device-settings:sim960:vin-setpoint-slew-enable',
+              'sim960vinsetpointslewrate': 'device-settings:sim960:vin-setpoint-slew-rate',
+              'sim960pidpval': 'device-settings:sim960:pid-p:value',
+              'sim960pidival': 'device-settings:sim960:pid-i:value',
+              'sim960piddval': 'device-settings:sim960:pid-d:value',
+              'sim960pidpenable': 'device-settings:sim960:pid-p:enabled',
+              'sim960pidienable': 'device-settings:sim960:pid-i:enabled',
+              'sim960piddenable': 'device-settings:sim960:pid-d:enabled',
+              'hsmove': 'device-settings:currentduino:heatswitch'}
+
 
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 
@@ -46,7 +67,7 @@ def make_select_fields(key, label):
 
 
 def make_string_fields(key, label):
-    field = SelectField(f"{label} - [{redis.read(key)}]")
+    field = StringField(f"{label} - [{redis.read(key)}]")
     submit = SubmitField("Update")
     return field, submit
 
@@ -81,30 +102,21 @@ def index():
                            init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l)
 
 
-@app.route('/development', methods=['GET', 'POST'])
-def development():
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
     if request.method == 'POST':
         for i in request.form.items():
-            print(i)
-        return redirect(url_for('development'))
-    a = SIM921ExcitationValue()
-    b = SIM921ExcitationMode()
-    form = (a, b)
-    # form = {'a':a, 'b':b}
-    return render_template('development.html', title='Development', form=form)
-
-
-class SIM921ExcitationValue(FlaskForm):
-    key = 'device-settings:sim921:excitation-value'
-    sim921excitationvaluefield, submit = make_select_fields(key, "SIM921 Excitation Value")
-
-
-class SIM921ExcitationMode(FlaskForm):
-    key = 'device-settings:sim921:excitation-mode'
-    sim921excitationmodefield, submit = make_select_fields(key, "SIM921 Excitation Value")
-
-
-
+            if i[0] in FIELD_KEYS.keys():
+                print(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
+                redis.publish(f"command:{FIELD_KEYS[i[0]]}", i[1], store=False)
+        return redirect(url_for('settings'))
+    sim921form = (SIM921ResistanceRange(), SIM921ExcitationValue(), SIM921ExcitationMode(), SIM921TimeConstant(),
+                  SIM921TempSlope(), SIM921ResSlope(), SIM921CalCurve())
+    sim960form = (SIM960VOutMin(), SIM960VoutMax(), SIM960VinSetpointMode(), SIM960VinSetpointValue(),
+                  SIM960VinSetpointSlewEnable(), SIM960VinSetpointSlewRate(), SIM960PIDPEnabled(),
+                  SIM960PIDIEnabled(), SIM960PIDDEnabled(), SIM960PIDPVal(), SIM960PIDIVal(), SIM960PIDDVal())
+    hsbutton = HeatswitchToggle()
+    return render_template('settings.html', title='Settings', sim921form=sim921form, sim960form=sim960form, hs=hsbutton)
 
 
 @app.route('/dashboard', methods=['GET'])
@@ -119,69 +131,6 @@ def viewdata():
     frame_to_use = np.random.randint(0, len(DASHDATA))
     x = DASHDATA[frame_to_use][75:200,75:200]
     return jsonify({'cts':x.tolist()})
-
-
-@app.route('/sim960settings', methods=['GET', 'POST'])
-def sim960settings():
-    form = Sim960SettingForm()
-    if request.method == 'POST':
-        # TODO: There must be a different better way to do this (matching redis keys to field labels)
-        # TODO: Highlight 'changed' values
-        # TODO: Add 'notes' to the side of the string fields about what values are legal, check that they're legal!
-        # TODO: Block changes of specific values
-        keys = ['device-settings:sim960:vin-setpoint-mode',
-                'device-settings:sim960:vin-setpoint-slew-enable',
-                'device-settings:sim960:pid-p:enabled',
-                'device-settings:sim960:pid-i:enabled',
-                'device-settings:sim960:pid-d:enabled',
-                'device-settings:sim960:pid-p:value',
-                'device-settings:sim960:pid-i:value',
-                'device-settings:sim960:pid-d:value',
-                'device-settings:sim960:vout-min-limit',
-                'device-settings:sim960:vout-max-limit',
-                'device-settings:sim960:vin-setpoint',
-                'device-settings:sim960:vin-setpoint-slew-rate']
-
-        desired_vals = form.data
-        current_vals = redis.read(keys)
-        for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
-            if v1 != v2:
-                print(f"Change {k1} from {v1} to {v2}")
-                redis.publish(k1, v2)
-
-    return render_template('sim960settings.html', title='SIM960 Settings', form=form)
-
-
-@app.route('/sim921settings', methods=['GET', 'POST'])
-def sim921settings():
-    form = Sim921SettingForm()
-    if request.method == 'POST':
-        # TODO: There must be a different better way to do this (matching redis keys to field labels)
-        # TODO: Highlight 'changed' values
-        # TODO: Add 'notes' to the side of the string fields about what values are legal, check that they're legal!
-        # TODO: Block changes of specific values
-        keys = ['device-settings:sim921:resistance-range',
-                'device-settings:sim921:excitation-value',
-                'device-settings:sim921:excitation-mode',
-                'device-settings:sim921:time-constant',
-                'device-settings:sim921:output-mode',
-                'device-settings:sim921:curve-number',
-                'device-settings:sim921:temp-offset',
-                'device-settings:sim921:resistance-offset',
-                'device-settings:sim921:temp-slope',
-                'device-settings:sim921:resistance-slope',
-                'device-settings:sim921:manual-vout']
-
-        desired_vals = form.data
-        current_vals = redis.read(keys)
-        for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
-            if v1 != v2:
-                getLogger(__name__).debug(f"Change {k1} from {v1} to {v2}")
-                redis.publish(k1, v2)
-
-        return redirect(url_for('sim921settings'))
-    else:
-        return render_template('sim921settings.html', title='SIM921 Settings', form=form)
 
 
 @app.route('/hemts', methods=['GET', 'POST'])
@@ -352,6 +301,112 @@ class RampConfigForm(FlaskForm):
     open_hs = SubmitField('Open HS')
     close_hs = SubmitField('Close HS')
     submit = SubmitField('Update')
+
+
+class SIM921ResistanceRange(FlaskForm):
+    key = 'device-settings:sim921:resistance-range'
+    sim921resistancerange, submit = make_select_fields(key, "Resistance Range (\u03A9)")
+
+
+class SIM921ExcitationValue(FlaskForm):
+    key = 'device-settings:sim921:excitation-value'
+    sim921excitationvalue, submit = make_select_fields(key, "Excitation Value (V)")
+
+
+class SIM921ExcitationMode(FlaskForm):
+    key = 'device-settings:sim921:excitation-mode'
+    sim921excitationmode, submit = make_select_fields(key, "Excitation Mode")
+
+
+class SIM921TimeConstant(FlaskForm):
+    key = 'device-settings:sim921:time-constant'
+    sim921timeconstant, submit = make_select_fields(key, "Time Constant (s)")
+
+
+class SIM921TempSlope(FlaskForm):
+    key = 'device-settings:sim921:temp-slope'
+    sim921tempslope, submit = make_string_fields(key, "Temperature Slope (V/K)")
+
+
+class SIM921ResSlope(FlaskForm):
+    key = 'device-settings:sim921:resistance-slope'
+    sim921resistanceslope, submit = make_string_fields(key, "Resistance Slope (V/\u03A9)")
+
+
+class SIM921CalCurve(FlaskForm):
+    key = 'device-settings:sim921:curve-number'
+    sim921curve, submit = make_select_fields(key, "Calibration Curve")
+
+
+class SIM960VOutMin(FlaskForm):
+    key = 'device-settings:sim960:vout-min-limit'
+    sim960voutmin, submit = make_string_fields(key, "Minimum Output (V)")
+
+
+class SIM960VoutMax(FlaskForm):
+    key = 'device-settings:sim960:vout-max-limit'
+    sim960voutmax, submit = make_string_fields(key, "Maximum Output (V)")
+
+
+class SIM960VinSetpointMode(FlaskForm):
+    key = 'device-settings:sim960:vin-setpoint-mode'
+    sim960vinsetpointmode, submit = make_select_fields(key, "Input Voltage Setpoint")
+
+
+class SIM960VinSetpointValue(FlaskForm):
+    key = 'device-settings:sim960:vin-setpoint'
+    sim960vinsetpointvalue, submit = make_string_fields(key, "Input Voltage (V)")
+
+
+class SIM960VinSetpointSlewEnable(FlaskForm):
+    key = 'device-settings:sim960:vin-setpoint-slew-enable'
+    sim960vinsetpointslewenable, submit = make_select_fields(key, "Enable Internal Setpoint Slew")
+
+
+class SIM960VinSetpointSlewRate(FlaskForm):
+    key = 'device-settings:sim960:vin-setpoint-slew-rate'
+    sim960vinsetpointslewrate, submit = make_string_fields(key, "Internal Setpoint Slew Rate")
+
+
+class SIM960PIDPVal(FlaskForm):
+    key = 'device-settings:sim960:pid-p:value'
+    sim960pidpval, submit = make_string_fields(key, "PID: P Value")
+
+
+class SIM960PIDIVal(FlaskForm):
+    key = 'device-settings:sim960:pid-i:value'
+    sim960pidival, submit = make_string_fields(key, "PID: I Value")
+
+
+class SIM960PIDDVal(FlaskForm):
+    key = 'device-settings:sim960:pid-d:value'
+    sim960piddval, submit = make_string_fields(key, "PID: D Value")
+
+
+class SIM960PIDPEnabled(FlaskForm):
+    key = 'device-settings:sim960:pid-p:enabled'
+    sim960pidpenable, submit = make_select_fields(key, "PID: Enable P")
+
+
+class SIM960PIDIEnabled(FlaskForm):
+    key = 'device-settings:sim960:pid-i:enabled'
+    sim960pidienable, submit = make_select_fields(key, "PID: Enable I")
+
+
+class SIM960PIDDEnabled(FlaskForm):
+    key = 'device-settings:sim960:pid-d:enabled'
+    sim960piddenable, submit = make_select_fields(key, "PID: Enable D")
+
+
+class HeatswitchToggle(FlaskForm):
+    key = 'device-settings:currentduino:heatswitch'
+    pos = redis.read(key)
+    if pos == 'close':
+        cmd = 'open'
+    else:
+        cmd = 'close'
+    hsmove = SubmitField(cmd)
+
 
 
 if __name__ == "__main__":
