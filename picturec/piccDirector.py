@@ -39,9 +39,31 @@ DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 
 redis.setup_redis(create_ts_keys=TS_KEYS)
 
-# TODO: Magnet Ramp settings page
+
+def make_select_fields(key, label):
+    field = SelectField(f"{label} - [{redis.read(key)}]", choices = make_select_choices(key))
+    submit = SubmitField("Update")
+    return field, submit
+
+
+def make_string_fields(key, label):
+    field = SelectField(f"{label} - [{redis.read(key)}]")
+    submit = SubmitField("Update")
+    return field, submit
+
+
+def make_select_choices(key):
+    current_value = redis.read(key)
+    rest = list(COMMAND_DICT[key]['vals'].keys())
+    choice = [current_value]
+    rest.remove(current_value)
+    for i in rest:
+        choice.append(i)
+    return choice
+
+
 # TODO: Add alarms for serial (dis)connections?
-# TODO: Only have temperature setpoint and have the program internals convert that to resistance?
+
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
@@ -58,6 +80,30 @@ def index():
                            init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
                            init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l,
                            init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l)
+
+
+@app.route('/development', methods=['GET', 'POST'])
+def development():
+    if request.method == 'POST':
+        for i in request.form.items():
+            print(i)
+        return redirect(url_for('development'))
+    a = SIM921ExcitationValue()
+    b = SIM921ExcitationMode()
+    return render_template('development.html', title='Development', a=a, b=b)
+
+
+class SIM921ExcitationValue(FlaskForm):
+    key = 'device-settings:sim921:excitation-value'
+    sim921excitationvaluefield, submit = make_select_fields(key, "SIM921 Excitation Value")
+
+
+class SIM921ExcitationMode(FlaskForm):
+    key = 'device-settings:sim921:excitation-mode'
+    sim921excitationmodefield, submit = make_select_fields(key, "SIM921 Excitation Value")
+
+
+
 
 
 @app.route('/dashboard', methods=['GET'])
@@ -287,15 +333,7 @@ def closer():
     return jsonify(data)
 
 
-def make_choices(key):
-    current_value = redis.read(key)
-    rest = list(COMMAND_DICT[key]['vals'].keys())
-    choice = [current_value]
-    rest.remove(current_value)
-    for i in rest:
-        choice.append(i)
-    print(choice)
-    return choice
+
 
 
 class MainPageForm(FlaskForm):
