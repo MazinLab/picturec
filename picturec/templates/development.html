@@ -2,21 +2,21 @@
 
 {% block content %}
     <div>
-        <form action="{{ url_for('development') }}" method="post">
-            {{ a.hidden_tag() }}
-
-            {{ a.sim921excitationvaluefield.label }}
-            {{ a.sim921excitationvaluefield() }}
-
-            {{ a.submit() }}
-        </form>
-        <form action="{{ url_for('development') }}" method="post">
-            {{ b.hidden_tag() }}
-
-            {{ b.sim921excitationmodefield.label }}
-            {{ b.sim921excitationmodefield() }}
-
-            {{ b.submit() }}
-        </form>
+        {% for f in form.values() %}
+            <form action="{{ url_for('development') }}" method="post">
+                {{ f.hidden_tag() }}
+                {% for field in f %}
+                    {% if field.type == "SelectField" %}
+                        {{ field.label }}
+                        {{ field() }}
+                    {% elif field.type == "StringField" %}
+                        {{ field.label }}
+                        {{ field() }}
+                    {% else %}
+                        {{ field() }}
+                    {% endif %}
+                {% endfor %}
+            </form>
+        {% endfor %}
     </div>
 {% endblock %}

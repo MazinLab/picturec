@@ -89,7 +89,9 @@ def development():
         return redirect(url_for('development'))
     a = SIM921ExcitationValue()
     b = SIM921ExcitationMode()
-    return render_template('development.html', title='Development', a=a, b=b)
+    form = (a, b)
+    # form = {'a':a, 'b':b}
+    return render_template('development.html', title='Development', form=form)
 
 
 class SIM921ExcitationValue(FlaskForm):
