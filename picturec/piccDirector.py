@@ -315,42 +315,6 @@ class RampConfigForm(FlaskForm):
     submit = SubmitField('Update')
 
 
-class Sim960SettingForm(FlaskForm):
-    sim960_setpoint_mode = SelectField('Setpoint Mode', choices=make_choices('device-settings:sim960:vin-setpoint-mode'))
-    sim960_enable_setpoint_ramp = SelectField('Internal Setpoint Slew Enable', choices=make_choices('device-settings:sim960:vin-setpoint-slew-enable'))
-    sim960_p_on = SelectField('PID: P Enabled', choices=make_choices('device-settings:sim960:pid-p:enabled'))
-    sim960_i_on = SelectField('PID: I Enabled', choices=make_choices('device-settings:sim960:pid-i:enabled'))
-    sim960_d_on = SelectField('PID: D Enabled', choices=make_choices('device-settings:sim960:pid-d:enabled'))
-
-    sim960_p_value = StringField('PID: P Value', default=redis.read('device-settings:sim960:pid-p:value'))
-    sim960_i_value = StringField('PID: I Value', default=redis.read('device-settings:sim960:pid-i:value'))
-    sim960_d_value = StringField('PID: D Value', default=redis.read('device-settings:sim960:pid-d:value'))
-    sim960_vout_min = StringField('Minimum Output Voltage', default=redis.read('device-settings:sim960:vout-min-limit'))
-    sim960_vout_max = StringField('Maximum Output Voltage', default=redis.read('device-settings:sim960:vout-max-limit'))
-    sim960_setpoint = StringField('Internal Setpoint (V)', default=redis.read('device-settings:sim960:vin-setpoint'))
-    sim960_slew_rate = StringField('Setpoint Slew Rate (V/s)', default=redis.read('device-settings:sim960:vin-setpoint-slew-rate'))
-
-    submit = SubmitField('Update', [DataRequired()])
-
-
-class Sim921SettingForm(FlaskForm):
-    # TODO: Only use temperature setpoint and have it convert to resistance value
-    sim921_resistance_range = SelectField('Resistance Range', choices=make_choices('device-settings:sim921:resistance-range'))
-    sim921_excitation_val = SelectField('Excitation Value', choices=make_choices('device-settings:sim921:excitation-value'))
-    sim921_excitation_mode = SelectField('Excitation Mode', choices=make_choices('device-settings:sim921:excitation-mode'))
-    sim921_time_constant = SelectField('Time Constant', choices=make_choices('device-settings:sim921:time-constant'))
-    sim921_output_mode = SelectField('Output Mode', choices=make_choices('device-settings:sim921:output-mode'))
-    sim921_curve = SelectField('Calibration Curve', choices=make_choices('device-settings:sim921:curve-number'))
-
-    sim921_t_offset = StringField('Temperature Setpoint', default=redis.read('device-settings:sim921:temp-offset'))
-    sim921_r_offset = StringField('Resistance Setpoint', default=redis.read('device-settings:sim921:resistance-offset'))
-    sim921_t_slope = StringField('Temperature Slope (V/K) { Output = A * (T - Tsetpoint) }', default=redis.read('device-settings:sim921:temp-slope'))
-    sim921_r_slope = StringField('Resistance Slope (V/Ohm) { Output = A * (R - Rsetpoint) }', default=redis.read('device-settings:sim921:resistance-slope'))
-    sim921_vout = StringField('Output Voltage (V)', default=redis.read('device-settings:sim921:manual-vout'))
-
-    submit = SubmitField('Update', [DataRequired()])
-
-
 if __name__ == "__main__":
 
     util.setup_logging('piccDirector')
