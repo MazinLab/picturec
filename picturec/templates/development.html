@@ -2,7 +2,7 @@
 
 {% block content %}
     <div>
-        {% for f in form.values() %}
+        {% for f in form %}
             <form action="{{ url_for('development') }}" method="post">
                 {{ f.hidden_tag() }}
                 {% for field in f %}
