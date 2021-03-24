@@ -75,11 +75,11 @@ def make_string_fields(key, label):
 def make_select_choices(key):
     current_value = redis.read(key)
     rest = list(COMMAND_DICT[key]['vals'].keys())
-    choice = [current_value]
-    rest.remove(current_value)
-    for i in rest:
-        choice.append(i)
-    return choice
+    # choice = [current_value]
+    # rest.remove(current_value)
+    # for i in rest:
+    #     choice.append(i)
+    return rest
 
 
 # TODO: Add alarms for serial (dis)connections?
