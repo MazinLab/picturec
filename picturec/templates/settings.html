@@ -19,11 +19,7 @@
                                             {{ field.label }}
                                         </td>
                                         <td width="100px" id="{{field.name}}" style="float:left">
-                                            {% for r in rv %}
-                                                {% if r[0] == field.name %}
-                                                    [ {{ r[1] }} ]
-                                                {% endif %}
-                                            {% endfor %}
+                                            {{rv[field.name]}}
                                         </td>
                                         <td width="100px" style="float:left">
                                             {{ field() }}
@@ -33,11 +29,7 @@
                                             {{ field.label }}
                                         </td>
                                         <td width="100px" id="{{field.name}}" style="float:left">
-                                            {% for r in rv %}
-                                                {% if r[0] == field.name %}
-                                                    [ {{ r[1] }} ]
-                                                {% endif %}
-                                            {% endfor %}
+                                            {{rv[field.name]}}
                                         </td>
                                         <td width="100px" style="float:left">
                                             {{ field() }}
@@ -57,12 +49,12 @@
             <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
             <h2>Heatswitch Override</h2>
             <form action="{{ url_for('settings') }}" method="post">
-                <h4> Current position: {{ rv[-1][1] }} </h4>
+                <h4> Current position: {{ rv['hsopen'] }} </h4>
 
                 <div>
-                    {% if rv[-1][1] == 'open' %}
+                    {% if rv['hsopen'] == 'open' %}
                         {{ hs.hsclose() }}
-                    {% elif rv[-1][1] == 'close' %}
+                    {% elif rv['hsopen'] == 'close' %}
                         {{ hs.hsopen() }}
                     {% else %}
                         {{ hs.hsopen() }} {{ hs.hsclose() }}
@@ -86,11 +78,7 @@
                                         {{ field.label }}
                                     </td>
                                     <td width="100px" id="{{field.name}}" style="float:left">
-                                        {% for r in rv %}
-                                            {% if r[0] == field.name %}
-                                                [ {{ r[1] }} ]
-                                            {% endif %}
-                                        {% endfor %}
+                                        {{ rv[field.name] }}
                                     </td>
                                     <td width="100px" style="float:left">
                                         {{ field() }}
@@ -100,11 +88,7 @@
                                         {{ field.label }}
                                     </td>
                                     <td width="100px" id="{{field.name}}" style="float:left">
-                                        {% for r in rv %}
-                                            {% if r[0] == field.name %}
-                                                [ {{ r[1] }} ]
-                                            {% endif %}
-                                        {% endfor %}
+                                        {{ rv[field.name] }}
                                     </td>
                                     <td width="100px" style="float:left">
                                         {{ field() }}
