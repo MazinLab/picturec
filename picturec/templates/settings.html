@@ -2,107 +2,127 @@
 
 {% block content %}
     {{ super() }}
-    <div style="padding-left:10px; float:left; border-style:solid; border-width:2px; width:500px" class="container">
-        <h2>SIM921 Settings</h2>
-        {% for f in sim921form %}
+    <div style="width: 100%">
+
+        <div style="float:left">
+
+            <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
+                <h2>SIM921 Settings</h2>
+                {% for f in sim921form %}
+                    <form action="{{ url_for('settings') }}" method="post">
+                        {{ f.hidden_tag() }}
+                        <table border="1" rules="rows">
+                            <tr width="450px">
+                                {% for field in f %}
+                                    {% if field.type == "SelectField" %}
+                                        <td width="100px" style="float:left; padding: 3px">
+                                            {{ field.label }}
+                                        </td>
+                                        <td width="100px" id="{{field.name}}" style="float:left">
+                                            {% for r in rv %}
+                                                {% if r[0] == field.name %}
+                                                    [ {{ r[1] }} ]
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        <td width="100px" style="float:left">
+                                            {{ field() }}
+                                        </td>
+                                    {% elif field.type == "StringField" %}
+                                        <td width="100px" style="float:left">
+                                            {{ field.label }}
+                                        </td>
+                                        <td width="100px" id="{{field.name}}" style="float:left">
+                                            {% for r in rv %}
+                                                {% if r[0] == field.name %}
+                                                    [ {{ r[1] }} ]
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        <td width="100px" style="float:left">
+                                            {{ field() }}
+                                        </td>
+                                    {% else %}
+                                        <td width="100px" >
+                                            {{ field() }}
+                                        </td>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                        </table>
+                    </form>
+                {% endfor %}
+            </div>
+
+            <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
+            <h2>Heatswitch Override</h2>
             <form action="{{ url_for('settings') }}" method="post">
-                {{ f.hidden_tag() }}
-                <table border="1" rules="rows">
-                    <tr width="450px">
-                        {% for field in f %}
-                            {% if field.type == "SelectField" %}
-                                <td width="100px" style="float:left; padding: 3px">
-                                    {{ field.label }}
-                                </td>
-                                <td width="100px" id="{{field.name}}" style="float:left">
-                                    {% for r in rv %}
-                                        {% if r[0] == field.name %}
-                                            [ {{ r[1] }} ]
-                                        {% endif %}
-                                    {% endfor %}
-                                </td>
-                                <td width="100px" style="float:left">
-                                    {{ field() }}
-                                </td>
-                            {% elif field.type == "StringField" %}
-                                <td width="100px" style="float:left">
-                                    {{ field.label }}
-                                </td>
-                                <td width="100px" id="{{field.name}}" style="float:left">
-                                    {% for r in rv %}
-                                        {% if r[0] == field.name %}
-                                            [ {{ r[1] }} ]
-                                        {% endif %}
-                                    {% endfor %}
-                                </td>
-                                <td width="100px" style="float:left">
-                                    {{ field() }}
-                                </td>
-                            {% else %}
-                                <td width="100px" >
-                                    {{ field() }}
-                                </td>
-                            {% endif %}
-                        {% endfor %}
-                    </tr>
-                </table>
+                <h4> Current position: {{ rv[-1][1] }} </h4>
+
+                <div>
+                    {% if rv[-1][1] == 'open' %}
+                        {{ hs.hsclose() }}
+                    {% elif rv[-1][1] == 'close' %}
+                        {{ hs.hsopen() }}
+                    {% else %}
+                        {{ hs.hsopen() }} {{ hs.hsclose() }}
+                    {% endif %}
+                </div>
             </form>
-        {% endfor %}
+        </div>
+
+        </div>
+
+        <div style="padding-left:10px; margin-left:500px; border-style:solid; border-width:2px; width:500px">
+            <h2>SIM960 Settings</h2>
+            {% for f in sim960form %}
+                <form action="{{ url_for('settings') }}" method="post">
+                    {{ f.hidden_tag() }}
+                    <table border="1" rules="rows">
+                        <tr width="400 px">
+                            {% for field in f %}
+                                {% if field.type == "SelectField" %}
+                                    <td width="100px" style="float:left; padding: 3px">
+                                        {{ field.label }}
+                                    </td>
+                                    <td width="100px" id="{{field.name}}" style="float:left">
+                                        {% for r in rv %}
+                                            {% if r[0] == field.name %}
+                                                [ {{ r[1] }} ]
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td width="100px" style="float:left">
+                                        {{ field() }}
+                                    </td>
+                                {% elif field.type == "StringField" %}
+                                    <td width="100px" style="float:left; padding: 3px">
+                                        {{ field.label }}
+                                    </td>
+                                    <td width="100px" id="{{field.name}}" style="float:left">
+                                        {% for r in rv %}
+                                            {% if r[0] == field.name %}
+                                                [ {{ r[1] }} ]
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td width="100px" style="float:left">
+                                        {{ field() }}
+                                    </td>
+                                {% else %}
+                                    <td width="100px">
+                                        {{ field() }}
+                                    </td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    </table>
+                </form>
+            {% endfor %}
+        </div>
+
     </div>
 
-    <div style="padding-left:10px; float:left; border-style:solid; border-width:2px; width:500px" class="container">
-        <h2>SIM960 Settings</h2>
-        {% for f in sim960form %}
-            <form action="{{ url_for('settings') }}" method="post">
-                {{ f.hidden_tag() }}
-                <table border="1" rules="rows">
-                    <tr width="400 px">
-                        {% for field in f %}
-                            {% if field.type == "SelectField" %}
-                                <td width="100px" style="float:left; padding: 3px">
-                                    {{ field.label }}
-                                </td>
-                                <td width="100px" id="{{field.name}}" style="float:left">
-                                    {% for r in rv %}
-                                        {% if r[0] == field.name %}
-                                            [ {{ r[1] }} ]
-                                        {% endif %}
-                                    {% endfor %}
-                                </td>
-                                <td width="100px" style="float:left">
-                                    {{ field() }}
-                                </td>
-                            {% elif field.type == "StringField" %}
-                                <td width="100px" style="float:left; padding: 3px">
-                                    {{ field.label }}
-                                </td>
-                                <td width="100px" id="{{field.name}}" style="float:left">
-                                    {% for r in rv %}
-                                        {% if r[0] == field.name %}
-                                            [ {{ r[1] }} ]
-                                        {% endif %}
-                                    {% endfor %}
-                                </td>
-                                <td width="100px" style="float:left">
-                                    {{ field() }}
-                                </td>
-                            {% else %}
-                                <td width="100px">
-                                    {{ field() }}
-                                </td>
-                            {% endif %}
-                        {% endfor %}
-                    </tr>
-                </table>
-            </form>
-        {% endfor %}
-    </div>
-    <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
-        <h2>Heatswitch Override</h2>
-        <form action="{{ url_for('settings') }}" method="post">
-            {{ hs.hsmove() }}
-        </form>
-    </div>
 {% endblock %}
 
 {% block scripts %}

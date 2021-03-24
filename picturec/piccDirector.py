@@ -51,7 +51,8 @@ FIELD_KEYS = {'sim921resistancerange': 'device-settings:sim921:resistance-range'
               'sim960pidpenable': 'device-settings:sim960:pid-p:enabled',
               'sim960pidienable': 'device-settings:sim960:pid-i:enabled',
               'sim960piddenable': 'device-settings:sim960:pid-d:enabled',
-              'hsmove': 'device-settings:currentduino:heatswitch'}
+              'hsopen': 'device-settings:currentduino:heatswitch',
+              'hsclose': 'device-settings:currentduino:heatswitch'}
 
 
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
@@ -73,13 +74,8 @@ def make_string_fields(key, label):
 
 
 def make_select_choices(key):
-    current_value = redis.read(key)
-    rest = list(COMMAND_DICT[key]['vals'].keys())
-    # choice = [current_value]
-    # rest.remove(current_value)
-    # for i in rest:
-    #     choice.append(i)
-    return rest
+    choices = list(COMMAND_DICT[key]['vals'].keys())
+    return choices
 
 
 # TODO: Add alarms for serial (dis)connections?
@@ -283,9 +279,6 @@ def closer():
     return jsonify(data)
 
 
-
-
-
 class MainPageForm(FlaskForm):
     start_cooldown = SubmitField('Start Cooldown')
     abort_cooldown = SubmitField('Abort Cooldown')
@@ -400,13 +393,8 @@ class SIM960PIDDEnabled(FlaskForm):
 
 class HeatswitchToggle(FlaskForm):
     key = 'device-settings:currentduino:heatswitch'
-    pos = redis.read(key)
-    if pos == 'close':
-        cmd = 'open'
-    else:
-        cmd = 'close'
-    hsmove = SubmitField(cmd)
-
+    hsopen = SubmitField('open')
+    hsclose = SubmitField('close')
 
 
 if __name__ == "__main__":
