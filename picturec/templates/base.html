@@ -35,6 +35,10 @@
 
 {% block content %}
 <!--This block will show up on any page IF in the content block you first call {{ super() }}-->
+    <head>
+        <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    </head>
 {% endblock%}
 
 {% block scripts %}
