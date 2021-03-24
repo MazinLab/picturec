@@ -61,13 +61,13 @@ redis.setup_redis(create_ts_keys=TS_KEYS)
 
 
 def make_select_fields(key, label):
-    field = SelectField(f"{label} - [{redis.read(key)}]", choices = make_select_choices(key))
-    submit = SubmitField("Update")
+    field = SelectField(f"{label}", choices=make_select_choices(key), id=key)
+    submit = SubmitField("Update", id=key)
     return field, submit
 
 
 def make_string_fields(key, label):
-    field = StringField(f"{label} - [{redis.read(key)}]")
+    field = StringField(f"{label}", id=key)
     submit = SubmitField("Update")
     return field, submit
 
