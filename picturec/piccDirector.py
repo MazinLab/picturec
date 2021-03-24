@@ -107,16 +107,17 @@ def settings():
     if request.method == 'POST':
         for i in request.form.items():
             if i[0] in FIELD_KEYS.keys():
-                print(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
+                getLogger(__name__).info(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
                 redis.publish(f"command:{FIELD_KEYS[i[0]]}", i[1], store=False)
         return redirect(url_for('settings'))
+    rv = list(zip(FIELD_KEYS.keys(), redis.read(FIELD_KEYS.values()).values()))
     sim921form = (SIM921ResistanceRange(), SIM921ExcitationValue(), SIM921ExcitationMode(), SIM921TimeConstant(),
                   SIM921TempSlope(), SIM921ResSlope(), SIM921CalCurve())
     sim960form = (SIM960VOutMin(), SIM960VoutMax(), SIM960VinSetpointMode(), SIM960VinSetpointValue(),
                   SIM960VinSetpointSlewEnable(), SIM960VinSetpointSlewRate(), SIM960PIDPEnabled(),
                   SIM960PIDIEnabled(), SIM960PIDDEnabled(), SIM960PIDPVal(), SIM960PIDIVal(), SIM960PIDDVal())
     hsbutton = HeatswitchToggle()
-    return render_template('settings.html', title='Settings', sim921form=sim921form, sim960form=sim960form, hs=hsbutton)
+    return render_template('settings.html', title='Settings', sim921form=sim921form, sim960form=sim960form, hs=hsbutton, rv=rv)
 
 
 @app.route('/dashboard', methods=['GET'])
