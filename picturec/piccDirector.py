@@ -219,7 +219,6 @@ def reporter():
     idtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ids[:, 0]])
     vdtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vds[:, 0]])
 
-    print(vgs[:,1], ids[:, 1], vds[:, 1])
     return jsonify({'vg_times': vgtimes, 'gate_voltages': list(vgs[:, 1]),
                     'id_times': idtimes, 'drain_currents': list(ids[:, 1]),
                     'vd_times': vdtimes, 'drain_voltages': list(vds[:, 1])})
