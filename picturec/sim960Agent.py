@@ -176,9 +176,9 @@ class MagnetController(LockedMachine):
             # if we can't get the settings from redis then the conditions default to false and we stay put
             # Note that the hs_opening command will always complete (even if it fails) so the state will progress
             {'trigger': 'next', 'source': 'soaking', 'dest': None, 'unless': 'soak_time_expired',
-             'conditions': 'current_at_soak'},
+             'conditions': 'current_near_soak'},
             {'trigger': 'next', 'source': 'soaking', 'dest': 'hs_opening', 'prepare': ('open_heatswitch', 'sim921_to_scaled'),
-             'conditions': ('current_at_soak', 'soak_time_expired')},  #condition repeated to preclude call passing due to IO hiccup
+             'conditions': ('current_near_soak', 'soak_time_expired')},  #condition repeated to preclude call passing due to IO hiccup
             {'trigger': 'next', 'source': 'soaking', 'dest': 'deramping'},
 
             # stay in hs_opening until it is open then transition to cooling
@@ -506,6 +506,12 @@ class MagnetController(LockedMachine):
         except RedisError:
             return False
 
+    def current_near_soak(self, event):
+        try:
+            return self.sim.setpoint() >= .98 * float(redis.read(SOAK_CURRENT_KEY))
+        except RedisError:
+            return False
+
     def in_pid_mode(self, event):
         return self.sim.mode == MagnetState.PID
 
@@ -545,7 +551,7 @@ if __name__ == "__main__":
 
     util.setup_logging('sim960Agent')
     redis.setup_redis(create_ts_keys=TS_KEYS)
-    MAX_REGULATE_TEMP = 1.10 * float(redis.read(REGULATION_TEMP_KEY))
+    MAX_REGULATE_TEMP = 1.50 * float(redis.read(REGULATION_TEMP_KEY))
 
     try:
         statefile = redis.read(STATEFILE_PATH_KEY)
@@ -572,7 +578,7 @@ if __name__ == "__main__":
                         getLogger(__name__).warning(f"Ignoring invalid command ('{key}={val}'): {e}")
                 # NB I'm disinclined to include forced state overrides but they would go here
                 elif key == REGULATION_TEMP_KEY:
-                    MAX_REGULATE_TEMP = 1.10 * float(val)
+                    MAX_REGULATE_TEMP = 1.50 * float(val)
                     redis.store({REGULATION_TEMP_KEY: val})
                 elif key == ABORT_CMD:
                     # abort any cooldown in progress, warm up, and turn things off
