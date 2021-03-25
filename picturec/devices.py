@@ -25,7 +25,7 @@ COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'v
                'device-settings:sim921:temp-offset': {'command': 'TSET', 'vals': [0, 40]},
                'device-settings:sim921:resistance-offset': {'command': 'RSET', 'vals': [0, 63765.1]},
                'device-settings:sim921:temp-slope': {'command': 'VKEL', 'vals': [0, 1e-2]},
-               'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-5]},
+               'device-settings:sim921:resistance-slope': {'command': 'VOHM', 'vals': [0, 1e-3]},
                'device-settings:sim921:output-mode': {'command': 'AMAN', 'vals': {'scaled': '0', 'manual': '1'}},
                'device-settings:sim921:manual-vout': {'command': 'AOUT', 'vals': [-10, 10]},
                'device-settings:sim921:curve-number': {'command': 'CURV', 'vals': {'1': '1', '2': '2', '3': '3'}},
