@@ -192,7 +192,7 @@ class MagnetController(LockedMachine):
             # if we can't change the current or interact with redis for related settings the its a noop and we
             #  stay put
             # if we can't put the device in pid mode (IOError)  we stay put
-            {'trigger': 'next', 'source': 'cooling', 'dest': None, 'unless': 'device_regulatable',
+            {'trigger': 'next', 'source': 'cooling', 'dest': None, 'unless': 'device_regulatable_init',
              'after': 'decrement_current', 'conditions': 'heatswitch_opened'},
             {'trigger': 'next', 'source': 'cooling', 'dest': 'regulating', 'before': 'to_pid_mode',
              'conditions': ('heatswitch_opened', 'sim921_in_scaled')},
@@ -517,6 +517,12 @@ class MagnetController(LockedMachine):
 
     def to_pid_mode(self, event):
         self.sim.mode = MagnetState.PID
+
+    def device_regulatable_init(self, event):
+        try:
+            return float(redis.read(DEVICE_TEMP_KEY)[1]) <= MAX_REGULATE_TEMP * (1.1 / 1.5)
+        except RedisError:
+            return False
 
     def device_regulatable(self, event):
         try:
