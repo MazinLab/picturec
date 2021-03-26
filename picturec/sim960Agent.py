@@ -166,9 +166,9 @@ class MagnetController(LockedMachine):
             # stay in ramping, increasing the current a bit each time unless the current is high enough to soak
             # if we can't increment the current or get the current then IOErrors will arise and we stay put
             # if we can't get the settings from redis then the conditions default to false and we stay put
-            {'trigger': 'next', 'source': 'ramping', 'dest': None, 'unless': 'current_at_soak',
+            {'trigger': 'next', 'source': 'ramping', 'dest': None, 'unless': 'current_ready_to_soak',
              'after': 'increment_current'},
-            {'trigger': 'next', 'source': 'ramping', 'dest': 'soaking', 'conditions': 'current_at_soak'},
+            {'trigger': 'next', 'source': 'ramping', 'dest': 'soaking', 'conditions': 'current_ready_to_soak'},
 
             # stay in soaking until we've elapsed the soak time, if the current changes move to deramping as something
             # is quite wrong, when elapsed command heatswitch open and move to waiting on the heatswitch
@@ -176,9 +176,9 @@ class MagnetController(LockedMachine):
             # if we can't get the settings from redis then the conditions default to false and we stay put
             # Note that the hs_opening command will always complete (even if it fails) so the state will progress
             {'trigger': 'next', 'source': 'soaking', 'dest': None, 'unless': 'soak_time_expired',
-             'conditions': 'current_near_soak'},
+             'conditions': 'current_at_soak'},
             {'trigger': 'next', 'source': 'soaking', 'dest': 'hs_opening', 'prepare': ('open_heatswitch', 'sim921_to_scaled'),
-             'conditions': ('current_near_soak', 'soak_time_expired')},  #condition repeated to preclude call passing due to IO hiccup
+             'conditions': ('current_at_soak', 'soak_time_expired')},  #condition repeated to preclude call passing due to IO hiccup
             {'trigger': 'next', 'source': 'soaking', 'dest': 'deramping'},
 
             # stay in hs_opening until it is open then transition to cooling
@@ -192,7 +192,7 @@ class MagnetController(LockedMachine):
             # if we can't change the current or interact with redis for related settings the its a noop and we
             #  stay put
             # if we can't put the device in pid mode (IOError)  we stay put
-            {'trigger': 'next', 'source': 'cooling', 'dest': None, 'unless': 'device_regulatable_init',
+            {'trigger': 'next', 'source': 'cooling', 'dest': None, 'unless': 'device_ready_for_regulate',
              'after': 'decrement_current', 'conditions': 'heatswitch_opened'},
             {'trigger': 'next', 'source': 'cooling', 'dest': 'regulating', 'before': 'to_pid_mode',
              'conditions': ('heatswitch_opened', 'sim921_in_scaled')},
@@ -500,13 +500,13 @@ class MagnetController(LockedMachine):
         except RedisError:
             return False
 
-    def current_at_soak(self, event):
+    def current_ready_to_soak(self, event):
         try:
             return self.sim.setpoint() >= float(redis.read(SOAK_CURRENT_KEY))
         except RedisError:
             return False
 
-    def current_near_soak(self, event):
+    def current_at_soak(self, event):
         try:
             return self.sim.setpoint() >= .98 * float(redis.read(SOAK_CURRENT_KEY))
         except RedisError:
@@ -518,9 +518,9 @@ class MagnetController(LockedMachine):
     def to_pid_mode(self, event):
         self.sim.mode = MagnetState.PID
 
-    def device_regulatable_init(self, event):
+    def device_ready_for_regulate(self, event):
         try:
-            return float(redis.read(DEVICE_TEMP_KEY)[1]) <= MAX_REGULATE_TEMP * (1.1 / 1.5)
+            return float(redis.read(DEVICE_TEMP_KEY)[1]) <= float(redis.read(REGULATION_TEMP_KEY))
         except RedisError:
             return False
 
