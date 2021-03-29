@@ -608,7 +608,7 @@ class SIM960(SimDevice):
         than the desired value (MOUT). Since it is not EXACTLY 4mV, setpoint and manual_current may return slightly
         different values.
         """
-        manual_voltage_setpoint = float(self.query("MOUT?")) + 0.002
+        manual_voltage_setpoint = float(self.query("MOUT?")) + 0.003
         return self._out_volt_2_current(manual_voltage_setpoint)
 
     @manual_current.setter
@@ -626,13 +626,13 @@ class SIM960(SimDevice):
         if delta > self.MAX_CURRENT_SLOPE:
             raise ValueError('Requested current delta unsafe')
         self.mode = MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.002:.4f}')  # Response, there's mV accuracy, so at least 3 decimal places
+        self.send(f'MOUT {self._out_volt_2_current(x, inverse=True) - 0.003:.4f}')  # Response, there's mV accuracy, so at least 3 decimal places
         self._last_manual_change = time.time()
 
     def kill_current(self):
         """Immediately kill the current"""
         self.mode=MagnetState.MANUAL
-        self.send(f'MOUT {self._out_volt_2_current(0, inverse=True) - 0.002:.4f}')
+        self.send(f'MOUT {self._out_volt_2_current(0, inverse=True) - 0.003:.4f}')
 
 
     @property
