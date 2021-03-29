@@ -28,6 +28,7 @@ RAMP_SLOPE_KEY = 'device-settings:sim960:ramp-rate'  # .005 A/s
 DERAMP_SLOPE_KEY = 'device-settings:sim960:deramp-rate'  # -.005 A/s
 SOAK_TIME_KEY = 'device-settings:sim960:soak-time'  # 1800 s (30 m)
 SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'  # 9.4 A
+IMPOSE_UPPER_LIMIT_ON_REGULATION_KEY = 'device-settings:sim960:enable-temperature-regulation-upper-limit'
 STATEFILE_PATH_KEY = 'device-settings:sim960:statefile'  # /picturec/picturec/logs/statefile.txt
 
 RAMP_CONFIG_KEYS = (RAMP_SLOPE_KEY, DERAMP_SLOPE_KEY, SOAK_TIME_KEY, SOAK_CURRENT_KEY)
@@ -525,11 +526,20 @@ class MagnetController(LockedMachine):
             return False
 
     def device_regulatable(self, event):
-        # TODO: Add override to avoid automatic jumping out of regulation
-        try:
-            return float(redis.read(DEVICE_TEMP_KEY)[1]) <= MAX_REGULATE_TEMP
-        except RedisError:
-            return False
+        """
+        Return True if the device is at a temperature at which the PID loop can regulate it
+
+        NOTE: enforce_upper_limit is controlled by an ENGINEERING KEY that must be changed DIRECTLY IN REDIS. It cannot
+         be commanded and must be manually changed
+        """
+        enforce_upper_limit = redis.read(IMPOSE_UPPER_LIMIT_ON_REGULATION_KEY)
+        if enforce_upper_limit == "on":
+            try:
+                return float(redis.read(DEVICE_TEMP_KEY)[1]) <= MAX_REGULATE_TEMP
+            except RedisError:
+                return False
+        else:
+            return True
 
     def kill_current(self, event):
         """Kill the current if possible, return False if fail"""
@@ -567,6 +577,7 @@ if __name__ == "__main__":
         redis.store({STATEFILE_PATH_KEY: statefile})
 
     controller = MagnetController(statefile=statefile)
+    redis.store({IMPOSE_UPPER_LIMIT_ON_REGULATION_KEY: 'on'})
 
     # main loop, listen for commands and handle them
     try:
