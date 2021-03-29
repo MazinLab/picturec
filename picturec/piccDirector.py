@@ -107,7 +107,6 @@ def settings():
                 redis.publish(f"command:{FIELD_KEYS[i[0]]}", i[1], store=False)
         return redirect(url_for('settings'))
     rv = dict(zip(FIELD_KEYS.keys(), redis.read(FIELD_KEYS.values()).values()))
-    print(rv)
     sim921form = (SIM921ResistanceRange(), SIM921ExcitationValue(), SIM921ExcitationMode(), SIM921TimeConstant(),
                   SIM921TempSlope(), SIM921ResSlope(), SIM921CalCurve())
     sim960form = (SIM960VOutMin(), SIM960VoutMax(), SIM960VinSetpointMode(), SIM960VinSetpointValue(),
@@ -344,12 +343,12 @@ class SIM960VoutMax(FlaskForm):
 
 class SIM960VinSetpointMode(FlaskForm):
     key = 'device-settings:sim960:vin-setpoint-mode'
-    sim960vinsetpointmode, submit = make_select_fields(key, "Input Voltage Setpoint")
+    sim960vinsetpointmode, submit = make_select_fields(key, "Input Voltage Mode")
 
 
 class SIM960VinSetpointValue(FlaskForm):
     key = 'device-settings:sim960:vin-setpoint'
-    sim960vinsetpointvalue, submit = make_string_fields(key, "Input Voltage (V)")
+    sim960vinsetpointvalue, submit = make_string_fields(key, "Input Voltage Desired Value(V)")
 
 
 class SIM960VinSetpointSlewEnable(FlaskForm):
