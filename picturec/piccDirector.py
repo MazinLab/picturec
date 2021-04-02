@@ -111,7 +111,8 @@ def settings():
                   SIM921TempSlope(), SIM921ResSlope(), SIM921CalCurve())
     sim960form = (SIM960VOutMin(), SIM960VoutMax(), SIM960VinSetpointMode(), SIM960VinSetpointValue(),
                   SIM960VinSetpointSlewEnable(), SIM960VinSetpointSlewRate(), SIM960PIDPEnabled(),
-                  SIM960PIDIEnabled(), SIM960PIDDEnabled(), SIM960PIDPVal(), SIM960PIDIVal(), SIM960PIDDVal())
+                  SIM960PIDIEnabled(), SIM960PIDDEnabled(), SIM960PIDOEnabled(), SIM960PIDPVal(),
+                  SIM960PIDIVal(), SIM960PIDDVal(), SIM960PIDOVal())
     hsbutton = HeatswitchToggle()
     return render_template('settings.html', title='Settings', sim921form=sim921form, sim960form=sim960form, hs=hsbutton, rv=rv)
 
@@ -376,6 +377,11 @@ class SIM960PIDDVal(FlaskForm):
     sim960piddval, submit = make_string_fields(key, "PID: D Value")
 
 
+class SIM960PIDOVal(FlaskForm):
+    key = 'device-settings:sim960:pid-offset:value'
+    sim960pidoval, submit = make_string_fields(key, "PID: Offset Value")
+
+
 class SIM960PIDPEnabled(FlaskForm):
     key = 'device-settings:sim960:pid-p:enabled'
     sim960pidpenable, submit = make_select_fields(key, "PID: Enable P")
@@ -389,6 +395,11 @@ class SIM960PIDIEnabled(FlaskForm):
 class SIM960PIDDEnabled(FlaskForm):
     key = 'device-settings:sim960:pid-d:enabled'
     sim960piddenable, submit = make_select_fields(key, "PID: Enable D")
+
+
+class SIM960PIDOEnabled(FlaskForm):
+    key = 'device-settings:sim960:pid-offset:enabled'
+    sim960pidoenable, submit = make_select_fields(key, "PID: Enable Offset")
 
 
 class HeatswitchToggle(FlaskForm):
