@@ -48,9 +48,11 @@ FIELD_KEYS = {'sim921resistancerange': 'device-settings:sim921:resistance-range'
               'sim960pidpval': 'device-settings:sim960:pid-p:value',
               'sim960pidival': 'device-settings:sim960:pid-i:value',
               'sim960piddval': 'device-settings:sim960:pid-d:value',
+              'sim960pidoval': 'device-settings:sim960:pid-offset:value',
               'sim960pidpenable': 'device-settings:sim960:pid-p:enabled',
               'sim960pidienable': 'device-settings:sim960:pid-i:enabled',
               'sim960piddenable': 'device-settings:sim960:pid-d:enabled',
+              'sim960pidoenable': 'device-settings:sim960:pid-offset:enabled',
               'hsopen': 'device-settings:currentduino:heatswitch',
               'hsclose': 'device-settings:currentduino:heatswitch'}
 
