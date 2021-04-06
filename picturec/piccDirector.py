@@ -1,13 +1,14 @@
 import flask
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
-from flask import request, redirect, url_for, render_template, jsonify
+from flask import request, redirect, url_for, render_template, jsonify, Response
 from wtforms import SelectField, SubmitField, StringField, RadioField
 import numpy as np
 import time, datetime
 import json
 import plotly
 from logging import getLogger
+from redis import Redis
 
 import picturec.util as util
 from picturec.frontend.config import Config
@@ -19,6 +20,7 @@ import picturec.currentduinoAgent as heatswitch
 app = flask.Flask(__name__)
 bootstrap = Bootstrap(app)
 app.config.from_object(Config)
+red = Redis(host='localhost', port=6379, db=0)
 
 TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', 'status:temps:lhetank',
            'status:temps:ln2tank', 'status:feedline1:hemt:gate-voltage-bias',
@@ -141,29 +143,23 @@ def hemts():
 
 @app.route('/ramp_settings', methods=['GET', 'POST'])
 def ramp_settings():
-    form = RampConfigForm()
-    if request.method == 'POST':
-        # TODO: There must be a different better way to do this (matching redis keys to field labels)
-        # TODO: Highlight 'changed' values
-        # TODO: Add 'notes' to the side of the string fields about what values are legal, check that they're legal!
-        # TODO: Block changes of specific values
-        keys = ['device-settings:sim960:ramp-rate',
-                'device-settings:sim960:soak-time',
-                'device-settings:sim960:soak-current']
+    form = FlaskForm()
+    return render_template('ramp_settings.html', title='Ramp Settings', form=form)
 
-        desired_vals = form.data
-        current_vals = redis.read(keys)
-        for k1, k2, v1, v2 in zip(current_vals.keys(), desired_vals.keys(), current_vals.values(), desired_vals.values()):
-            if k1 == 'device-settings:sim960:soak-time':
-                v2 = float(v2) * 60
-                v1 = float(v1)
-            if v1 != v2:
-                getLogger(__name__).debug(f"Change {k1} from {v1} to {v2}")
-                redis.publish(k1, v2)
 
-        return redirect(url_for('ramp_settings'))
-    else:
-        return render_template('ramp_settings.html', title='Ramp Settings', form=form)
+@app.route('/stream')
+def stream():
+    return Response(event_stream(), mimetype="text/event-stream")
+
+
+def event_stream():
+    pubsub = red.pubsub()
+    pubsub.subscribe('chat')
+    for message in pubsub.listen():
+        print(message)
+        if message['type'] == 'message':
+            pubsub.unsubscribe('chat')
+            yield 'data: %s\n\n' % message['data'].decode('utf-8')
 
 
 @app.route('/sensor_plot/<key>/<title>/<typ>', methods=['GET', 'POST'])
@@ -290,15 +286,6 @@ class MainPageForm(FlaskForm):
     cancel_scheduled = SubmitField('Cancel Scheduled Cooldown')
 
 
-class RampConfigForm(FlaskForm):
-    ramp_rate = StringField('Ramp Rate (A/s)', default=redis.read('device-settings:sim960:ramp-rate'))
-    soak_time = StringField('Soak Time (m)', default=str(float(redis.read('device-settings:sim960:soak-time'))/60))
-    soak_current = StringField('Soak Current (A)', default=redis.read('device-settings:sim960:soak-current'))
-    open_hs = SubmitField('Open HS')
-    close_hs = SubmitField('Close HS')
-    submit = SubmitField('Update')
-
-
 class SIM921ResistanceRange(FlaskForm):
     key = 'device-settings:sim921:resistance-range'
     sim921resistancerange, submit = make_select_fields(key, "Resistance Range (\u03A9)")
@@ -411,8 +398,7 @@ class HeatswitchToggle(FlaskForm):
 
 
 if __name__ == "__main__":
-
     util.setup_logging('piccDirector')
     redis.setup_redis(create_ts_keys=TS_KEYS)
-    app.debug=True
-    app.run(port=8000)
+    app.debug = True
+    app.run(port=8000, threaded=True)
