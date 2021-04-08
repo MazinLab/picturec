@@ -64,6 +64,10 @@ DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 
 redis.setup_redis(create_ts_keys=TS_KEYS)
 
+pubsub = red.pubsub()
+pubsub.unsubscribe()
+pubsub.subscribe('chat')
+
 
 def make_select_fields(key, label):
     field = SelectField(f"{label}", choices=make_select_choices(key), id=key)
@@ -153,12 +157,9 @@ def stream():
 
 
 def event_stream():
-    pubsub = red.pubsub()
-    pubsub.subscribe('chat')
     for message in pubsub.listen():
         print(message)
         if message['type'] == 'message':
-            pubsub.unsubscribe('chat')
             yield 'data: %s\n\n' % message['data'].decode('utf-8')
 
 
