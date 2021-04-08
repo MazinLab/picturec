@@ -211,9 +211,8 @@ publish = None
 pcr_range = None  # This breaks the naming mold since range is already a python special function
 redis_ts = None
 
-
 def setup_redis(host='localhost', port=6379, db=REDIS_DB, create_ts_keys=tuple()):
-    global pcredis, store, read, listen, publish, pcr_range, redis_ts
+    global pcredis, store, read, listen, publish, pcr_range, redis_ts, ps
     pcredis = PCRedis(host=host, port=port, db=db, create_ts_keys=create_ts_keys)
     store = pcredis.store
     read = pcredis.read
