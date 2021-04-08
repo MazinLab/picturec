@@ -7,8 +7,8 @@
         function sse() {
             var source = new EventSource("/stream");
             source.onmessage = function (event) {
-                console.log('data ', event.data)
-                alert(event.data);
+                console.log('data: ', event.data)
+                $("#target_div").text(event.data)
             };
         }
         sse();
