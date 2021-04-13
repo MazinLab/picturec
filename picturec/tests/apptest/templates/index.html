@@ -11,15 +11,13 @@
         var source = new EventSource("/listen");
         source.addEventListener("message", function(e) {
             console.log("Message: ", e.data);
+            $("#target_div").text(e.data)
         }, false);
         source.addEventListener("open", function(e) {
             console.log('Connection was opened: ', e);
         }, false);
         source.addEventListener("error", function(e) {
             console.log("Connection errored out: ", e);
-        }, false);
-        source.addEventListener("msg", function(e){
-            console.log('heard a message with our handler! ', e.data)
         }, false);
     </script>
 
