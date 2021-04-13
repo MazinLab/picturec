@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block body %}
+    {{ super() }}
+
+    <body>
+    <div id="target_div">Watch this space...</div>
+    </body>
+
+    <script>
+        var source = new EventSource("/listen");
+        source.addEventListener("message", function(e) {
+            console.log("Message: ", e.data);
+        }, false);
+        source.addEventListener("open", function(e) {
+            console.log('Connection was opened: ', e);
+        }, false);
+        source.addEventListener("error", function(e) {
+            console.log("Connection errored out: ", e);
+        }, false);
+        source.addEventListener("msg", function(e){
+            console.log('heard a message with our handler! ', e.data)
+        }, false);
+    </script>
+
+{% endblock %}

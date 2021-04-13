@@ -1,0 +1,36 @@
+{% extends 'bootstrap/base.html' %}
+
+{% block head %}
+    {{ super() }}
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% endblock %}
+
+{% block title %}
+  {% if title %}
+  {{ title }} - PICTURE-C
+  {% else %}
+  PICTURE-C Control
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+<nav class="navbar navbar-inverse bg-dark">
+    <a class="navbar-brand" href="{{ url_for('index') }}">PICTURE-C</a>
+    <button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+        <ul class="nav navbar-nav">
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Home</a></li>
+        </ul>
+    </div>
+</nav>
+
+{% endblock%}
+
+
+
+{% block scripts %}
+<!--This block will show up on any page IF in the content block you first call {{ super() }}-->
+{% endblock %}
