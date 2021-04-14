@@ -111,17 +111,16 @@ def make_select_choices(key):
 
 # TODO: Add alarms for serial (dis)connections?
 
-
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
     form = MainPageForm()
 
-    init_lhe_d, init_lhe_l = sensor_plot('status:temps:lhetank', 'LHe Temp', 'old')
-    init_ln2_d, init_ln2_l = sensor_plot('status:temps:ln2tank', 'LN2 Temp', 'old')
-    init_devt_d, init_devt_l = sensor_plot('status:temps:mkidarray:temp', 'Device Temp', 'old')
-    init_magc_d, init_magc_l = sensor_plot('status:highcurrentboard:current', 'Measured Current', 'old')
-    init_smagc_d, init_smagc_l = sensor_plot('status:device:sim960:current-setpoint', 'Desired Current', 'old')
+    init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
+    init_ln2_d, init_ln2_l = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
+    init_devt_d, init_devt_l = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
+    init_magc_d, init_magc_l = initialize_sensor_plot('status:highcurrentboard:current', 'Measured Current')
+    init_smagc_d, init_smagc_l = initialize_sensor_plot('status:device:sim960:current-setpoint', 'Desired Current')
 
     return render_template('index.html', form=form, init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l,
                            init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
@@ -186,29 +185,21 @@ def event_stream():
             yield 'data: %s\n\n' % message['data'].decode('utf-8')
 
 
-@app.route('/sensor_plot/<key>/<title>/<typ>', methods=['GET', 'POST'])
-def sensor_plot(key, title, typ):
+def initialize_sensor_plot(key, title):
     """
     :param key: Redis key plot data is needed for
     :param title: Plot title. If '-', not used
     :param typ: <'new'|'old'> Type of updating required. 'new' gives the most recent point. 'old' gives up to 30 minutes of data.
     :return: data to be plotted.
     """
-
-    if typ == 'old':
-        ts = np.array(redis.pcr_range(key, '-', '+'))
-        last_tval = time.time() # In seconds
-        first_tval = last_tval - 1800  # Allow data from up to 30 minutes beforehand to be plotted (30 m = 1800 s)
-        m = (ts[:,0]/1000 >= first_tval) & (ts[:, 0]/1000 <= last_tval)
-        times = [datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ts[m][:,0]]
-        vals = list(ts[m][:,1])
-        if len(times) == 0:
-            val = redis.read(key)
-            times = [datetime.datetime.fromtimestamp(val[0] / 1000).strftime("%H:%M:%S")]
-            vals = [val[1]]
-    elif typ == 'new':
+    last_tval = time.time() # In seconds
+    first_tval = int((last_tval - 1800) * 1000)  # Allow data from up to 30 minutes beforehand to be plotted (30 m = 1800 s)
+    ts = np.array(redis.pcr_range(key, f"{first_tval}", '+'))
+    times = [datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ts[:,0]]
+    vals = list(ts[:,1])
+    if len(times) == 0:
         val = redis.read(key)
-        times = [datetime.datetime.fromtimestamp(val[0]/1000).strftime("%H:%M:%S")]
+        times = [datetime.datetime.fromtimestamp(val[0] / 1000).strftime("%H:%M:%S")]
         vals = [val[1]]
 
     plot_data = [{
@@ -221,7 +212,6 @@ def sensor_plot(key, title, typ):
     }
     d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
-
     return d, l
 
 
