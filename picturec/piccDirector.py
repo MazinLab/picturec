@@ -16,8 +16,10 @@ import picturec.pcredis as redis
 from picturec.devices import COMMAND_DICT
 import picturec.currentduinoAgent as heatswitch
 
+# util.setup_logging('piccDirector')
 
 app = flask.Flask(__name__)
+app.logger.setLevel('DEBUG')
 bootstrap = Bootstrap(app)
 app.config.from_object(Config)
 red = Redis(host='localhost', port=6379, db=0)
