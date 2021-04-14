@@ -1,19 +1,22 @@
 {% extends 'base.html' %}
 
-{% block content %}
+{% block scripts %}
+    {{ super() }}
+
+{% endblock %}
+
+{% block body %}
     {{ super() }}
     <body>
-    <script>
-        function sse() {
-            var source = new EventSource("/stream");
-            source.onmessage = function (event) {
-                console.log('data: ', event.data)
-                $("#target_div").text(event.data)
-            };
-        }
-        sse();
-    </script>
-
-    <div id="target_div">Watch this space...</div>
+    <div id="target_div">Consistent Updates here!</div>
+    <div id="other_target">Periodic Updates here.</div>
     </body>
+
+    <div id="device_temp" class="container"></div>
+
+    <script>
+        Plotly.newPlot('device_temp', {{ init_devt_d | safe}}, {{ init_devt_l | safe}})
+        updater("status:temps:mkidarray:temp", "#target_div", 'device_temp')
+        updater("device-settings:sim921:time-constant", "#other_target", "")
+    </script>
 {% endblock %}
