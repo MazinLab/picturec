@@ -1,11 +1,7 @@
 {% extends 'base.html' %}
 
-{% block content %}
-    <head>
-        <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
-        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    </head>
-
+{% block body %}
+    {{ super() }}
     <script type="text/javascript">
         function newdata(key, title, typ) {
                 var update = [];
@@ -103,33 +99,16 @@
     <div style="width:2000px">
     <div style="float:left; width:1500px; height:500px">
         <div id="device_temp" style="float:left;width:450px;height:450px"></div>
+        <div id="magnet_current" style="float:left;width:450px;height:450px"></div>
+        <div id="desired_magnet_current" style="float:left;width:450px;height:450px"></div>
         <script>
             Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }})
-
-            var interval = setInterval(function() {
-                var extend_vals = newdata('status:temps:mkidarray:temp','-','new');
-                Plotly.extendTraces('device_temp', {x:[extend_vals[0].x], y:[extend_vals[0].y]}, [0])
-            }, 1000, 3600)
-        </script>
-
-        <div id="magnet_current" style="float:left;width:450px;height:450px"></div>
-        <script>
             Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
-
-            var interval = setInterval(function() {
-                var extend_vals = newdata('status:highcurrentboard:current','-','new');
-                Plotly.extendTraces('magnet_current', {x:[extend_vals[0].x], y:[extend_vals[0].y]}, [0])
-            }, 1000, 3600)
-        </script>
-
-                <div id="desired_magnet_current" style="float:left;width:450px;height:450px"></div>
-        <script>
             Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
 
-            var interval = setInterval(function() {
-                var extend_vals = newdata('status:device:sim960:current-setpoint','-','new');
-                Plotly.extendTraces('desired_magnet_current', {x:[extend_vals[0].x], y:[extend_vals[0].y]}, [0])
-            }, 1000, 3600)
+            updater("status:temps:mkidarray:temp", "-", 'device_temp')
+            updater("status:highcurrentboard:current", "-", 'magnet_current')
+            updater("status:device:sim960:current-setpoint", "-", 'desired_magnet_current')
         </script>
     </div>
 
@@ -160,29 +139,14 @@
     <div style="width:1000px; height:500px">
 
         <div id="lhe_tank_temp" style="float:left;width:450px;height:450px"></div>
-        <script>
-            Plotly.newPlot('lhe_tank_temp', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
-
-            var interval = setInterval(function() {
-                var extend_vals = newdata('status:temps:lhetank','-','new');
-                Plotly.extendTraces('lhe_tank_temp', {x:[extend_vals[0].x], y:[extend_vals[0].y]}, [0])
-            }, 1000, 3600)
-        </script>
-
         <div id="ln2_tank_temp" style="float:left;width:450px;height:450px"></div>
         <script>
+            Plotly.newPlot('lhe_tank_temp', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
             Plotly.newPlot('ln2_tank_temp', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
-
-            var interval = setInterval(function() {
-                var extend_vals = newdata('status:temps:ln2tank','-','new');
-                Plotly.extendTraces('ln2_tank_temp', {x:[extend_vals[0].x], y:[extend_vals[0].y]}, [0])
-            }, 1000, 3600)
+            updater("status:temps:lhetank", "-", 'lhe_tank_temp')
+            updater("status:temps:ln2tank", "-", 'ln2_tank_temp')
         </script>
 
 
     </div>
-
-<!--    <div>-->
-<!--        <a href="{{ url_for('index') }}">Refresh</a>-->
-<!--    </div>-->
 {% endblock %}
