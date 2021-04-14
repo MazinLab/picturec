@@ -401,6 +401,5 @@ class HeatswitchToggle(FlaskForm):
 
 
 if __name__ == "__main__":
-    util.setup_logging('piccDirector')
     redis.setup_redis(create_ts_keys=TS_KEYS)
-    app.run(port=8000, threaded=True, debug=True)
+    app.run(port=8000, threaded=True, debug=True, ssl_context=('/home/mazinlab/appcerts/cert.pem', '/home/mazinlab/appcerts/key.pem'))
