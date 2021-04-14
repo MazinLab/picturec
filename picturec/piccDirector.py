@@ -66,9 +66,30 @@ DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 
 redis.setup_redis(create_ts_keys=TS_KEYS)
 
-pubsub = red.pubsub()
-pubsub.unsubscribe()
-pubsub.subscribe('chat')
+
+@app.route('/listen/<key>', methods=['GET'])
+def listen(key):
+    app.logger.debug(f"listening for {key}!!")
+    return Response(stream(key), mimetype='text/event-stream', content_type='text/event-stream')
+
+def stream(key):
+    if key in TS_KEYS:
+        app.logger.debug(f'Updating {key} periodically')
+        while True:
+            time.sleep(1)
+            x = redis.read(key)
+            data_to_send = json.dumps([{'x': datetime.datetime.fromtimestamp(x[0] / 1000).strftime("%H:%M:%S"),
+                                        'y': x[1], 'name': key}],
+                                      cls=plotly.utils.PlotlyJSONEncoder)
+            msg = f"event:ts\nretry:5\ndata: {data_to_send}\n\n"
+            app.logger.debug(msg.replace('\n', '\\n'))
+            yield msg
+    else:
+        app.logger.debug(f"Listening for changes in {key}")
+        for message in redis.listen(key):
+            msg = f"event:reg\nretry:5\ndata: {message[0]} {message[1]}\n\n"
+            app.logger.debug(msg.replace('\n','\\n'))
+            yield msg
 
 
 def make_select_fields(key, label):
