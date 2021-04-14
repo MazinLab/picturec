@@ -170,19 +170,8 @@ def hemts():
 @app.route('/ramp_settings', methods=['GET', 'POST'])
 def ramp_settings():
     form = FlaskForm()
-    return render_template('ramp_settings.html', title='Ramp Settings', form=form)
-
-
-@app.route('/stream')
-def stream():
-    return Response(event_stream(), mimetype="text/event-stream")
-
-
-def event_stream():
-    for message in pubsub.listen():
-        print(message)
-        if message['type'] == 'message':
-            yield 'data: %s\n\n' % message['data'].decode('utf-8')
+    init_devt_d, init_devt_l = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
+    return render_template('ramp_settings.html', title='Ramp Settings', init_devt_d=init_devt_d, init_devt_=init_devt_l, form=form)
 
 
 def initialize_sensor_plot(key, title):
