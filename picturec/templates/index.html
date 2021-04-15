@@ -96,25 +96,33 @@
         });
     </script>
 
-    <div style="width:2000px">
-    <div style="float:left; width:1500px; height:500px">
+    <div style="float:left; width:1500px; height:500px; margin-left: 250px">
         <div id="device_temp" style="float:left;width:450px;height:450px"></div>
-        <div id="magnet_current" style="float:left;width:450px;height:450px"></div>
         <div id="desired_magnet_current" style="float:left;width:450px;height:450px"></div>
+        <div id="magnet_current" style="float:left;width:450px;height:450px"></div>
         <script>
             Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }})
             Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
             Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
-
-            updater("status:temps:mkidarray:temp", "-", 'device_temp')
-            updater("status:highcurrentboard:current", "-", 'magnet_current')
-            updater("status:device:sim960:current-setpoint", "-", 'desired_magnet_current')
+            updater("status:temps:mkidarray:temp", "-", 'device_temp');
+            updater("status:device:sim960:current-setpoint", "-", 'desired_magnet_current');
+            updater("status:highcurrentboard:current", "-", 'magnet_current');
         </script>
     </div>
 
+    <div style="width:1000px; height:500px; margin-left: 250px">
+        <div id="lhe" style="float:left;width:450px;height:450px"></div>
+        <div id="ln2" style="float:left;width:450px;height:450px"></div>
+        <script>
+            Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
+            Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
+            updater("status:temps:lhetank", "-", 'lhe');
+            updater("status:temps:ln2tank", "-", 'ln2');
+        </script>
+    </div>
 
-    <div style="float:left">
-        <div style="padding:15px">Magnet Commands</div>
+    <div style="float:left; margin-left: 250px">
+        <h1 style="padding:15px">Magnet Commands</h1>
 
         <div style="padding:15px">
             <a href="#" id="test" style="float:left">{{ form.start_cooldown() }}</a>
@@ -133,20 +141,5 @@
             <div id="dest3"></div>
         </div>
     </div>
-    </div>
 
-
-    <div style="width:1000px; height:500px">
-
-        <div id="lhe_tank_temp" style="float:left;width:450px;height:450px"></div>
-        <div id="ln2_tank_temp" style="float:left;width:450px;height:450px"></div>
-        <script>
-            Plotly.newPlot('lhe_tank_temp', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
-            Plotly.newPlot('ln2_tank_temp', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
-            updater("status:temps:lhetank", "-", 'lhe_tank_temp')
-            updater("status:temps:ln2tank", "-", 'ln2_tank_temp')
-        </script>
-
-
-    </div>
 {% endblock %}
