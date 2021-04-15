@@ -15,55 +15,77 @@
 {% endblock %}
 
 {% block body %}
-<nav class="navbar navbar-inverse bg-dark">
-    <a class="navbar-brand" href="{{ url_for('index') }}">PICTURE-C</a>
-    <button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-        <ul class="nav navbar-nav">
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Home</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('settings') }}">Settings</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Live Viewer</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('hemts') }}">HEMT</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('ramp_settings') }}">ServerSends</a></li>
-        </ul>
-    </div>
+<!--<nav class="navbar navbar-inverse bg-dark">-->
+<!--    <a class="navbar-brand" href="{{ url_for('index') }}">PICTURE-C</a>-->
+<!--    <button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">-->
+<!--        <span class="navbar-toggler-icon"></span>-->
+<!--    </button>-->
+<!--    <div class="collapse navbar-collapse" id="navbarNavAltMarkup">-->
+<!--        <ul class="nav navbar-nav">-->
+<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Home</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('settings') }}">Settings</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Live Viewer</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('hemts') }}">HEMT</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('ramp_settings') }}">ServerSends</a></li>-->
+<!--        </ul>-->
+<!--    </div>-->
 </nav>
 
-<nav class="col-md-2 d-none d-md-block bg-light sidebar">
-    <div class="sidebar-sticky">
-        <ul class="nav flex-column">
-            <li class="nav-item"><a class="nav-link" href="#">Dashboard</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Orders</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Products</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Customers</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Reports</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Integrations</a></li>
-        </ul>
-        <ul class="nav flex-column mb-2">
-            <li class="nav-item"><a class="nav-link" href="#">Current month</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Last quarter</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Social engagement</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Year-end sale</a></li>
-        </ul>
-    </div>
-</nav>
+
+<div class="sidenav" style="height:100%; width: 175px; position:fixed; z-index: 1; top: 0; left: 0; overflow-x: hidden; padding-top: 10px; background-color: #111">
+    <a href="{{ url_for('index') }}" style="padding: 6px 8px 6px 8px; text-decoration: none; font-size: 25px; color: #818181; display: block">Home</a>
+    <a href="{{ url_for('settings') }}" style="padding: 6px 8px 6px 8px; text-decoration: none; font-size: 25px; color: #818181; display: block">Settings</a>
+    <a href="{{ url_for('dashboard') }}" style="padding: 6px 8px 6px 8px; text-decoration: none; font-size: 25px; color: #818181; display: block">Live Viewer</a>
+    <a href="{{ url_for('hemts') }}" style="padding: 6px 8px 6px 8px; text-decoration: none; font-size: 25px; color: #818181; display: block">HEMT</a>
+    <a href="{{ url_for('ramp_settings') }}" style="padding: 6px 8px 6px 8px; text-decoration: none; font-size: 25px; color: #818181; display: block">Test Page</a>
+</div>
+
+<div class="sidenav" style="height:100%; width: 175px; position:fixed; z-index: 1; top: 0; right: 0; overflow-x: hidden; padding-top: 10px; background-color: #111">
+    <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>Device T:</div><div id="Temp_Report" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left">K</div></div>
+    <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>LN2 T:</div><div id="Nitrogen_Temp" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left">K</div></div>
+    <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>LHe T:</div><div id="Helium_Temp" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left">K</div></div>
+    <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>Magnet Current:</div><div id="Meas_Current" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left">A</div></div>
+    <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>Magnet Status:</div><div id="MagnetStatus" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left"></div></div>
+</div>
+<!--<nav class="col-md-2 d-none d-md-block bg-light sidebar">-->
+<!--    <div class="sidebar-sticky">-->
+<!--        <ul class="nav flex-column">-->
+<!--            <div>Device T: <div id="Temp_Report"></div> K</div>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Dashboard</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Orders</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Products</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Customers</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Reports</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Integrations</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Current month</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Last quarter</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Social engagement</a></li>-->
+<!--            <li class="nav-item"><a class="nav-link" href="#">Year-end sale</a></li>-->
+<!--        </ul>-->
+<!--    </div>-->
+<!--</nav>-->
 
     <script>
         function updater(key, div_target, plot_target) {
-            console.log('called!');
+
             var source = new EventSource("/listen/"+key);
+
             source.addEventListener("ts", function (e) {
                 var newdata = JSON.parse(e.data);
                 console.log("Message: ", newdata[0]);
                 var time = [newdata[0]['x']];
                 var temp = [newdata[0]['y']];
-                Plotly.extendTraces(plot_target, {x: [time], y: [temp]}, [0])
+                if (plot_target == "-") {
+                    console.log("no plot target specified");
+                } else {
+                    console.log('Updating plot');
+                    Plotly.extendTraces(plot_target, {x: [time], y: [temp]}, [0])
+                }
                 if (div_target == "-") {
                     console.log('no div target specified');
                 } else {
-                    $(div_target).text(e.data);
+                    console.log('Updating value');
+                    $(div_target).text(Number(newdata[0]['y'].toFixed(3)));
                 }
             }, false);
             source.addEventListener("reg", function (e) {
@@ -77,6 +99,14 @@
                 console.log("Connection errored out: ", e);
             }, false);
         };
+    </script>
+
+    <script>
+        updater("status:temps:lhetank", "#Helium_Temp", "-");
+        updater("status:temps:ln2tank", "#Nitrogen_Temp", "-");
+        updater("status:temps:mkidarray:temp", "#Temp_Report", "-");
+        updater("status:device:sim960:current-setpoint", "#Meas_Current", "-");
+        updater("status:magnet:state", "#Temp_Report", "-");
     </script>
 
 {% endblock%}
