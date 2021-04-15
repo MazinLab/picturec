@@ -61,6 +61,8 @@ FIELD_KEYS = {'sim921resistancerange': 'device-settings:sim921:resistance-range'
               'hsclose': 'device-settings:currentduino:heatswitch'}
 
 
+REPORT_KEYS = list(COMMAND_DICT.keys()) + TS_KEYS + list(FIELD_KEYS.values())
+
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 
 
@@ -71,6 +73,21 @@ redis.setup_redis(create_ts_keys=TS_KEYS)
 def listen(key):
     app.logger.debug(f"listening for {key}!!")
     return Response(stream(key), mimetype='text/event-stream', content_type='text/event-stream')
+
+
+@app.route('/listener', methods=["GET"])
+def listener():
+    return Response(bigstream(), mimetype='text/event-stream', content_type='text/event-stream')
+
+
+def bigstream():
+    while True:
+        time.sleep(.75)
+        x = redis.read(REPORT_KEYS)
+        x = json.dumps(x)
+        msg = f"retry:5\ndata: {x}\n\n"
+        yield msg
+
 
 def stream(key):
     if key in TS_KEYS:

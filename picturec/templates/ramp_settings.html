@@ -7,16 +7,33 @@
 
 {% block body %}
     {{ super() }}
-    <body>
-    <div id="target_div">Consistent Updates here!</div>
-    <div id="other_target">Periodic Updates here.</div>
-    </body>
 
-    <div id="device_temp" class="container"></div>
+    <div id="target_div" class="container" style="width: 500px">Consistent Updates here!</div>
+    <div id="other_target" class="container" style="width: 500px">Periodic Updates here.</div>
+
+    <div id="device_temp" class="container" style="width: 500px"></div>
 
     <script>
         Plotly.newPlot('device_temp', {{ init_devt_d | safe}}, {{ init_devt_l | safe}})
         updater("status:temps:mkidarray:temp", "#target_div", 'device_temp')
         updater("device-settings:sim921:time-constant", "#other_target", "")
+    </script>
+
+    <script>
+        function ud() {
+            var source = new EventSource("/listener");
+
+            source.addEventListener("message", function (e) {
+                var newdata = JSON.parse(e.data);
+                console.log("Message: ", newdata);
+            }, false);
+            source.addEventListener("open", function (e) {
+                console.log('Connection was opened: ', e);
+            }, false);
+            source.addEventListener("error", function (e) {
+                console.log("Connection errored out: ", e);
+            }, false);
+        };
+        ud()
     </script>
 {% endblock %}
