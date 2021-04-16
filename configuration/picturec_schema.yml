@@ -98,12 +98,12 @@ device-settings:
     pid-p:
       value: 1.6e1
       enabled: True
-      pid-i:
-        value: 0.2
-        enabled: True
-      pid-d:
-        value: 0
-        enabled: False
+    pid-i:
+      value: 0.2
+      enabled: True
+    pid-d:
+      value: 0
+      enabled: False
     ramp-rate: 0.005
     deramp-rate: -0.005
     soak-time: 1800
