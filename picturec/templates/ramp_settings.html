@@ -14,18 +14,18 @@
     <div id="device_temp" class="container" style="width: 500px"></div>
 
     <script>
-        Plotly.newPlot('device_temp', {{ init_devt_d | safe}}, {{ init_devt_l | safe}})
-        updater("status:temps:mkidarray:temp", "#target_div", 'device_temp')
-        updater("device-settings:sim921:time-constant", "#other_target", "")
+        // Plotly.newPlot('device_temp', {{ init_devt_d | safe}}, {{ init_devt_l | safe}})
+        // updater("status:temps:mkidarray:temp", "#target_div", 'device_temp')
+        // updater("device-settings:sim921:time-constant", "#other_target", "")
     </script>
 
     <script>
         function ud() {
             var source = new EventSource("/listener");
-
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
                 console.log("Message: ", newdata);
+                update_div("#target_div", "status:temps:mkidarray:temp", newdata, true, false);
             }, false);
             source.addEventListener("open", function (e) {
                 console.log('Connection was opened: ', e);
@@ -35,5 +35,21 @@
             }, false);
         };
         ud()
+
+        function update_div(div, key, sentdata, ts, plot) {
+            var data = sentdata[key];
+            console.log("Data "+data+" is going to "+div);
+            if (ts) {
+                var time = data[0]
+                var value = data[1]
+            } else {
+                var value = data
+            }
+            if (plot) {
+                Plotly.extendTraces(div, {x:[time], y:[value]}, [0])
+            } else {
+                $(div).text(JSON.stringify(value));
+            }
+        };
     </script>
 {% endblock %}
