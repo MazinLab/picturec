@@ -25,6 +25,8 @@ KEY_DICT = {msg_idx: key for (msg_idx, key) in zip(np.arange(0, 15, 1), KEYS)}
 STATUS_KEY = "status:device:hemtduino:status"
 FIRMWARE_KEY = "status:device:hemtduino:firmware"
 
+HEMTTEMP_KEYS = KEYS + [STATUS_KEY, FIRMWARE_KEY]
+
 if __name__ == "__main__":
 
     log= util.setup_logging('hemttempAgent')

@@ -25,16 +25,16 @@ from picturec.pcredis import PCRedis, RedisError
 import picturec.util as util
 
 
-KEYS = ['status:temps:lhetank',
+LAKESHORE240_KEYS = ['status:temps:lhetank',
         'status:temps:ln2tank',
         'status:device:ls240:firmware',
-        'status:device:ls240:status',
+        # 'status:device:ls240:status',
         'status:device:ls240:model',
         'status:device:ls240:sn']
 
-TS_KEYS = ('status:temps:lhetank', 'status:temps:ln2tank')
+TS_KEYS = ['status:temps:lhetank', 'status:temps:ln2tank']
 
-STATUS_KEY = "status:device:ls240:status"
+# STATUS_KEY = "status:device:ls240:status"
 
 FIRMWARE_KEY = "status:device:ls240:firmware"
 MODEL_KEY = 'status:device:ls240:model'

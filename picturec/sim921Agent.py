@@ -39,6 +39,8 @@ MODEL_KEY = 'status:device:sim921:model'
 FIRMWARE_KEY = 'status:device:sim921:firmware'
 SN_KEY = 'status:device:sim921:sn'
 
+SIM921_KEYS = TS_KEYS + [REGULATION_TEMP_KEY, CALIBRATION_CURVE_KEY, TEMP_SEPOINT_KEY, RES_SETPOINT_KEY,
+                         OUTPUT_MODE_KEY, STATUS_KEY, MODEL_KEY, FIRMWARE_KEY, SN_KEY]
 COMMAND_KEYS = [f"command:{k}" for k in SETTING_KEYS + (REGULATION_TEMP_KEY,)]
 
 log = logging.getLogger(__name__)

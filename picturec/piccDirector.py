@@ -16,6 +16,11 @@ import picturec.pcredis as redis
 from picturec.devices import COMMAND_DICT
 import picturec.currentduinoAgent as heatswitch
 
+from picturec.sim960Agent import SIM960_KEYS
+from picturec.sim921Agent import SIM921_KEYS
+from picturec.lakeshore240Agent import LAKESHORE240_KEYS
+from picturec.hemttempAgent import HEMTTEMP_KEYS
+from picturec.currentduinoAgent import CURRENTDUINO_KEYS
 # util.setup_logging('piccDirector')
 
 app = flask.Flask(__name__)
@@ -34,7 +39,7 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
            'status:feedline2:hemt:drain-current-bias', 'status:feedline3:hemt:drain-current-bias',
            'status:feedline4:hemt:drain-current-bias', 'status:feedline5:hemt:drain-current-bias',
            'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current',
-           'status:device:sim960:current-setpoint']
+           'status:device:sim960:current-setpoint', 'status:device:sim921:sim960-vout', 'status:device:sim960:vin']
 
 FIELD_KEYS = {'sim921resistancerange': 'device-settings:sim921:resistance-range',
               'sim921excitationvalue': 'device-settings:sim921:excitation-value',
@@ -60,8 +65,7 @@ FIELD_KEYS = {'sim921resistancerange': 'device-settings:sim921:resistance-range'
               'hsopen': 'device-settings:currentduino:heatswitch',
               'hsclose': 'device-settings:currentduino:heatswitch'}
 
-
-REPORT_KEYS = list(COMMAND_DICT.keys()) + TS_KEYS + list(FIELD_KEYS.values())
+KEYS = SIM921_KEYS + SIM960_KEYS + LAKESHORE240_KEYS + CURRENTDUINO_KEYS + HEMTTEMP_KEYS + list(COMMAND_DICT.keys())
 
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 
@@ -83,7 +87,7 @@ def listener():
 def bigstream():
     while True:
         time.sleep(.75)
-        x = redis.read(REPORT_KEYS)
+        x = redis.read(KEYS)
         x = json.dumps(x)
         msg = f"retry:5\ndata: {x}\n\n"
         yield msg
