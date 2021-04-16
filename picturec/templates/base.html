@@ -76,15 +76,13 @@
                 var time = [newdata[0]['x']];
                 var temp = [newdata[0]['y']];
                 if (plot_target == "-") {
-                    console.log("no plot target specified");
+
                 } else {
-                    console.log('Updating plot');
                     Plotly.extendTraces(plot_target, {x: [time], y: [temp]}, [0])
                 }
                 if (div_target == "-") {
-                    console.log('no div target specified');
+
                 } else {
-                    console.log('Updating value');
                     $(div_target).text(Number(newdata[0]['y'].toFixed(3)));
                 }
             }, false);
