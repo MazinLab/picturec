@@ -104,9 +104,6 @@
             Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }})
             Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
             Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
-            updater("status:temps:mkidarray:temp", "-", 'device_temp');
-            updater("status:device:sim960:current-setpoint", "-", 'desired_magnet_current');
-            updater("status:highcurrentboard:current", "-", 'magnet_current');
         </script>
     </div>
 
@@ -116,8 +113,6 @@
         <script>
             Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
             Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
-            updater("status:temps:lhetank", "-", 'lhe');
-            updater("status:temps:ln2tank", "-", 'ln2');
         </script>
     </div>
 
@@ -141,5 +136,28 @@
             <div id="dest3"></div>
         </div>
     </div>
+
+    <script>
+        function ud_base() {
+            console.log('INDEX UPDATER STARTED')
+            var source = new EventSource("/listener");
+            source.addEventListener("message", function (e) {
+                var newdata = JSON.parse(e.data);
+                console.log("Message: ", newdata);
+                update_div("lhe", "status:temps:lhetank", newdata, true, true);
+                update_div("ln2", "status:temps:ln2tank", newdata, true, true);
+                update_div("device_temp", "status:temps:mkidarray:temp", newdata, true, true);
+                update_div("desired_magnet_current", "status:device:sim960:current-setpoint", newdata, true, true);
+                update_div("magnet_current", "status:highcurrentboard:current", newdata, true, true);
+            }, false);
+            source.addEventListener("open", function (e) {
+                console.log('Connection was opened: ', e);
+            }, false);
+            source.addEventListener("error", function (e) {
+                console.log("Connection errored out: ", e);
+            }, false);
+        };
+        ud_base()
+    </script>
 
 {% endblock %}
