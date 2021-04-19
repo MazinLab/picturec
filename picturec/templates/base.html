@@ -15,23 +15,6 @@
 {% endblock %}
 
 {% block body %}
-<!--<nav class="navbar navbar-inverse bg-dark">-->
-<!--    <a class="navbar-brand" href="{{ url_for('index') }}">PICTURE-C</a>-->
-<!--    <button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">-->
-<!--        <span class="navbar-toggler-icon"></span>-->
-<!--    </button>-->
-<!--    <div class="collapse navbar-collapse" id="navbarNavAltMarkup">-->
-<!--        <ul class="nav navbar-nav">-->
-<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Home</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('settings') }}">Settings</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Live Viewer</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('hemts') }}">HEMT</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="{{ url_for('ramp_settings') }}">ServerSends</a></li>-->
-<!--        </ul>-->
-<!--    </div>-->
-</nav>
-
-
 <div class="sidenav" style="height:100%; width: 175px; position:fixed; z-index: 1; top: 0; left: 0; overflow-x: hidden; padding-top: 10px; background-color: #111">
     <a href="{{ url_for('index') }}" style="padding: 6px 8px 6px 8px; text-decoration: none; font-size: 25px; color: #818181; display: block">Home</a>
     <a href="{{ url_for('settings') }}" style="padding: 6px 8px 6px 8px; text-decoration: none; font-size: 25px; color: #818181; display: block">Settings</a>
@@ -45,50 +28,21 @@
     <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>LN2 T:</div><div id="Nitrogen_Temp" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left">K</div></div>
     <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>LHe T:</div><div id="Helium_Temp" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left">K</div></div>
     <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>Magnet Current:</div><div id="Meas_Current" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left">A</div></div>
-    <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>Magnet Status:</div><div id="MagnetStatus" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left"></div></div>
+    <div style="padding: 12px 8px 12px 8px; text-decoration: none; font-size: 15px; color: #818181; display: block"><div>Magnet Status:</div><div id="Magnet_Status" style="display: inline; float: left; padding-left: 3px; padding-right: 3px"></div><div style="display: inline; float: left"></div></div>
 </div>
-<!--<nav class="col-md-2 d-none d-md-block bg-light sidebar">-->
-<!--    <div class="sidebar-sticky">-->
-<!--        <ul class="nav flex-column">-->
-<!--            <div>Device T: <div id="Temp_Report"></div> K</div>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Dashboard</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Orders</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Products</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Customers</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Reports</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Integrations</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Current month</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Last quarter</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Social engagement</a></li>-->
-<!--            <li class="nav-item"><a class="nav-link" href="#">Year-end sale</a></li>-->
-<!--        </ul>-->
-<!--    </div>-->
-<!--</nav>-->
 
     <script>
-        function updater(key, div_target, plot_target) {
-
-            var source = new EventSource("/listen/"+key);
-
-            source.addEventListener("ts", function (e) {
+        function ud_base() {
+            console.log('BASE UPDATER STARTED')
+            var source = new EventSource("/listener");
+            source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
-                console.log("Message: ", newdata[0]);
-                var time = [newdata[0]['x']];
-                var temp = [newdata[0]['y']];
-                if (plot_target == "-") {
-
-                } else {
-                    Plotly.extendTraces(plot_target, {x: [time], y: [temp]}, [0])
-                }
-                if (div_target == "-") {
-
-                } else {
-                    $(div_target).text(Number(newdata[0]['y'].toFixed(3)));
-                }
-            }, false);
-            source.addEventListener("reg", function (e) {
-                console.log("Message: ", e.data);
-                $(div_target).text(e.data)
+                console.log("Message: ", newdata);
+                update_div("#Helium_Temp", "status:temps:lhetank", newdata, true, false);
+                update_div("#Nitrogen_Temp", "status:temps:ln2tank", newdata, true, false);
+                update_div("#Temp_Report", "status:temps:mkidarray:temp", newdata, true, false);
+                update_div("#Meas_Current", "status:device:sim960:current-setpoint", newdata, true, false);
+                update_div("#Magnet_Status", "status:magnet:state", newdata, false, false, false);
             }, false);
             source.addEventListener("open", function (e) {
                 console.log('Connection was opened: ', e);
@@ -97,14 +51,29 @@
                 console.log("Connection errored out: ", e);
             }, false);
         };
+        ud_base()
     </script>
 
     <script>
-        updater("status:temps:lhetank", "#Helium_Temp", "-");
-        updater("status:temps:ln2tank", "#Nitrogen_Temp", "-");
-        updater("status:temps:mkidarray:temp", "#Temp_Report", "-");
-        updater("status:device:sim960:current-setpoint", "#Meas_Current", "-");
-        updater("status:magnet:state", "#Temp_Report", "-");
+        function update_div(div, key, sentdata, ts, plot=false, round=true) {
+            var data = sentdata[key];
+            console.log("Data "+data+" is going to "+div);
+            if (ts) {
+                var time = data[2];
+                var value = data[1];
+            } else {
+                var value = data;
+            }
+            if (plot) {
+                Plotly.extendTraces(div, {x:[[time]], y:[[value]]}, [0])
+            } else {
+                if (round) {
+                    $(div).text(Number(value).toFixed(3));
+                } else {
+                    $(div).text(value);
+                }
+            }
+        };
     </script>
 
 {% endblock%}
