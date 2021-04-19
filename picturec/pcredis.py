@@ -12,6 +12,7 @@ from redis import RedisError, ConnectionError, TimeoutError, AuthenticationError
     ReadOnlyError, ChildDeadlockedError, AuthenticationWrongNumberOfArgsError
 from redistimeseries.client import Client as _RTSClient
 import logging
+import datetime
 
 REDIS_DB = 0
 
@@ -99,7 +100,7 @@ class PCRedis(object):
         :param return_dict: Bool
         :return: Dict | Str | Tuple | None
         If multiple keys are queried, a dict is returned where dict = {'k1':'v1', 'k2':'v2', ... }
-        If a single timeseries key is queried, a tuple is returned where tuple = (UNIX timestamp in ms, val)
+        If a single timeseries key is queried, a tuple is returned where tuple = (UNIX timestamp in ms, val, timestamp in HH:MM:SS)
         If a single non-timeseries key is queried, str = 'val'
         If the key does not exist and error_missing=False, returns None
         """
@@ -112,7 +113,8 @@ class PCRedis(object):
             for k in keys:
                 if k in self.ts_keys:
                     try:
-                        vals.append(self.redis_ts.get(k))
+                        v = self.redis_ts.get(k)
+                        vals.append(v + (datetime.datetime.fromtimestamp(v[0] / 1000).strftime("%H:%M:%S"),))
                     except ResponseError:
                         vals.append(None)
                 else:
@@ -130,7 +132,8 @@ class PCRedis(object):
         else:
             if keys[0] in self.ts_keys:
                 try:
-                    val = self.redis_ts.get(keys[0])
+                    v = self.redis_ts.get(keys[0])
+                    val = (v + (datetime.datetime.fromtimestamp(v[0] / 1000).strftime("%H:%M:%S"), ))
                 except ResponseError:
                     if error_missing:
                         raise KeyError(f"Key not in redis: {keys[0]}")
