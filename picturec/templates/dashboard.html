@@ -1,66 +1,26 @@
 {% extends 'base.html' %}
 
-{% block content %}
-
-    <head>
-        <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
-        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    </head>
-
+{% block body %}
+    {{ super() }}
     <div id="dash" style="width:600px;height:600px"></div>
     <script>
-        function iv() {
-            var values = [];
-            $.ajax({
-                url: '/viewdata',
-                type: 'post',
-                async: false,
-                success: function(data) {
-                    values = data['cts']
-                },
-                error: function() {
-                    console.log('Error grabbing dashboard data')
-                }
-            });
+        var layout = {{ init_layout | safe }}
+        Plotly.newPlot('dash', {{ init_data | safe}}, layout);
 
-            var d0 = [
-                {
-                    z: values,
-                    type: 'heatmap',
-                }
-            ];
-
-            return d0
-        }
-
-        function grab_new_frame() {
-            var values = [];
-            $.ajax({
-                url: '/viewdata',
-                type: 'post',
-                async: false,
-                success: function(data) {
-                    values = data['cts']
-                },
-                error: function() {
-                    console.log('Error grabbing dashboard data')
-                }
-            });
-
-            return values
-        }
-
-        var first_frame = iv()
-        var layout = {
-            title:'Dashboard'
+        function ud_dash() {
+            var source = new EventSource("/streamimg");
+            source.addEventListener("message", function (e) {
+                var newdata = JSON.parse(e.data);
+                console.log(newdata);
+                Plotly.newPlot('dash', newdata, layout)
+            }, false);
+            source.addEventListener("open", function (e) {
+                console.log('Connection was opened: ', e);
+            }, false);
+            source.addEventListener("error", function (e) {
+                console.log("Connection errored out: ", e);
+            }, false);
         };
-
-        Plotly.newPlot('dash', first_frame, layout);
-
-        var interval = setInterval(function() {
-            var new_data = iv()
-            Plotly.newPlot('dash', new_data, {title:'Dashboard'})
-        }, 1500);
-
+        ud_dash()
     </script>
 {% endblock %}
