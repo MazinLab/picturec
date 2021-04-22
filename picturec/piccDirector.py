@@ -159,7 +159,13 @@ def viewdata():
 @app.route('/hemts', methods=['GET', 'POST'])
 def hemts():
     form = FlaskForm()
-    return render_template('hemts.html', title='HEMT', form=form)
+
+    init_vg_d, init_vg_l = initialize_hemt_plot('gate-voltage-bias', 'Gate Voltage')
+    init_id_d, init_id_l = initialize_hemt_plot('drain-current-bias', 'Drain Current')
+    init_vd_d, init_vd_l = initialize_hemt_plot('drain-voltage-bias', 'Drain Voltage')
+
+    return render_template('hemts.html', title='HEMT', form=form, ivgd=init_vg_d, ivgl=init_vg_l,
+                           iidd=init_id_d, iidl=init_id_l, ivdd=init_vd_d, ivdl=init_vd_l)
 
 
 @app.route('/ramp_settings', methods=['GET', 'POST'])
@@ -199,23 +205,25 @@ def initialize_sensor_plot(key, title):
     return d, l
 
 
-@app.route('/reporter', methods=['POST'])
-def reporter():
-    vg_keys = [f'status:feedline{i}:hemt:gate-voltage-bias' for i in [1, 2, 3, 4, 5]]
-    id_keys = [f'status:feedline{i}:hemt:drain-current-bias' for i in [1, 2, 3, 4, 5]]
-    vd_keys = [f'status:feedline{i}:hemt:drain-voltage-bias' for i in [1, 2, 3, 4, 5]]
+def initialize_hemt_plot(key, title):
+    last_tval = time.time()
+    first_tval = int((last_tval - 1800) * 1000)
+    keys = [f'status:feedline{i}:hemt:{key}' for i in [1, 2, 3, 4, 5]]
+    timestreams = [np.array(redis.pcr_range(key, f"{first_tval}", "+")) for key in keys]
+    times = [[datetime.datetime.fromtimestamp(t / 1000).strftime("%H:%M:%S") for t in ts[:, 0]] for ts in timestreams]
+    vals = [list(ts[:, 1]) for ts in timestreams]
 
-    vgs = np.array([redis.read(i) for i in vg_keys])
-    ids = np.array([redis.read(i) for i in id_keys])
-    vds = np.array([redis.read(i) for i in vd_keys])
-
-    vgtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vgs[:, 0]])
-    idtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ids[:, 0]])
-    vdtimes = list([datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in vds[:, 0]])
-
-    return jsonify({'vg_times': vgtimes, 'gate_voltages': list(vgs[:, 1]),
-                    'id_times': idtimes, 'drain_currents': list(ids[:, 1]),
-                    'vd_times': vdtimes, 'drain_voltages': list(vds[:, 1])})
+    plot_data = [{'x': j[0],
+                  'y': j[1],
+                  'name': f"Feedline {i+1} {title}",
+                  'mode': 'lines'} for i, j in enumerate(zip(times, vals))]
+    plot_layout = {
+        'title': title
+    }
+    d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
+    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
+    app.logger.info(d)
+    return d, l
 
 
 @app.route('/start_cooldown', methods=['POST'])
