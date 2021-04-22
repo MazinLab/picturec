@@ -88,16 +88,6 @@
     </script>
 
     <script>
-        function update_plot(div, key, sentdata, trace=0) {
-            var data = sentdata[key];
-            console.log("Data "+data+" is going to "+div);
-            var time = data[2];
-            var value = data[1];
-            Plotly.extendTraces(div, {x:[[time]], y:[[value]]}, [trace])
-        }
-    </script>
-
-    <script>
         function update_div(div, key, sentdata, ts=false) {
             var data = sentdata[key];
             console.log("Data "+data+" is going to "+div);
@@ -109,6 +99,16 @@
             }
             $(div).text(value)
         };
+    </script>
+
+    <script>
+        function update_plot(div, key, sentdata, trace=0) {
+            var data = sentdata[key];
+            console.log("Data "+data+" is going to "+div);
+            var time = data[2];
+            var value = data[1];
+            Plotly.extendTraces(div, {x:[[time]], y:[[value]]}, [trace])
+        }
     </script>
 
 {% endblock%}
