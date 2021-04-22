@@ -87,6 +87,18 @@ def bigstream():
         yield msg
 
 
+@app.route('/streamimg', methods=["GET"])
+def streamimg():
+    return Response(makeimg(), mimetype='text/event-stream', content_type='text/event-stream')
+
+def makeimg():
+    while True:
+        time.sleep(.2)
+        d, _ = viewdata()
+        msg = f"retry:5\ndata: {d}\n\n"
+        yield msg
+
+
 def make_select_fields(key, label):
     field = SelectField(f"{label}", choices=make_select_choices(key), id=key)
     submit = SubmitField("Update", id=key)
@@ -146,14 +158,18 @@ def settings():
 def dashboard():
     # TODO
     form = FlaskForm()
-    return render_template('dashboard.html', title='Dashboard', form=form)
+    init_data, init_layout = viewdata()
+    return render_template('dashboard.html', title='Dashboard', form=form, init_data=init_data, init_layout=init_layout)
 
 
-@app.route('/viewdata', methods=['POST'])
 def viewdata():
     frame_to_use = np.random.randint(0, len(DASHDATA))
-    x = DASHDATA[frame_to_use][75:200,75:200]
-    return jsonify({'cts':x.tolist()})
+    x = DASHDATA[frame_to_use][100:175, 100:175]
+    z = [{'z': x.tolist(), 'type': 'heatmap'}]
+    plot_layout = {'title': 'dashboard'}
+    d = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
+    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
+    return d, l
 
 
 @app.route('/hemts', methods=['GET', 'POST'])
