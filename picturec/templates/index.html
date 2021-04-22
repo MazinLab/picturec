@@ -138,17 +138,17 @@
     </div>
 
     <script>
-        function ud_base() {
+        function ud_idx() {
             console.log('INDEX UPDATER STARTED')
             var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
                 console.log("Message: ", newdata);
-                update_div("lhe", "status:temps:lhetank", newdata, true, true);
-                update_div("ln2", "status:temps:ln2tank", newdata, true, true);
-                update_div("device_temp", "status:temps:mkidarray:temp", newdata, true, true);
-                update_div("desired_magnet_current", "status:device:sim960:current-setpoint", newdata, true, true);
-                update_div("magnet_current", "status:highcurrentboard:current", newdata, true, true);
+                update_plot("lhe", "status:temps:lhetank", newdata);
+                update_plot("ln2", "status:temps:ln2tank", newdata);
+                update_plot("device_temp", "status:temps:mkidarray:temp", newdata);
+                update_plot("desired_magnet_current", "status:device:sim960:current-setpoint", newdata);
+                update_plot("magnet_current", "status:highcurrentboard:current", newdata);
             }, false);
             source.addEventListener("open", function (e) {
                 console.log('Connection was opened: ', e);
@@ -157,7 +157,7 @@
                 console.log("Connection errored out: ", e);
             }, false);
         };
-        ud_base()
+        ud_idx()
     </script>
 
 {% endblock %}
