@@ -139,7 +139,6 @@
 
     <script>
         function ud_idx() {
-            console.log('INDEX UPDATER STARTED')
             var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
