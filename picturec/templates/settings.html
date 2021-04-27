@@ -2,113 +2,135 @@
 
 {% block body %}
     {{ super() }}
-    <div style="width: 100%">
-
-        <div style="float:left; margin-left: 150px">
-
-            <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
-                <h2>SIM921 Settings</h2>
-                {% for f in sim921form %}
+    <div class="container" style="float:left; margin-left: 10%; width: 40%; padding: 0px">
+        <div class="col-lg" style="border-style: solid; border-width: 1px">
+            <div class="row">
+                <h2 style="text-align: center">Heat Switch</h2>
+            </div>
+            <div class="row" style="text-align: center">
+                <div style="display: inline-block">
                     <form action="{{ url_for('settings') }}" method="post">
-                        {{ f.hidden_tag() }}
-                        <table border="1" rules="rows">
-                            <tr width="450px">
-                                {% for field in f %}
-                                    {% if field.type == "SelectField" %}
-                                        <td width="100px" style="float:left; padding: 3px">
-                                            {{ field.label }}
-                                        </td>
-                                        <td width="100px" id="{{field.name}}" style="float:left">
-                                            {{rv[field.name]}}
-                                        </td>
-                                        <td width="100px" style="float:left">
-                                            {{ field() }}
-                                        </td>
-                                    {% elif field.type == "StringField" %}
-                                        <td width="100px" style="float:left">
-                                            {{ field.label }}
-                                        </td>
-                                        <td width="100px" id="{{field.name}}" style="float:left">
-                                            {{rv[field.name]}}
-                                        </td>
-                                        <td width="100px" style="float:left">
-                                            {{ field() }}
-                                        </td>
-                                    {% else %}
-                                        <td width="100px" >
-                                            {{ field() }}
-                                        </td>
-                                    {% endif %}
-                                {% endfor %}
-                            </tr>
-                        </table>
+                        {{ hs.hidden_tag() }}
+                        {{ hs.open() }}
                     </form>
+                </div>
+                <div style="display: inline-block">
+                    <form action="{{ url_for('settings') }}" method="post">
+                        {{ hs.hidden_tag() }}
+                        {{ hs.close() }}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg" style="border-style: solid; border-width: 1px">
+            <div class="col-lg">
+                <div class="row">
+                    <h2 style="text-align: center">SIM 921 Settings</h2>
+                </div>
+                {% for field in s921 %}
+                    {% if field.id != "update" %}
+                        {% if field.id != "csrf_token" %}
+                            <div class="row">
+                                <form action="{{ url_for('settings') }}" method="post">
+                                    <div class="column" style="float: left; margin-left: 4%; width: 25%">
+                                        {{ s921.hidden_tag() }}
+                                        {{ field.label }}
+                                    </div>
+                                    <div class="column" style="float: left; margin-left: 2%; width: 35%">
+                                        {{ field() }}
+                                    </div>
+                                    <div class="column" style="text-align: right; float: left; margin-left: 2%; width: 10%">
+                                        {{ s921.update() }}
+                                    </div>
+                                </form>
+                                <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:right; margin-right: 4%; width: 15%"></div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
                 {% endfor %}
             </div>
+        </div>
 
-            <div style="padding-left:10px; border-style:solid; border-width:2px; width:500px">
-            <h2>Heatswitch Override</h2>
-            <form action="{{ url_for('settings') }}" method="post">
-                <h4> Current position: {{ rv['hsopen'] }} </h4>
-
-                <div>
-                    {% if rv['hsopen'] == 'open' %}
-                        {{ hs.hsclose() }}
-                    {% elif rv['hsopen'] == 'close' %}
-                        {{ hs.hsopen() }}
-                    {% else %}
-                        {{ hs.hsopen() }} {{ hs.hsclose() }}
-                    {% endif %}
+        <div class="col-lg" style="border-style: solid; border-width: 1px">
+            <div class="col-lg">
+                <div class="row">
+                    <h2 style="text-align: center">SIM 960 Settings</h2>
                 </div>
-            </form>
-        </div>
-
-        </div>
-
-        <div style="padding-left:10px; margin-left:650px; border-style:solid; border-width:2px; width:500px">
-            <h2>SIM960 Settings</h2>
-            {% for f in sim960form %}
-                <form action="{{ url_for('settings') }}" method="post">
-                    {{ f.hidden_tag() }}
-                    <table border="1" rules="rows">
-                        <tr width="400 px">
-                            {% for field in f %}
-                                {% if field.type == "SelectField" %}
-                                    <td width="100px" style="float:left; padding: 3px">
+                {% for field in s960 %}
+                    {% if field.id != "update" %}
+                        {% if field.id != "csrf_token" %}
+                            <div class="row">
+                                <form action="{{ url_for('settings') }}" method="post">
+                                    <div class="column" style="float: left; margin-left: 4%; width: 25%">
+                                        {{ s960.hidden_tag() }}
                                         {{ field.label }}
-                                    </td>
-                                    <td width="100px" id="{{field.name}}" style="float:left">
-                                        {{ rv[field.name] }}
-                                    </td>
-                                    <td width="100px" style="float:left">
+                                    </div>
+                                    <div class="column" style="float: left; margin-left: 2%; width: 35%">
                                         {{ field() }}
-                                    </td>
-                                {% elif field.type == "StringField" %}
-                                    <td width="100px" style="float:left; padding: 3px">
-                                        {{ field.label }}
-                                    </td>
-                                    <td width="100px" id="{{field.name}}" style="float:left">
-                                        {{ rv[field.name] }}
-                                    </td>
-                                    <td width="100px" style="float:left">
-                                        {{ field() }}
-                                    </td>
-                                {% else %}
-                                    <td width="100px">
-                                        {{ field() }}
-                                    </td>
-                                {% endif %}
-                            {% endfor %}
-                        </tr>
-                    </table>
-                </form>
-            {% endfor %}
+                                    </div>
+                                    <div class="column" style="text-align: right; float: left; margin-left: 2%; width: 10%">
+                                        {{ s960.update() }}
+                                    </div>
+                                </form>
+                                <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:right; margin-right: 4%; width: 15%"></div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </div>
         </div>
-
     </div>
 
-{% endblock %}
+    <div class="container" style="float:right; margin-right: 12%; max-width: 38%; padding: 0px">a</div>
 
-{% block scripts %}
+    <script>
+        function ud_idx() {
+            var source = new EventSource("/listener");
+            source.addEventListener("message", function (e) {
+                var newdata = JSON.parse(e.data);
+                // console.log("Message: ", newdata);
+                update_div("#resistancerange_currentval", "device-settings:sim921:resistance-range", newdata);
+                update_div("#excitationvalue_currentval", "device-settings:sim921:excitation-value", newdata);
+                update_div("#excitationmode_currentval", "device-settings:sim921:excitation-mode", newdata);
+                update_div("#timeconstant_currentval", "device-settings:sim921:time-constant", newdata);
+                update_div("#tempslope_currentval", "device-settings:sim921:temp-slope", newdata);
+                update_div("#resistanceslope_currentval", "device-settings:sim921:resistance-slope", newdata);
+                update_div("#curve_currentval", "device-settings:sim921:curve-number", newdata);
+
+                update_div("#voutmin_currentval", "device-settings:sim960:vout-min-limit", newdata);
+                update_div("#voutmax_currentval", "device-settings:sim960:vout-max-limit", newdata);
+                update_div("#vinsetpointmode_currentval", "device-settings:sim960:vin-setpoint-mode", newdata);
+                update_div("#vinsetpointvalue_currentval", "device-settings:sim960:vin-setpoint", newdata);
+                update_div("#vinsetpointslewenable_currentval", "device-settings:sim960:vin-setpoint-slew-enable", newdata);
+                update_div("#vinsetpointslewrate_currentval", "device-settings:sim960:vin-setpoint-slew-rate", newdata);
+                update_div("#pidpval_currentval", "device-settings:sim960:pid-p:value", newdata);
+                update_div("#pidival_currentval", "device-settings:sim960:pid-i:value", newdata);
+                update_div("#piddval_currentval", "device-settings:sim960:pid-d:value", newdata);
+                update_div("#pidoval_currentval", "device-settings:sim960:pid-offset:value", newdata);
+                update_div("#pidpenable_currentval", "device-settings:sim960:pid-p:enabled", newdata);
+                update_div("#pidienable_currentval", "device-settings:sim960:pid-i:enabled", newdata);
+                update_div("#piddenable_currentval", "device-settings:sim960:pid-d:enabled", newdata);
+                update_div("#pidoenable_currentval", "device-settings:sim960:pid-offset:enabled", newdata);
+
+                if (newdata['device-settings:currentduino:heatswitch'] == "open") {
+                    document.getElementById("open").disabled = true;
+                    document.getElementById("close").disabled = false;
+                } else {
+                    document.getElementById("open").disabled = false;
+                    document.getElementById("close").disabled = true;
+                }
+            }, false);
+            source.addEventListener("open", function (e) {
+                console.log('Connection was opened: ', e);
+            }, false);
+            source.addEventListener("error", function (e) {
+                console.log("Connection errored out: ", e);
+            }, false);
+        };
+        ud_idx()
+    </script>
+
+
 
 {% endblock %}
