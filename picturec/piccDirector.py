@@ -1,3 +1,8 @@
+"""
+TODO: Make buttons on index page do stuff (actually publish redis commands)
+TODO: Simplify adding fields/forms (or at least make it easier, )
+"""
+
 import flask
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
@@ -65,6 +70,16 @@ FIELD_KEYS = {'sim921resistancerange': 'device-settings:sim921:resistance-range'
               'hsopen': 'device-settings:currentduino:heatswitch',
               'hsclose': 'device-settings:currentduino:heatswitch'}
 
+MAGNET_COMMAND_FORM_KEYS = {'startcooldown': 'command:get-cold',
+                            'abortcooldown': 'command:abort-cooldown',
+                            'cancelcooldown': 'command:cancel-scheduled-cooldown',
+                            'schedulecooldown': 'command:be-cold-at',
+                            'soakcurrent': 'device-settings:sim960:soak-current',
+                            'soaktime': 'device-settings:sim960:soak-time',
+                            'ramprate': 'device-settings:sim960:ramp-rate',
+                            'deramprate': 'device-settings:sim960:deramp-rate',
+                            'regulationtemperature': 'device-settings:mkidarray:regulating-temp'}
+
 KEYS = SIM921_KEYS + SIM960_KEYS + LAKESHORE240_KEYS + CURRENTDUINO_KEYS + HEMTTEMP_KEYS + list(COMMAND_DICT.keys())
 
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
@@ -99,19 +114,10 @@ def makeimg():
         yield msg
 
 
-def make_select_fields(key, label):
-    field = SelectField(f"{label}", choices=make_select_choices(key), id=key)
-    submit = SubmitField("Update", id=key)
-    return field, submit
-
-
-def make_string_fields(key, label):
-    field = StringField(f"{label}", id=key)
-    submit = SubmitField("Update")
-    return field, submit
-
-
 def make_select_choices(key):
+    """
+    USE: field = SelectField(label, choices=make_select_choices(key), id=key)
+    """
     choices = list(COMMAND_DICT[key]['vals'].keys())
     return choices
 
@@ -121,18 +127,25 @@ def make_select_choices(key):
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
-    form = MainPageForm()
-
+    form = FlaskForm()
+    if request.method == 'POST':
+        for i in request.form.items():
+            if i[0] in MAGNET_COMMAND_FORM_KEYS.keys():
+                # getLogger(__name__).info(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
+                # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[0])
+                app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}")
+        return redirect(url_for('index'))
     init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
     init_ln2_d, init_ln2_l = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
     init_devt_d, init_devt_l = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
     init_magc_d, init_magc_l = initialize_sensor_plot('status:highcurrentboard:current', 'Measured Current')
     init_smagc_d, init_smagc_l = initialize_sensor_plot('status:device:sim960:current-setpoint', 'Current')
-
+    cycleform = CycleControlForm()
+    magnetform = MagnetControlForm()
     return render_template('index.html', form=form, init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l,
                            init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
                            init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l,
-                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l)
+                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, mag=magnetform, cyc=cycleform)
 
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -144,14 +157,10 @@ def settings():
                 redis.publish(f"command:{FIELD_KEYS[i[0]]}", i[1], store=False)
         return redirect(url_for('settings'))
     rv = dict(zip(FIELD_KEYS.keys(), redis.read(FIELD_KEYS.values()).values()))
-    sim921form = (SIM921ResistanceRange(), SIM921ExcitationValue(), SIM921ExcitationMode(), SIM921TimeConstant(),
-                  SIM921TempSlope(), SIM921ResSlope(), SIM921CalCurve())
-    sim960form = (SIM960VOutMin(), SIM960VoutMax(), SIM960VinSetpointMode(), SIM960VinSetpointValue(),
-                  SIM960VinSetpointSlewEnable(), SIM960VinSetpointSlewRate(), SIM960PIDPEnabled(),
-                  SIM960PIDIEnabled(), SIM960PIDDEnabled(), SIM960PIDOEnabled(), SIM960PIDPVal(),
-                  SIM960PIDIVal(), SIM960PIDDVal(), SIM960PIDOVal())
+    sim921form = SIM921SettingForm()
+    sim960form = SIM960SettingForm()
     hsbutton = HeatswitchToggle()
-    return render_template('settings.html', title='Settings', sim921form=sim921form, sim960form=sim960form, hs=hsbutton, rv=rv)
+    return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton, rv=rv)
 
 
 @app.route('/dashboard', methods=['GET'])
@@ -174,6 +183,7 @@ def viewdata():
 
 @app.route('/hemts', methods=['GET', 'POST'])
 def hemts():
+    """ As of 26 April 2021 - Unused Page """
     form = FlaskForm()
 
     init_vg_d, init_vg_l = initialize_hemt_plot('gate-voltage-bias', 'Gate Voltage')
@@ -184,11 +194,19 @@ def hemts():
                            iidd=init_id_d, iidl=init_id_l, ivdd=init_vd_d, ivdl=init_vd_l)
 
 
-@app.route('/ramp_settings', methods=['GET', 'POST'])
-def ramp_settings():
+@app.route('/test_page', methods=['GET', 'POST'])
+def test_page():
     form = FlaskForm()
-    init_devt_d, init_devt_l = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
-    return render_template('ramp_settings.html', title='Ramp Settings', init_devt_d=init_devt_d, init_devt_=init_devt_l, form=form)
+    if request.method == 'POST':
+        for i in request.form.items():
+            if i[0] in MAGNET_COMMAND_FORM_KEYS.keys():
+                # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[0])
+                app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}")
+        return redirect(url_for('test_page'))
+    x = MagnetControlForm()
+    return render_template('test_page.html', title='Test Page', form=form, a=x)
+
+
 
 
 def initialize_sensor_plot(key, title):
@@ -242,21 +260,69 @@ def initialize_hemt_plot(key, title):
     return d, l
 
 
-@app.route('/start_cooldown', methods=['POST'])
+class CycleControlForm(FlaskForm):
+    startcooldown = SubmitField('Start Cooldown')
+    abortcooldown = SubmitField('Abort Cooldown')
+    cancelcooldown = SubmitField('Cancel Scheduled Cooldown')
+    schedulecooldown = StringField('Schedule Cooldown', id='be-cold-at')
+    schedulesubmit = SubmitField("Schedule")
+
+
+class MagnetControlForm(FlaskForm):
+    soakcurrent = StringField('Soak Current', id='device-settings:sim960:soak-current')
+    soaktime = StringField("Soak Time", id='device-settings:sim960:soak-time')
+    ramprate = StringField("Ramp Rate", id='device-settings:sim960:ramp-rate')
+    deramprate = StringField("Deramp Rate", id='device-settings:sim960:deramp-rate')
+    regulationtemperature = StringField("Regulation Temperature", id='device-settings:mkidarray:regulating-temp')
+    update = SubmitField("Update")
+
+
+class SIM921SettingForm(FlaskForm):
+    resistancerange = SelectField("Resistance Range (\u03A9)", choices=make_select_choices('device-settings:sim921:resistance-range'))
+    excitationvalue = SelectField("Excitation Value (V)", choices=make_select_choices('device-settings:sim921:excitation-value'))
+    excitationmode = SelectField("Excitation Mode", choices=make_select_choices('device-settings:sim921:excitation-mode'))
+    timeconstant = SelectField("Time Constant (s)", choices=make_select_choices('device-settings:sim921:time-constant'))
+    tempslope = StringField("Temperature Slope (V/K)", id='device-settings:sim921:temp-slope')
+    resistanceslope = StringField("Resistance Slope (V/\u03A9)", id='device-settings:sim921:resistance-slope')
+    curve = SelectField("Calibration Curve", choices=make_select_choices('device-settings:sim921:curve-number'))
+    update = SubmitField("Update")
+
+
+class SIM960SettingForm(FlaskForm):
+    voutmin = StringField("Minimum Output (V)", id='device-settings:sim960:vout-min-limit')
+    voutmax = StringField("Maximum Output (V)", id='device-settings:sim960:vout-max-limit')
+    vinsetpointmode = SelectField("Input Voltage Mode", choices=make_select_choices('device-settings:sim960:vin-setpoint-mode'))
+    vinsetpointvalue = StringField("Input Voltage Desired Value(V)", id='device-settings:sim960:vin-setpoint')
+    vinsetpointslewenable = SelectField("Enable Internal Setpoint Slew", choices=make_select_choices('device-settings:sim960:vin-setpoint-slew-enable'))
+    vinsetpointslewrate = StringField("Internal Setpoint Slew Rate", id='device-settings:sim960:vin-setpoint-slew-rate')
+    pidpval = StringField("PID: P Value", id='device-settings:sim960:pid-p:value')
+    pidival = StringField("PID: I Value", id='device-settings:sim960:pid-i:value')
+    piddval = StringField("PID: D Value", id='device-settings:sim960:pid-d:value')
+    pidoval = StringField("PID: Offset Value", id='device-settings:sim960:pid-offset:value')
+    pidpenable = SelectField("PID: Enable P", choices=make_select_choices('device-settings:sim960:pid-p:enabled'))
+    pidienable = SelectField("PID: Enable I", choices=make_select_choices('device-settings:sim960:pid-i:enabled'))
+    piddenable = SelectField("PID: Enable D", choices=make_select_choices('device-settings:sim960:pid-d:enabled'))
+    pidoenable = SelectField("PID: Enable Offset", choices=make_select_choices('device-settings:sim960:pid-offset:enabled'))
+    update = SubmitField("Update")
+
+
+class HeatswitchToggle(FlaskForm):
+    open = SubmitField('Open', id='open')
+    close = SubmitField('Close', id='close')
+
+
 def start_cooldown():
     redis.publish('command:get-cold', 'get-cold')
     data = {'msg': f'Cooldown started at {datetime.datetime.fromtimestamp(time.time()).strftime("%c")}'}
     return jsonify(data)
 
 
-@app.route('/abort_cooldown', methods=['POST'])
 def abort_cooldown():
     redis.publish('command:abort-cooldown', 'abort-cooldown')
     data = {'msg': f'Cooldown aborted at {datetime.datetime.fromtimestamp(time.time()).strftime("%c")}'}
     return jsonify(data)
 
 
-@app.route('/schedule_be_cold_at', methods=['POST'])
 def schedule_be_cold_at():
     try:
         stime = [int(i) for i in request.form['time'].split(":")]
@@ -278,145 +344,6 @@ def cancel_scheduled_cooldown():
     redis.publish('command:cancel-scheduled-cooldown', 'cancel-scheduled-cooldown')
     data = {'msg': f'Scheduled cooldown has been cancelled!'}
     return jsonify(data)
-
-
-@app.route('/opener', methods=['POST'])
-def opener():
-    heatswitch.open()
-    if heatswitch.is_opened():
-        data = {'msg': 'Successfully opened heatswitch'}
-    else:
-        data = {'msg': 'Heatswitch failed to open'}
-    return jsonify(data)
-
-
-@app.route('/closer', methods=['POST'])
-def closer():
-    heatswitch.close()
-    if heatswitch.is_closed():
-        data = {'msg': 'Successfully closed heatswitch'}
-    else:
-        data = {'msg': 'Heatswitch failed to close'}
-    return jsonify(data)
-
-
-class MainPageForm(FlaskForm):
-    start_cooldown = SubmitField('Start Cooldown')
-    abort_cooldown = SubmitField('Abort Cooldown')
-    be_cold_time = StringField("Be cold at", default="HH:MM:SS")
-    schedule_cooldown = SubmitField('Schedule')
-    cancel_scheduled = SubmitField('Cancel Scheduled Cooldown')
-
-
-class SIM921ResistanceRange(FlaskForm):
-    key = 'device-settings:sim921:resistance-range'
-    sim921resistancerange, submit = make_select_fields(key, "Resistance Range (\u03A9)")
-
-
-class SIM921ExcitationValue(FlaskForm):
-    key = 'device-settings:sim921:excitation-value'
-    sim921excitationvalue, submit = make_select_fields(key, "Excitation Value (V)")
-
-
-class SIM921ExcitationMode(FlaskForm):
-    key = 'device-settings:sim921:excitation-mode'
-    sim921excitationmode, submit = make_select_fields(key, "Excitation Mode")
-
-
-class SIM921TimeConstant(FlaskForm):
-    key = 'device-settings:sim921:time-constant'
-    sim921timeconstant, submit = make_select_fields(key, "Time Constant (s)")
-
-
-class SIM921TempSlope(FlaskForm):
-    key = 'device-settings:sim921:temp-slope'
-    sim921tempslope, submit = make_string_fields(key, "Temperature Slope (V/K)")
-
-
-class SIM921ResSlope(FlaskForm):
-    key = 'device-settings:sim921:resistance-slope'
-    sim921resistanceslope, submit = make_string_fields(key, "Resistance Slope (V/\u03A9)")
-
-
-class SIM921CalCurve(FlaskForm):
-    key = 'device-settings:sim921:curve-number'
-    sim921curve, submit = make_select_fields(key, "Calibration Curve")
-
-
-class SIM960VOutMin(FlaskForm):
-    key = 'device-settings:sim960:vout-min-limit'
-    sim960voutmin, submit = make_string_fields(key, "Minimum Output (V)")
-
-
-class SIM960VoutMax(FlaskForm):
-    key = 'device-settings:sim960:vout-max-limit'
-    sim960voutmax, submit = make_string_fields(key, "Maximum Output (V)")
-
-
-class SIM960VinSetpointMode(FlaskForm):
-    key = 'device-settings:sim960:vin-setpoint-mode'
-    sim960vinsetpointmode, submit = make_select_fields(key, "Input Voltage Mode")
-
-
-class SIM960VinSetpointValue(FlaskForm):
-    key = 'device-settings:sim960:vin-setpoint'
-    sim960vinsetpointvalue, submit = make_string_fields(key, "Input Voltage Desired Value(V)")
-
-
-class SIM960VinSetpointSlewEnable(FlaskForm):
-    key = 'device-settings:sim960:vin-setpoint-slew-enable'
-    sim960vinsetpointslewenable, submit = make_select_fields(key, "Enable Internal Setpoint Slew")
-
-
-class SIM960VinSetpointSlewRate(FlaskForm):
-    key = 'device-settings:sim960:vin-setpoint-slew-rate'
-    sim960vinsetpointslewrate, submit = make_string_fields(key, "Internal Setpoint Slew Rate")
-
-
-class SIM960PIDPVal(FlaskForm):
-    key = 'device-settings:sim960:pid-p:value'
-    sim960pidpval, submit = make_string_fields(key, "PID: P Value")
-
-
-class SIM960PIDIVal(FlaskForm):
-    key = 'device-settings:sim960:pid-i:value'
-    sim960pidival, submit = make_string_fields(key, "PID: I Value")
-
-
-class SIM960PIDDVal(FlaskForm):
-    key = 'device-settings:sim960:pid-d:value'
-    sim960piddval, submit = make_string_fields(key, "PID: D Value")
-
-
-class SIM960PIDOVal(FlaskForm):
-    key = 'device-settings:sim960:pid-offset:value'
-    sim960pidoval, submit = make_string_fields(key, "PID: Offset Value")
-
-
-class SIM960PIDPEnabled(FlaskForm):
-    key = 'device-settings:sim960:pid-p:enabled'
-    sim960pidpenable, submit = make_select_fields(key, "PID: Enable P")
-
-
-class SIM960PIDIEnabled(FlaskForm):
-    key = 'device-settings:sim960:pid-i:enabled'
-    sim960pidienable, submit = make_select_fields(key, "PID: Enable I")
-
-
-class SIM960PIDDEnabled(FlaskForm):
-    key = 'device-settings:sim960:pid-d:enabled'
-    sim960piddenable, submit = make_select_fields(key, "PID: Enable D")
-
-
-class SIM960PIDOEnabled(FlaskForm):
-    key = 'device-settings:sim960:pid-offset:enabled'
-    sim960pidoenable, submit = make_select_fields(key, "PID: Enable Offset")
-
-
-class HeatswitchToggle(FlaskForm):
-    key = 'device-settings:currentduino:heatswitch'
-    hsopen = SubmitField('open')
-    hsclose = SubmitField('close')
 
 
 if __name__ == "__main__":
