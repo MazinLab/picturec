@@ -2,152 +2,124 @@
 
 {% block body %}
     {{ super() }}
-    <script type="text/javascript">
-        function newdata(key, title, typ) {
-                var update = [];
-                $.ajax({
-                    url:'/sensor_plot/'+key+'/'+title+'/'+typ,
-                    type: 'post',
-                    async: false,
-                    success: function(data) {
-                        update = JSON.parse(data)
-                        console.log('updated!')
-                    },
-                    error: function() {
-                        console.log('New data could not be obtained')
-                    }
-                });
-                return update;
-            }
-    </script>
 
-    <script type="text/javascript">
-        $(function() {
-            $('a#test').on('click', function (e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/start_cooldown',
-                    type: 'post',
-                    async: false,
-                    success: function (data) {
-                        console.log(data, data['msg'])
-                        $("#dest").text(data['msg'])
-                        $("#dest2").text('')
-                        $("#dest3").text('')
-                        $("#dest4").text('')
-                    },
-                    error: function () {
-                    }
-                });
-            });
-            $('a#test2').on('click', function (e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/abort_cooldown',
-                    type: 'post',
-                    async: false,
-                    success: function (data) {
-                        console.log(data, data['msg'])
-                        $("#dest2").text(data['msg'])
-                        $("#dest").text('')
-                        $("#dest3").text('')
-                        $("#dest4").text('')
-                    },
-                    error: function () {
-                    }
-                });
-            });
-            $('a#test3').on('click', function (e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/cancel_scheduled_cooldown',
-                    type: 'post',
-                    async: false,
-                    success: function (data) {
-                        console.log(data, data['msg'])
-                        $("#dest3").text(data['msg'])
-                        $("#dest").text('')
-                        $("#dest2").text('')
-                        $("#dest4").text('')
-                    },
-                    error: function () {
-                    }
-                });
-            });
-            $('a#test4').on('click', function (e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/schedule_be_cold_at',
-                    type: 'post',
-                    data: {'time': $('#be_cold_time')[0].value},
-                    async: false,
-                    success: function (data) {
-                        console.log(data, data['msg'])
-                        $("#dest4").text(data['msg'])
-                        $("#dest").text('')
-                        $("#dest2").text('')
-                        $("#dest3").text('')
-                    },
-                    error: function () {
-                        console.log('failure')
-                    }
-                });
-            });
-        });
-    </script>
+    <div class="container" style="margin-right: 150px; margin-left: 125px; padding: 0px">
+        <div class="column" style="margin-right: 150px; width: 600px; float: right">
+            <div class="column" style="border-style:solid; border-width: 3px">
+                <div class="row">
+                    <h2 style="float: left; margin-left: 5%">Magnet Control: <div id="mag_status" style="display: inline"></div></h2>
+                </div>
+                <div class="row">
+                    <div class="column" style="float: left; margin-left: 5%; min-width: 20%">
+                        <form action="{{ url_for('index') }}" method="post">
+                            {{ cyc.hidden_tag() }}
+                            {{ cyc.startcooldown() }}
+                        </form>
+                    </div>
+                    <div class="column" style="display: inline-block; min-width: 30%">
+                        <form action="{{ url_for('index') }}" method="post">
+                            {{ cyc.hidden_tag() }}
+                            {{ cyc.cancelcooldown() }}
+                        </form>
+                    </div>
+                    <div class="column" style="display: inline-block">
+                        <form action="{{ url_for('index') }}" method="post">
+                            {{ cyc.hidden_tag() }}
+                            {{ cyc.abortcooldown() }}
+                        </form>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="column" style="float: left; margin-left: 5%">
+                        <form action="{{ url_for('index') }}" method="post">
+                            {{ cyc.hidden_tag() }}
+                            {{ cyc.schedulecooldown.label }}
+                            {{ cyc.schedulecooldown() }}
+                            {{ cyc.schedulesubmit() }}
+                        </form>
+                    </div>
+                </div>
+            </div>
 
-    <div style="float:left; width:1500px; height:500px; margin-left: 250px">
-        <div id="device_temp" style="float:left;width:450px;height:450px"></div>
-        <div id="desired_magnet_current" style="float:left;width:450px;height:450px"></div>
-        <div id="magnet_current" style="float:left;width:450px;height:450px"></div>
-        <script>
-            Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }})
-            Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
-            Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
-        </script>
-    </div>
-
-    <div style="width:1000px; height:500px; margin-left: 250px">
-        <div id="lhe" style="float:left;width:450px;height:450px"></div>
-        <div id="ln2" style="float:left;width:450px;height:450px"></div>
-        <script>
-            Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
-            Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
-        </script>
-    </div>
-
-    <div style="float:left; margin-left: 250px">
-        <h1 style="padding:15px">Magnet Commands</h1>
-
-        <div style="padding:15px">
-            <a href="#" id="test" style="float:left">{{ form.start_cooldown() }}</a>
-            <div id="dest" style="float:left"></div>
+            <div class="col-lg" style="border-style:solid; border-width: 3px">
+                {% for field in mag %}
+                    {% if field.id != "update" %}
+                        {% if field.id != "csrf_token" %}
+                            <div class="row">
+                                <div class="column" style="float: left; margin-left: 5%">
+                                    <form action="{{ url_for('settings') }}" method="post">
+                                        {{ mag.hidden_tag() }}
+                                        {{ field.label }}
+                                        {{ field() }}
+                                        {{ mag.update() }}
+                                    </form>
+                                </div>
+                                <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:right; margin-right: 4%; width: 15%"></div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </div>
         </div>
-
-        <div style="padding:15px">
-            <a href="#" id="test2" style="float:left">{{ form.abort_cooldown() }}</a>
-            <div id="dest2" style="float:left"></div>
-        </div>
-
-        <div style="padding:15px">
-            <div><div style="float:left" id="t2">{{ form.be_cold_time.label }} {{ form.be_cold_time() }}</div><div style="float:left"><a href="#" id="test4" style="float:left">{{ form.schedule_cooldown() }}</a></div></div>
-            <div id="dest4"></div>
-            <a href="#" id="test3" style="float:left">{{ form.cancel_scheduled() }}</a>
-            <div id="dest3"></div>
+        <div class="column" style="width: 40%; float: right">
+            <div class="col-lg">
+                <div class="row">
+                    <div id="device_temp"></div>
+                </div>
+            </div>
+            <div class="col-lg">
+                <div class="row">
+                    <div id="desired_magnet_current"></div>
+                </div>
+            </div>
+            <div class="col-lg">
+                <div class="row">
+                    <div id="ln2"></div>
+                </div>
+            </div>
+            <div class="col-lg">
+                <div class="row">
+                    <div id="lhe"></div>
+                </div>
+            </div>
+            <div class="col-lg">
+                <div class="row">
+                    <div id="magnet_current"></div>
+                </div>
+            </div>
+            <script>
+                Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }})
+                Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
+                Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
+                Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
+                Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
+            </script>
         </div>
     </div>
-
     <script>
         function ud_idx() {
             var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
-                console.log("Message: ", newdata);
+                // console.log("Message: ", newdata);
                 update_plot("lhe", "status:temps:lhetank", newdata);
                 update_plot("ln2", "status:temps:ln2tank", newdata);
                 update_plot("device_temp", "status:temps:mkidarray:temp", newdata);
                 update_plot("desired_magnet_current", "status:device:sim960:current-setpoint", newdata);
                 update_plot("magnet_current", "status:highcurrentboard:current", newdata);
+                update_div("#mag_status", "status:magnet:state", newdata);
+                if (newdata['status:magnet:state'] == "off") {
+                    document.getElementById("abortcooldown").disabled = true;
+                    document.getElementById("startcooldown").disabled = false;
+                    document.getElementById("cancelcooldown").disabled = false;
+                    document.getElementById("be-cold-at").disabled = false;
+                    document.getElementById("Schedule").disabled = false;
+                } else {
+                    document.getElementById("startcooldown").disabled = true;
+                    document.getElementById("cancelcooldown").disabled = true;
+                    document.getElementById("be-cold-at").disabled = true;
+                    document.getElementById("Schedule").disabled = true;
+                }
             }, false);
             source.addEventListener("open", function (e) {
                 console.log('Connection was opened: ', e);
