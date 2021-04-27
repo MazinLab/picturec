@@ -8,33 +8,55 @@
 {% block body %}
     {{ super() }}
 
-    <div id="target_div" class="container" style="width: 500px">Consistent Updates here!</div>
-    <div id="other_target" class="container" style="width: 500px">Periodic Updates here.</div>
+    <div style="margin-left: 150px">
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.startcooldown() }}
+        </form>
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.abortcooldown() }}
+        </form>
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.cancelcooldown() }}
+        </form>
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.schedulecooldown.label }}
+            {{ a.schedulecooldown() }}
+            {{ a.schedulesubmit() }}
+        </form>
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.soakcurrent.label }}
+            {{ a.soakcurrent() }}
+            {{ a.update() }}
+        </form>
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.soaktime.label }}
+            {{ a.soaktime() }}
+            {{ a.update() }}
+        </form>
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.ramprate.label }}
+            {{ a.ramprate() }}
+            {{ a.update() }}
+        </form>
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.deramprate.label }}
+            {{ a.deramprate() }}
+            {{ a.update() }}
+        </form>
+        <form action="{{ url_for('test_page') }}" method="post">
+            {{ a.hidden_tag() }}
+            {{ a.regulationtemperature.label }}
+            {{ a.regulationtemperature() }}
+            {{ a.update() }}
+        </form>
+    </div>
 
-    <div id="device_temp" class="container" style="width: 500px"></div>
-
-    <script>
-        Plotly.newPlot('device_temp', {{ init_devt_d | safe}}, {{ init_devt_l | safe}})
-        // updater("status:temps:mkidarray:temp", "#target_div", 'device_temp')
-        // updater("device-settings:sim921:time-constant", "#other_target", "")
-    </script>
-
-    <script>
-        function ud_testpage() {
-            var source = new EventSource("/listener");
-            source.addEventListener("message", function (e) {
-                var newdata = JSON.parse(e.data);
-                console.log("Message: ", newdata);
-                update_div("#target_div", "status:temps:mkidarray:temp", newdata, true, false);
-                update_div("device_temp", "status:temps:mkidarray:temp", newdata, true, true);
-            }, false);
-            source.addEventListener("open", function (e) {
-                console.log('Connection was opened: ', e);
-            }, false);
-            source.addEventListener("error", function (e) {
-                console.log("Connection errored out: ", e);
-            }, false);
-        };
-        ud_testpage()
-    </script>
 {% endblock %}
