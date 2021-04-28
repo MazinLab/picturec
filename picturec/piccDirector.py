@@ -163,35 +163,14 @@ def settings():
     return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton, rv=rv)
 
 
-@app.route('/dashboard', methods=['GET'])
-def dashboard():
-    # TODO
-    form = FlaskForm()
-    init_data, init_layout = viewdata()
-    return render_template('dashboard.html', title='Dashboard', form=form, init_data=init_data, init_layout=init_layout)
-
-
 def viewdata():
-    frame_to_use = np.random.randint(0, len(DASHDATA))
+    frame_to_use = 50
     x = DASHDATA[frame_to_use][100:175, 100:175]
     z = [{'z': x.tolist(), 'type': 'heatmap'}]
-    plot_layout = {'title': 'dashboard'}
+    plot_layout = {'title': 'Device View'}
     d = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
     return d, l
-
-
-@app.route('/hemts', methods=['GET', 'POST'])
-def hemts():
-    """ As of 26 April 2021 - Unused Page """
-    form = FlaskForm()
-
-    init_vg_d, init_vg_l = initialize_hemt_plot('gate-voltage-bias', 'Gate Voltage')
-    init_id_d, init_id_l = initialize_hemt_plot('drain-current-bias', 'Drain Current')
-    init_vd_d, init_vd_l = initialize_hemt_plot('drain-voltage-bias', 'Drain Voltage')
-
-    return render_template('hemts.html', title='HEMT', form=form, ivgd=init_vg_d, ivgl=init_vg_l,
-                           iidd=init_id_d, iidl=init_id_l, ivdd=init_vd_d, ivdl=init_vd_l)
 
 
 @app.route('/test_page', methods=['GET', 'POST'])
