@@ -140,12 +140,14 @@ def index():
     init_devt_d, init_devt_l = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
     init_magc_d, init_magc_l = initialize_sensor_plot('status:highcurrentboard:current', 'Measured Current')
     init_smagc_d, init_smagc_l = initialize_sensor_plot('status:device:sim960:current-setpoint', 'Current')
+    init_dash_data, init_dash_layout = viewdata()
     cycleform = CycleControlForm()
     magnetform = MagnetControlForm()
     return render_template('index.html', form=form, init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l,
                            init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
                            init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l,
-                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, mag=magnetform, cyc=cycleform)
+                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, mag=magnetform, cyc=cycleform,
+                           init_data=init_dash_data, init_layout=init_dash_layout)
 
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -248,11 +250,11 @@ class CycleControlForm(FlaskForm):
 
 
 class MagnetControlForm(FlaskForm):
-    soakcurrent = StringField('Soak Current', id='device-settings:sim960:soak-current')
-    soaktime = StringField("Soak Time", id='device-settings:sim960:soak-time')
-    ramprate = StringField("Ramp Rate", id='device-settings:sim960:ramp-rate')
-    deramprate = StringField("Deramp Rate", id='device-settings:sim960:deramp-rate')
-    regulationtemperature = StringField("Regulation Temperature", id='device-settings:mkidarray:regulating-temp')
+    soakcurrent = StringField('Soak Current (A)', id='device-settings:sim960:soak-current')
+    soaktime = StringField("Soak Time (s)", id='device-settings:sim960:soak-time')
+    ramprate = StringField("Ramp Rate (A/s)", id='device-settings:sim960:ramp-rate')
+    deramprate = StringField("Deramp Rate (A/s)", id='device-settings:sim960:deramp-rate')
+    regulationtemperature = StringField("Regulation Temperature (K)", id='device-settings:mkidarray:regulating-temp')
     update = SubmitField("Update")
 
 
