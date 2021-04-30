@@ -1,6 +1,7 @@
 """
 TODO: Make buttons on index page do stuff (actually publish redis commands)
 TODO: Simplify adding fields/forms (or at least make it easier, )
+TODO: Determine EXACTLY which fields need warning signs
 """
 
 import flask
