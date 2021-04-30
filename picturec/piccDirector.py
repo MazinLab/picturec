@@ -90,27 +90,15 @@ redis.setup_redis(create_ts_keys=TS_KEYS)
 
 @app.route('/listener', methods=["GET"])
 def listener():
-    return Response(bigstream(), mimetype='text/event-stream', content_type='text/event-stream')
+    return Response(stream(), mimetype='text/event-stream', content_type='text/event-stream')
 
 
-def bigstream():
+def stream():
     while True:
         time.sleep(.75)
         x = redis.read(KEYS)
         x = json.dumps(x)
         msg = f"retry:5\ndata: {x}\n\n"
-        yield msg
-
-
-@app.route('/streamimg', methods=["GET"])
-def streamimg():
-    return Response(makeimg(), mimetype='text/event-stream', content_type='text/event-stream')
-
-def makeimg():
-    while True:
-        time.sleep(.2)
-        d, _ = viewdata()
-        msg = f"retry:5\ndata: {d}\n\n"
         yield msg
 
 
