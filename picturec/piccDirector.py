@@ -121,7 +121,7 @@ def index():
             if i[0] in MAGNET_COMMAND_FORM_KEYS.keys():
                 # getLogger(__name__).info(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
                 # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[0])
-                app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}")
+                app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}")
         return redirect(url_for('index'))
     init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
     init_ln2_d, init_ln2_l = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
