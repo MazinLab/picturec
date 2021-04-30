@@ -150,6 +150,21 @@ def index():
                            init_data=init_dash_data, init_layout=init_dash_layout)
 
 
+@app.route('/other_plots', methods=['GET'])
+def other_plots():
+    form = FlaskForm()
+    init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
+    init_ln2_d, init_ln2_l = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
+    init_devt_d, init_devt_l = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
+    init_magc_d, init_magc_l = initialize_sensor_plot('status:highcurrentboard:current', 'Measured Current')
+    init_smagc_d, init_smagc_l = initialize_sensor_plot('status:device:sim960:current-setpoint', 'Current')
+    return render_template('other_plots.html', title='Other Plots', form=form, init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l,
+                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
+                           init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l,
+                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l)
+
+
+
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
