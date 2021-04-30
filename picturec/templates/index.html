@@ -114,19 +114,6 @@
             <div class="row" style="width: 98%; height:98%; margin-left: 1%; margin-top: 1%">
                 <div id="device_temp"></div>
             </div>
-
-            <div class="row" style="width: 98%; height:98%; margin-left: 1%; margin-top: 1%">
-                <div id="desired_magnet_current"></div>
-            </div>
-            <div class="row" style="width: 98%; height:98%; margin-left: 1%; margin-top: 1%">
-                <div id="ln2"></div>
-            </div>
-            <div class="row" style="width: 98%; height:98%; margin-left: 1%; margin-top: 1%">
-                <div id="lhe"></div>
-            </div>
-            <div class="row" style="width: 98%; height:98%; margin-left: 1%; margin-top: 1%">
-                <div id="magnet_current"></div>
-            </div>
         </div>
     </div>
 
@@ -134,10 +121,10 @@
         var layout = {{ init_layout | safe }}
         Plotly.newPlot('dash', {{ init_data | safe}}, layout);
         Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }})
-        Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
-        Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
-        Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
-        Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
+        // Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
+        // Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
+        // Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
+        // Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
     </script>
 
     <script>
