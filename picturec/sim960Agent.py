@@ -29,6 +29,7 @@ DERAMP_SLOPE_KEY = 'device-settings:sim960:deramp-rate'  # -.005 A/s
 SOAK_TIME_KEY = 'device-settings:sim960:soak-time'  # 1800 s (30 m)
 SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'  # 9.4 A
 IMPOSE_UPPER_LIMIT_ON_REGULATION_KEY = 'device-settings:sim960:enable-temperature-regulation-upper-limit'
+COOLDOWN_SCHEDULED_KEY = 'device-settings:sim960:cooldown-scheduled'
 STATEFILE_PATH_KEY = 'device-settings:sim960:statefile'  # /picturec/picturec/logs/statefile.txt
 
 RAMP_CONFIG_KEYS = (RAMP_SLOPE_KEY, DERAMP_SLOPE_KEY, SOAK_TIME_KEY, SOAK_CURRENT_KEY)
@@ -64,7 +65,7 @@ COMMAND_KEYS = [f"command:{k}" for k in SETTING_KEYS + MAGNET_COMMAND_KEYS + (QU
 TS_KEYS = [OUTPUT_VOLTAGE_KEY, INPUT_VOLTAGE_KEY, MAGNET_CURRENT_KEY, MAGNET_STATE_KEY, DEVICE_TEMP_KEY]
 SIM960_KEYS = TS_KEYS + [REGULATION_TEMP_KEY, STATUS_KEY, SN_KEY, MODEL_KEY, FIRMWARE_KEY, RAMP_SLOPE_KEY,
                          DERAMP_SLOPE_KEY, SOAK_TIME_KEY, SOAK_CURRENT_KEY, IMPOSE_UPPER_LIMIT_ON_REGULATION_KEY,
-                         STATEFILE_PATH_KEY]
+                         STATEFILE_PATH_KEY, COOLDOWN_SCHEDULED_KEY]
 
 log = logging.getLogger(__name__)
 
@@ -371,8 +372,10 @@ class MagnetController(LockedMachine):
             raise ValueError(f'Time travel not possible, specify a time at least {time_needed} in the future. (Current time: {now.timestamp()})')
 
         self.cancel_scheduled_cooldown()
+        redis.store({COOLDOWN_SCHEDULED_KEY: False})
         t = threading.Timer((time - time_needed - now).seconds, self.start) # TODO (For JB): self.start?
         self.scheduled_cooldown = (time - time_needed, t)
+        redis.store({COOLDOWN_SCHEDULED_KEY: True})
         t.daemon = True
         t.start()
 
@@ -610,6 +613,7 @@ if __name__ == "__main__":
                 elif key == COLD_AT_CMD:
                     try:
                         controller.schedule_cooldown(datetime.fromtimestamp(float(val)))
+                        redis.store({COOLDOWN_SCHEDULED_KEY: True})
                     except ValueError as e:
                         getLogger(__name__).error(e)
                 elif key == COLD_NOW_CMD:
@@ -620,6 +624,7 @@ if __name__ == "__main__":
                 elif key == CANCEL_COOLDOWN_CMD:
                     try:
                         controller.cancel_scheduled_cooldown()
+                        redis.store({COOLDOWN_SCHEDULED_KEY: False})
                     except:
                         # Add error handling here
                         pass
