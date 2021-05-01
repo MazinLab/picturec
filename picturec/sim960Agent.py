@@ -354,7 +354,7 @@ class MagnetController(LockedMachine):
         if current_state in ('soaking', 'hs_opening'):
             time_to_cool = (time.time() - self.state_entry_time['soaking']) + ((0 - soak_current) / deramp_rate)
         if current_state in ('cooling', 'deramping'):
-            time_to_cool = (0 - soak_current) / deramp_rate
+            time_to_cool = -1 * current_current / deramp_rate
 
         return timedelta(seconds=time_to_cool)
 
