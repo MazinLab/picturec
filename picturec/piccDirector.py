@@ -296,6 +296,37 @@ class HeatswitchToggle(FlaskForm):
     close = SubmitField('Close', id='close')
 
 
+def parse_schedule_cooldown(schedule_time):
+    """
+    Takes a string and converts it sensibly to a timestamp to be used by the SIM960 schedule cooldown function
+    """
+    t = schedule_time.split(" ")
+    now = datetime.datetime.now()
+    year = now.year
+    month = now.month
+    day = now.day
+    if len(t) == 2:
+        sked_type = 'date'
+    else:
+        sked_type = 'time'
+
+    if sked_type == 'date':
+        d = t[0].split('/')
+        month = int(d[0])
+        day = int(d[1])
+        tval = t[1].split(":")
+        hr = int(tval[0])
+        minute = int(tval[1])
+    else:
+        tval = t[0].split(":")
+        hr = int(tval[0])
+        minute = int(tval[1])
+
+    ts = datetime.datetime(year, month, day, hr, minute)
+    return ts
+
+
+
 def start_cooldown():
     redis.publish('command:get-cold', 'get-cold')
     data = {'msg': f'Cooldown started at {datetime.datetime.fromtimestamp(time.time()).strftime("%c")}'}
