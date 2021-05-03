@@ -124,11 +124,10 @@ def index():
                 if i[0] == 'schedulecooldown':
                     app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}, {parse_schedule_cooldown(i[1])}")
                     if parse_schedule_cooldown(i[1]):
-                        # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", parse_schedule_cooldown(i[1]))
-                        print('would schedule')
+                        redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", parse_schedule_cooldown(i[1]))
                 else:
-                    # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[0])
                     app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}")
+                    redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[0])
         return redirect(url_for('index'))
 
     init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
@@ -270,31 +269,31 @@ class MagnetControlForm(FlaskForm):
 
 
 class SIM921SettingForm(FlaskForm):
-    resistancerange = SelectField("Resistance Range (\u03A9)", choices=make_select_choices('device-settings:sim921:resistance-range'))
-    excitationvalue = SelectField("Excitation Value (V)", choices=make_select_choices('device-settings:sim921:excitation-value'))
-    excitationmode = SelectField("Excitation Mode", choices=make_select_choices('device-settings:sim921:excitation-mode'))
-    timeconstant = SelectField("Time Constant (s)", choices=make_select_choices('device-settings:sim921:time-constant'))
+    resistancerange = SelectField("\u26A0 Resistance Range (\u03A9)", choices=make_select_choices('device-settings:sim921:resistance-range'))
+    excitationvalue = SelectField("\u26A0 Excitation Value (V)", choices=make_select_choices('device-settings:sim921:excitation-value'))
+    excitationmode = SelectField("\u26A0 Excitation Mode", choices=make_select_choices('device-settings:sim921:excitation-mode'))
+    timeconstant = SelectField("\u26A0 Time Constant (s)", choices=make_select_choices('device-settings:sim921:time-constant'))
     tempslope = StringField("\u26A0 Temperature Slope (V/K)", id='device-settings:sim921:temp-slope')
     resistanceslope = StringField("\u26A0 Resistance Slope (V/\u03A9)", id='device-settings:sim921:resistance-slope')
-    curve = SelectField("Calibration Curve", choices=make_select_choices('device-settings:sim921:curve-number'))
+    curve = SelectField("\u26A0 Calibration Curve", choices=make_select_choices('device-settings:sim921:curve-number'))
     update = SubmitField("Update")
 
 
 class SIM960SettingForm(FlaskForm):
-    voutmin = StringField("Minimum Output (V)", id='device-settings:sim960:vout-min-limit')
-    voutmax = StringField("Maximum Output (V)", id='device-settings:sim960:vout-max-limit')
-    vinsetpointmode = SelectField("Input Voltage Mode", choices=make_select_choices('device-settings:sim960:vin-setpoint-mode'))
+    voutmin = StringField("\u26A0 Minimum Output (V)", id='device-settings:sim960:vout-min-limit')
+    voutmax = StringField("\u26A0 Maximum Output (V)", id='device-settings:sim960:vout-max-limit')
+    vinsetpointmode = SelectField("\u26A0 Input Voltage Mode", choices=make_select_choices('device-settings:sim960:vin-setpoint-mode'))
     vinsetpointvalue = StringField("\u26A0 Input Voltage Desired Value(V)", id='device-settings:sim960:vin-setpoint')
-    vinsetpointslewenable = SelectField("Enable Internal Setpoint Slew", choices=make_select_choices('device-settings:sim960:vin-setpoint-slew-enable'))
-    vinsetpointslewrate = StringField("Internal Setpoint Slew Rate", id='device-settings:sim960:vin-setpoint-slew-rate')
-    pidpval = StringField("PID: P Value", id='device-settings:sim960:pid-p:value')
-    pidival = StringField("PID: I Value", id='device-settings:sim960:pid-i:value')
-    piddval = StringField("PID: D Value", id='device-settings:sim960:pid-d:value')
-    pidoval = StringField("PID: Offset Value", id='device-settings:sim960:pid-offset:value')
-    pidpenable = SelectField("PID: Enable P", choices=make_select_choices('device-settings:sim960:pid-p:enabled'))
-    pidienable = SelectField("PID: Enable I", choices=make_select_choices('device-settings:sim960:pid-i:enabled'))
-    piddenable = SelectField("PID: Enable D", choices=make_select_choices('device-settings:sim960:pid-d:enabled'))
-    pidoenable = SelectField("PID: Enable Offset", choices=make_select_choices('device-settings:sim960:pid-offset:enabled'))
+    vinsetpointslewenable = SelectField("\u26A0 Enable Internal Setpoint Slew", choices=make_select_choices('device-settings:sim960:vin-setpoint-slew-enable'))
+    vinsetpointslewrate = StringField("\u26A0 Internal Setpoint Slew Rate", id='device-settings:sim960:vin-setpoint-slew-rate')
+    pidpval = StringField("\u26A0 PID: P Value", id='device-settings:sim960:pid-p:value')
+    pidival = StringField("\u26A0 PID: I Value", id='device-settings:sim960:pid-i:value')
+    piddval = StringField("\u26A0 PID: D Value", id='device-settings:sim960:pid-d:value')
+    pidoval = StringField("\u26A0 PID: Offset Value", id='device-settings:sim960:pid-offset:value')
+    pidpenable = SelectField("\u26A0 PID: Enable P", choices=make_select_choices('device-settings:sim960:pid-p:enabled'))
+    pidienable = SelectField("\u26A0 PID: Enable I", choices=make_select_choices('device-settings:sim960:pid-i:enabled'))
+    piddenable = SelectField("\u26A0 PID: Enable D", choices=make_select_choices('device-settings:sim960:pid-d:enabled'))
+    pidoenable = SelectField("\u26A0 PID: Enable Offset", choices=make_select_choices('device-settings:sim960:pid-offset:enabled'))
     update = SubmitField("Update")
 
 
@@ -333,42 +332,6 @@ def parse_schedule_cooldown(schedule_time):
 
     ts = datetime.datetime(year, month, day, hr, minute).timestamp()
     return ts
-
-
-
-def start_cooldown():
-    redis.publish('command:get-cold', 'get-cold')
-    data = {'msg': f'Cooldown started at {datetime.datetime.fromtimestamp(time.time()).strftime("%c")}'}
-    return jsonify(data)
-
-
-def abort_cooldown():
-    redis.publish('command:abort-cooldown', 'abort-cooldown')
-    data = {'msg': f'Cooldown aborted at {datetime.datetime.fromtimestamp(time.time()).strftime("%c")}'}
-    return jsonify(data)
-
-
-def schedule_be_cold_at():
-    try:
-        stime = [int(i) for i in request.form['time'].split(":")]
-    except ValueError:
-        data = {'msg': f'Illegal format! Cannot use {request.form["time"]}'}
-        return jsonify(data)
-    today = datetime.date.today()
-    if len(stime) == 2:
-        stime.append(0)
-    t = datetime.time(stime[0], stime[1], stime[2])
-    time_to_be_cold = datetime.datetime.timestamp(datetime.datetime.combine(today, t))
-    redis.publish('command:be-cold-at', time_to_be_cold)
-    data = {'msg':f'Scheduled to be cold at {datetime.datetime.fromtimestamp(time_to_be_cold).strftime("%c")}'}
-    return jsonify(data)
-
-
-@app.route('/cancel_scheduled_cooldown', methods=['POST'])
-def cancel_scheduled_cooldown():
-    redis.publish('command:cancel-scheduled-cooldown', 'cancel-scheduled-cooldown')
-    data = {'msg': f'Scheduled cooldown has been cancelled!'}
-    return jsonify(data)
 
 
 if __name__ == "__main__":
