@@ -108,7 +108,7 @@ device-settings:
     deramp-rate: -0.005
     soak-time: 1800
     soak-current: 9.4
-    cooldown-scheduled: False
+    cooldown-scheduled: 'no'
     statefile: '/pictrec/picturec/logs/statefile.txt'
 
 command:

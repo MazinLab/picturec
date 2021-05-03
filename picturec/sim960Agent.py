@@ -103,6 +103,7 @@ def monitor_callback(iv, ov, oc):
 
 def compute_initial_state(sim, statefile):
     initial_state = 'deramping'  # always safe to start here
+    redis.store({COOLDOWN_SCHEDULED_KEY: 'no'})
     try:
         if sim.initialized_at_last_connect:
             mag_state = sim.mode
@@ -372,10 +373,10 @@ class MagnetController(LockedMachine):
             raise ValueError(f'Time travel not possible, specify a time at least {time_needed} in the future. (Current time: {now.timestamp()})')
 
         self.cancel_scheduled_cooldown()
-        redis.store({COOLDOWN_SCHEDULED_KEY: False})
+        redis.store({COOLDOWN_SCHEDULED_KEY: 'no'})
         t = threading.Timer((time - time_needed - now).seconds, self.start) # TODO (For JB): self.start?
         self.scheduled_cooldown = (time - time_needed, t)
-        redis.store({COOLDOWN_SCHEDULED_KEY: True})
+        redis.store({COOLDOWN_SCHEDULED_KEY: 'yes'})
         t.daemon = True
         t.start()
 
@@ -585,6 +586,7 @@ if __name__ == "__main__":
     controller = MagnetController(statefile=statefile)
     redis.store({IMPOSE_UPPER_LIMIT_ON_REGULATION_KEY: 'on'})
 
+
     # main loop, listen for commands and handle them
     try:
         while True:
@@ -613,7 +615,7 @@ if __name__ == "__main__":
                 elif key == COLD_AT_CMD:
                     try:
                         controller.schedule_cooldown(datetime.fromtimestamp(float(val)))
-                        redis.store({COOLDOWN_SCHEDULED_KEY: True})
+                        redis.store({COOLDOWN_SCHEDULED_KEY: 'yes'})
                     except ValueError as e:
                         getLogger(__name__).error(e)
                 elif key == COLD_NOW_CMD:
@@ -624,7 +626,7 @@ if __name__ == "__main__":
                 elif key == CANCEL_COOLDOWN_CMD:
                     try:
                         controller.cancel_scheduled_cooldown()
-                        redis.store({COOLDOWN_SCHEDULED_KEY: False})
+                        redis.store({COOLDOWN_SCHEDULED_KEY: 'no'})
                     except:
                         # Add error handling here
                         pass

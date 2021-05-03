@@ -133,11 +133,11 @@
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
                 // console.log("Message: ", newdata);
-                update_plot("lhe", "status:temps:lhetank", newdata);
-                update_plot("ln2", "status:temps:ln2tank", newdata);
-                update_plot("device_temp", "status:temps:mkidarray:temp", newdata);
-                update_plot("desired_magnet_current", "status:device:sim960:current-setpoint", newdata);
-                update_plot("magnet_current", "status:highcurrentboard:current", newdata);
+                // update_plot("lhe", "status:temps:lhetank", newdata);
+                // update_plot("ln2", "status:temps:ln2tank", newdata);
+                // update_plot("device_temp", "status:temps:mkidarray:temp", newdata);
+                // update_plot("desired_magnet_current", "status:device:sim960:current-setpoint", newdata);
+                // update_plot("magnet_current", "status:highcurrentboard:current", newdata);
                 update_div("#mag_status", "status:magnet:state", newdata);
 
                 update_div("#soakcurrent_currentval", "device-settings:sim960:soak-current", newdata);
@@ -145,13 +145,20 @@
                 update_div("#ramprate_currentval", "device-settings:sim960:ramp-rate", newdata);
                 update_div("#deramprate_currentval", "device-settings:sim960:deramp-rate", newdata);
                 update_div("#regulationtemperature_currentval", "device-settings:mkidarray:regulating-temp", newdata);
-                if (newdata['status:magnet:state'] == "off") {
+                if (newdata['status:magnet:state'] == "off" && newdata['device-settings:sim960:cooldown-scheduled'] == 'no') {
+                    document.getElementById("abortcooldown").disabled = true;
+                    document.getElementById("startcooldown").disabled = false;
+                    document.getElementById("cancelcooldown").disabled = true;
+                    document.getElementById("be-cold-at").disabled = false;
+                    document.getElementById("schedulesubmit").disabled = false;
+                } else if (newdata['status:magnet:state'] == "off" && newdata['device-settings:sim960:cooldown-scheduled'] == 'yes') {
                     document.getElementById("abortcooldown").disabled = true;
                     document.getElementById("startcooldown").disabled = false;
                     document.getElementById("cancelcooldown").disabled = false;
-                    document.getElementById("be-cold-at").disabled = false;
-                    document.getElementById("schedulesubmit").disabled = false;
-                } else {
+                    document.getElementById("be-cold-at").disabled = true;
+                    document.getElementById("schedulesubmit").disabled = true;
+                } else if (newdata['status:magnet:state'] == "on") {
+                    document.getElementById("abortcooldown").disabled = false;
                     document.getElementById("startcooldown").disabled = true;
                     document.getElementById("cancelcooldown").disabled = true;
                     document.getElementById("be-cold-at").disabled = true;

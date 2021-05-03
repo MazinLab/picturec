@@ -122,8 +122,10 @@ def index():
             if i[0] in MAGNET_COMMAND_FORM_KEYS.keys():
                 # getLogger(__name__).info(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
                 if i[0] == 'schedulecooldown':
-                    # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", parse_schedule_cooldown(i[1]))
                     app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}, {parse_schedule_cooldown(i[1])}")
+                    if parse_schedule_cooldown(i[1]):
+                        # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", parse_schedule_cooldown(i[1]))
+                        print('would schedule')
                 else:
                     # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[0])
                     app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}")
@@ -305,6 +307,8 @@ def parse_schedule_cooldown(schedule_time):
     """
     Takes a string and converts it sensibly to a timestamp to be used by the SIM960 schedule cooldown function
     """
+    if schedule_time == '':
+        return 0
     t = schedule_time.split(" ")
     now = datetime.datetime.now()
     year = now.year
@@ -327,7 +331,7 @@ def parse_schedule_cooldown(schedule_time):
         hr = int(tval[0])
         minute = int(tval[1])
 
-    ts = datetime.datetime(year, month, day, hr, minute)
+    ts = datetime.datetime(year, month, day, hr, minute).timestamp()
     return ts
 
 
