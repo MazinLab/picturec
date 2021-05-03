@@ -1,5 +1,7 @@
 """
 Author: Noah Swimmer, Jeb Bailey, 21 July 2020
+
+TODO: Checks on magnet values (soak current/(de)ramp rate/soak time)
 """
 import logging
 import sys
@@ -604,8 +606,7 @@ if __name__ == "__main__":
                         getLogger(__name__).warning(f"Ignoring invalid command ('{key}={val}'): {e}")
                 # NB I'm disinclined to include forced state overrides but they would go here
                 elif key == REGULATION_TEMP_KEY:
-                    MAX_REGULATE_TEMP = 1.50 * float(val)
-                    redis.store({REGULATION_TEMP_KEY: val})
+                    MAX_REGULATE_TEMP = 1.50 * float(redis.read('device-settings:sim921:temp-offset'))
                 elif key == ABORT_CMD:
                     # abort any cooldown in progress, warm up, and turn things off
                     # e.g. last command before heading to bed

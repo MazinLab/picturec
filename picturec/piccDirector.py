@@ -119,15 +119,18 @@ def index():
     form = FlaskForm()
     if request.method == 'POST':
         for i in request.form.items():
-            if i[0] in MAGNET_COMMAND_FORM_KEYS.keys():
-                # getLogger(__name__).info(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
-                if i[0] == 'schedulecooldown':
-                    app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}, {parse_schedule_cooldown(i[1])}")
-                    if parse_schedule_cooldown(i[1]):
-                        redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", parse_schedule_cooldown(i[1]))
-                else:
-                    app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}")
-                    redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[0])
+            if i[1] == "":
+                app.logger.warning(f"Invalid format to change value! Empty strings are not accepted")
+            else:
+                if i[0] in MAGNET_COMMAND_FORM_KEYS.keys():
+                    # getLogger(__name__).info(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
+                    if i[0] == 'schedulecooldown':
+                        app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}, {parse_schedule_cooldown(i[1])}")
+                        if parse_schedule_cooldown(i[1]):
+                            redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", parse_schedule_cooldown(i[1]))
+                    else:
+                        app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}")
+                        redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[1])
         return redirect(url_for('index'))
 
     init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')

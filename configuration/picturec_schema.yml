@@ -109,6 +109,7 @@ device-settings:
     soak-time: 1800
     soak-current: 9.4
     cooldown-scheduled: 'no'
+    enable-temperature-regulation-upper-limit: 'on'
     statefile: '/pictrec/picturec/logs/statefile.txt'
 
 command:

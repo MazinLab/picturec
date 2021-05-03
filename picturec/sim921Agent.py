@@ -136,18 +136,20 @@ if __name__ == "__main__":
                     temp = float(val)
                     curve = int(redis.read(CALIBRATION_CURVE_KEY))
                     res = sim.convert_temperature_to_resistance(temp, curve)
-
-                    t_cmd = SimCommand(TEMP_SEPOINT_KEY, temp)
-                    r_cmd = SimCommand(RES_SETPOINT_KEY, res)
-                    try:
-                        sim.send(t_cmd.sim_string)
-                        redis.store({t_cmd.setting: t_cmd.value})
-                        sim.send(r_cmd.sim_string)
-                        redis.store({r_cmd.setting: r_cmd.value})
-                        redis.store({STATUS_KEY: "OK"})
-                    except IOError as e:
-                        redis.store({STATUS_KEY: f"Error {e}"})
-                        log.error(f"Comm error: {e}")
+                    if res:
+                        t_cmd = SimCommand(TEMP_SEPOINT_KEY, temp)
+                        r_cmd = SimCommand(RES_SETPOINT_KEY, res)
+                        try:
+                            sim.send(t_cmd.sim_string)
+                            redis.store({t_cmd.setting: t_cmd.value})
+                            sim.send(r_cmd.sim_string)
+                            redis.store({r_cmd.setting: r_cmd.value})
+                            redis.store({STATUS_KEY: "OK"})
+                        except IOError as e:
+                            redis.store({STATUS_KEY: f"Error {e}"})
+                            log.error(f"Comm error: {e}")
+                    else:
+                        pass
 
         except RedisError as e:
             log.critical(f"Redis server error! {e}")
