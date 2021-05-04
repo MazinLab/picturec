@@ -77,7 +77,7 @@
                         <form action="{{ url_for('index') }}" method="post">
                             {{ cyc.hidden_tag() }}
                             {{ cyc.schedulecooldown.label }}
-                            {{ cyc.schedulecooldown() }}
+                            {{ cyc.schedulecooldown(**{"onchange":"this.className=(this.value=='')?'':'visited';"}) }}
                             {{ cyc.schedulesubmit() }}
                         </form>
                     </div>
@@ -96,13 +96,13 @@
                                         {{ field.label }}
                                     </div>
                                     <div class="column" style="float: left; margin-left: 2%; width: 35%">
-                                        {{ field() }}
+                                        {{ field(**{"onchange":"this.className=(this.value=='')?'':'visited';"}) }}
                                     </div>
-                                    <div class="column" style="text-align: right; float: left; margin-left: 2%; width: 10%">
+                                    <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
+                                    <div class="column" style="text-align: right; float: right; margin-right: 8%; width: 10%">
                                         {{ mag.update() }}
                                     </div>
                                 </form>
-                                <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:right; margin-right: 4%; width: 15%"></div>
                             </div>
                         {% endif %}
                     {% endif %}
