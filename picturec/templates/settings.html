@@ -40,11 +40,11 @@
                                     <div class="column" style="float: left; margin-left: 2%; width: 35%">
                                         {{ field() }}
                                     </div>
-                                    <div class="column" style="text-align: right; float: left; margin-left: 2%; width: 10%">
+                                    <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
+                                    <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
                                         {{ s921.update() }}
                                     </div>
                                 </form>
-                                <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:right; margin-right: 4%; width: 15%"></div>
                             </div>
                         {% endif %}
                     {% endif %}
@@ -69,11 +69,11 @@
                                     <div class="column" style="float: left; margin-left: 2%; width: 35%">
                                         {{ field() }}
                                     </div>
-                                    <div class="column" style="text-align: right; float: left; margin-left: 2%; width: 10%">
+                                    <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
+                                    <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
                                         {{ s960.update() }}
                                     </div>
                                 </form>
-                                <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:right; margin-right: 4%; width: 15%"></div>
                             </div>
                         {% endif %}
                     {% endif %}
