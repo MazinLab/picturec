@@ -171,15 +171,14 @@ def other_plots():
 def settings():
     if request.method == 'POST':
         for i in request.form.items():
-            if i[0] in FIELD_KEYS.keys():
-                getLogger(__name__).info(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
-                redis.publish(f"command:{FIELD_KEYS[i[0]]}", i[1], store=False)
+            if i[0] in SETTING_KEYS.keys():
+                getLogger(__name__).info(f"command:{SETTING_KEYS[i[0]]} -> {i[1]}")
+                # redis.publish(f"command:{SETTING_KEYS[i[0]]}", i[1], store=False)
         return redirect(url_for('settings'))
-    rv = dict(zip(FIELD_KEYS.keys(), redis.read(FIELD_KEYS.values()).values()))
     sim921form = SIM921SettingForm()
     sim960form = SIM960SettingForm()
     hsbutton = HeatswitchToggle()
-    return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton, rv=rv)
+    return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton)
 
 
 def viewdata():
