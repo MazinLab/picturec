@@ -16,10 +16,11 @@ import plotly
 from logging import getLogger
 from redis import Redis
 
+
 import picturec.util as util
 from picturec.frontend.config import Config
 import picturec.pcredis as redis
-from picturec.devices import COMMAND_DICT
+from picturec.devices import COMMAND_DICT, SimCommand
 import picturec.currentduinoAgent as heatswitch
 
 from picturec.sim960Agent import SIM960_KEYS
