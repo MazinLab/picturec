@@ -170,7 +170,7 @@ class SimCommand:
             try:
                 self.value = float(value)
             except ValueError:
-                ValueError(f'Invalid value {value}, must be castable to float.')
+                raise ValueError(f'Invalid value {value}, must be castable to float.')
             if not self.range[0] <= self.value <= self.range[1]:
                 raise ValueError(f'Invalid value {value}, must in {self.range}.')
 
