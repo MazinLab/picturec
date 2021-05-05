@@ -8,6 +8,91 @@
 {% block body %}
     {{ super() }}
 
-    <h1 style="text-align: center"> Development Page!</h1>
+    <div class="container" style="float:left; margin-left: 10%; width: 40%; padding: 0px">
+        <div class="col-lg" style="border-style: solid; border-width: 1px">
+            <div class="col-lg">
+                <div class="row">
+                    <h2 style="text-align: center">SIM 921 Settings</h2>
+                </div>
+                {% for field in s921 %}
+                    {% if field.id != "update" %}
+                        {% if field.id != "csrf_token" %}
+                            <div class="row">
+                                <form action="{{ url_for('test_page') }}" method="post", id="{{ field.name }}_form">
+                                    <div class="column" style="float: left; margin-left: 4%; width: 25%">
+                                        {{ s921.hidden_tag() }}
+                                        {{ field.label }}
+                                    </div>
+                                    <div class="column" style="float: left; margin-left: 2%; width: 35%">
+                                        {{ field() }}
+                                        <div id="{{ field.name }}_success" style="float: right"></div>
+                                    </div>
+                                    <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
+                                    <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
+                                        <button type="submit">Update</button>
+                                    </div>
+                                </form>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function subdata(id) {
+            $(document).on('submit', "#"+id+"_form", function(e){
+               console.log('received input');
+               console.log($("#"+id).val());
+               e.preventDefault();
+               $.ajax({
+                   type:'POST',
+                   url:'/test_page',
+                   data:{
+                       id:id,
+                       data:$("#"+id).val()
+                   },
+                   success:function(d)
+                   {
+                       $("#"+id+"_success").text(d['legal'][1])
+                       console.log('success');
+                       console.log(d);
+                   }
+               })
+            });
+        };
+        subdata("resistancerange")
+        subdata("excitationvalue")
+        subdata("excitationmode")
+        subdata("timeconstant")
+        subdata("tempslope")
+        subdata("resistanceslope")
+        subdata("curve")
+    </script>
+
+    <script>
+        function ud_idx() {
+            var source = new EventSource("/listener");
+            source.addEventListener("message", function (e) {
+                var newdata = JSON.parse(e.data);
+                // console.log("Message: ", newdata);
+                update_div("resistancerange_currentval", "device-settings:sim921:resistance-range", newdata);
+                update_div("excitationvalue_currentval", "device-settings:sim921:excitation-value", newdata);
+                update_div("excitationmode_currentval", "device-settings:sim921:excitation-mode", newdata);
+                update_div("timeconstant_currentval", "device-settings:sim921:time-constant", newdata);
+                update_div("tempslope_currentval", "device-settings:sim921:temp-slope", newdata);
+                update_div("resistanceslope_currentval", "device-settings:sim921:resistance-slope", newdata);
+                update_div("curve_currentval", "device-settings:sim921:curve-number", newdata);
+            }, false);
+            source.addEventListener("open", function (e) {
+                console.log('Connection was opened: ', e);
+            }, false);
+            source.addEventListener("error", function (e) {
+                console.log("Connection errored out: ", e);
+            }, false);
+        };
+        ud_idx()
+    </script>
 
 {% endblock %}

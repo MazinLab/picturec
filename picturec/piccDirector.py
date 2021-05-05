@@ -195,15 +195,19 @@ def viewdata():
 def test_page():
     form = FlaskForm()
     if request.method == 'POST':
-        for i in request.form.items():
-            if i[0] in MAGNET_COMMAND_FORM_KEYS.keys():
-                # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[0])
-                app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}")
-        return redirect(url_for('test_page'))
-    x = MagnetControlForm()
-    return render_template('test_page.html', title='Test Page', form=form, a=x)
-
-
+        app.logger.debug(request.form)
+        key = SETTING_KEYS[request.form.get('id')]
+        value = request.form.get('data')
+        app.logger.info(f"command:{key} -> {value}")
+        try:
+            s = SimCommand(key, value)
+            is_legal = '\u2713'
+        except ValueError:
+            is_legal = '\u2717'
+        # redis.publish(f"command:{FIELD_KEYS[i[0]]}", i[1], store=False)
+        return jsonify({'key': key, 'value': value, 'legal': is_legal})
+    sim921form = SIM921SettingForm()
+    return render_template('test_page.html', title='Test Page', form=form, s921=sim921form)
 
 
 def initialize_sensor_plot(key, title):
@@ -279,8 +283,8 @@ class SIM921SettingForm(FlaskForm):
     excitationvalue = SelectField("\u26A0 Excitation Value (V)", choices=make_select_choices('device-settings:sim921:excitation-value'))
     excitationmode = SelectField("\u26A0 Excitation Mode", choices=make_select_choices('device-settings:sim921:excitation-mode'))
     timeconstant = SelectField("\u26A0 Time Constant (s)", choices=make_select_choices('device-settings:sim921:time-constant'))
-    tempslope = StringField("\u26A0 Temperature Slope (V/K)", id='device-settings:sim921:temp-slope')
-    resistanceslope = StringField("\u26A0 Resistance Slope (V/\u03A9)", id='device-settings:sim921:resistance-slope')
+    tempslope = StringField("\u26A0 Temperature Slope (V/K)")#, id='device-settings:sim921:temp-slope')
+    resistanceslope = StringField("\u26A0 Resistance Slope (V/\u03A9)")#, id='device-settings:sim921:resistance-slope')
     curve = SelectField("\u26A0 Calibration Curve", choices=make_select_choices('device-settings:sim921:curve-number'))
     update = SubmitField("Update")
 
