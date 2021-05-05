@@ -41,10 +41,28 @@
     </div>
 
     <script>
+
+        function realtime_validate(id) {
+            $("#"+id).keyup(function () {
+                console.log($(this).val())
+                var text = $(this).val();
+                $.ajax({
+                    type:'POST',
+                    url:'/validatecmd',
+                    data:{
+                        id:id,
+                        data:text
+                    },
+                    success:function(d){
+                        $("#"+id+"_success").text(d['legal']);
+                        console.log(d);
+                    }
+                })
+            })
+        };
+
         function subdata(id) {
             $(document).on('submit', "#"+id+"_form", function(e){
-               console.log('received input');
-               console.log($("#"+id).val());
                e.preventDefault();
                $.ajax({
                    type:'POST',
@@ -56,12 +74,15 @@
                    success:function(d)
                    {
                        $("#"+id+"_success").text(d['legal'])
-                       console.log('success');
                        console.log(d);
                    }
                })
             });
         };
+
+        realtime_validate("tempslope")
+        realtime_validate("resistanceslope")
+
         subdata("resistancerange")
         subdata("excitationvalue")
         subdata("excitationmode")

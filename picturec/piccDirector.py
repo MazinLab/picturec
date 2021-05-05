@@ -207,9 +207,25 @@ def test_page():
         except ValueError:
             is_legal = '\u2717'
         # redis.publish(f"command:{FIELD_KEYS[i[0]]}", i[1], store=False)
-        return jsonify({'key': key, 'value': value, 'legal': is_legal})
+        return _validate(key, value)
     sim921form = SIM921SettingForm()
     return render_template('test_page.html', title='Test Page', form=form, s921=sim921form)
+
+
+@app.route('/validatecmd', methods=['POST'])
+def validatecmd():
+    key = SETTING_KEYS[request.form.get('id')]
+    value = request.form.get('data')
+    return _validate(key, value)
+
+
+def _validate(k, v):
+    try:
+        s = SimCommand(k, v)
+        is_legal = '\u2713'
+    except ValueError:
+        is_legal = '\u2717'
+    return jsonify({'key': k, 'value': v, 'legal': is_legal})
 
 
 def initialize_sensor_plot(key, title):
