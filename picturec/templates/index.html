@@ -49,45 +49,47 @@
 
     <div class="container" style="float:right; margin-right: 12%; width: 35%; padding: 0px">
         <div class="col-lg" style="border-style: solid; border-width: 1px">
-                <div class="row">
-                    <h2 style="float: left; margin-left: 5%">Magnet Control: <div id="mag_status" style="display: inline"></div></h2>
+            <div class="row">
+                <h2 style="float: left; margin-left: 5%">Magnet Control: <div id="mag_status" style="display: inline"></div></h2>
+            </div>
+            <div class="row">
+                <div class="column" style="float: left; margin-left: 5%">
+                    <form id="startcooldown_form" action="{{ url_for('index') }}" method="post">
+                        <button type="submit" id="startcooldown">Start Cooldown</button>
+                    </form>
                 </div>
-                <div class="row">
-                    <div class="column" style="float: left; margin-left: 5%">
-                        <form id="startcooldown_form" action="{{ url_for('index') }}" method="post">
-                            <button type="submit" id="startcooldown">Start Cooldown</button>
-                        </form>
-                    </div>
-                    <div class="column" style="display: inline-block">
-                        <form id="cancelcooldown_form" action="{{ url_for('index') }}" method="post">
-                            <button type="submit" id="cancelcooldown"> Cancel Scheduled Cooldown</button>
-                        </form>
-                    </div>
-                    <div class="column" style="display: inline-block">
-                        <form id="abortcooldown_form" action="{{ url_for('index') }}" method="post">
-                            <button type="submit" id="abortcooldown">Abort Cooldown</button>
-                        </form>
-                    </div>
+                <div class="column" style="display: inline-block">
+                    <form id="cancelcooldown_form" action="{{ url_for('index') }}" method="post">
+                        <button type="submit" id="cancelcooldown"> Cancel Scheduled Cooldown</button>
+                    </form>
                 </div>
-                <div class="row" style="padding-top: 2%">
-                    <form id="{{ cyc.schedulecooldown.name }}_form" action="{{ url_for('index') }}" method="post">
-                        <div class="column" style="float: left; margin-left: 5%">
-                            <div class="column" style="float: left; margin-left: 4%; width: 25%">
-                                {{ cyc.hidden_tag() }}
-                                {{ cyc.schedulecooldown.label }}
-                            </div>
-                            <div class="column" style="float: left; margin-left: 2%; width: 35%">
-                                {{ cyc.schedulecooldown() }}
-                                <div id="{{ cyc.schedulecooldown.name }}_success" style="float: right"></div>
-                            </div>
-                            <div id="{{ cyc.schedulecooldown.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
-                            <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
-                                <button type="submit" id="schedulesubmit">Schedule</button>
-                            </div>
-                        </div>
+                <div class="column" style="display: inline-block">
+                    <form id="abortcooldown_form" action="{{ url_for('index') }}" method="post">
+                        <button type="submit" id="abortcooldown">Abort Cooldown</button>
                     </form>
                 </div>
             </div>
+            <div class="row" style="padding-top: 2%">
+                <form id="{{ cyc.schedulecooldown.name }}_form" action="{{ url_for('index') }}" method="post">
+                    <div class="column" style="float: left; margin-left: 5%">
+                        <div class="column" style="float: left; margin-left: 4%; width: 25%">
+                            {{ cyc.hidden_tag() }}
+                            {{ cyc.schedulecooldown.label }}
+                        </div>
+                        <div class="column" style="float: left; margin-left: 2%; width: 35%">
+                            {{ cyc.schedulecooldown() }}
+                            <div id="{{ cyc.schedulecooldown.name }}_success" style="float: right"></div>
+                        </div>
+                        <div class="column" style="text-align: right; float: right; width: 5%">
+                            <button type="submit" id="schedulesubmit">Schedule</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="row">
+                <div class="column" id="ButtonData" style="float: left; margin-left: 5%"></div>
+            </div>
+        </div>
 
         <div class="col-lg" style="border-style: solid; border-width: 1px">
             <div class="col-lg">

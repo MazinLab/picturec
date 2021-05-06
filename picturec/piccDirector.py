@@ -1,6 +1,5 @@
 """
 TODO: Make buttons on index page do stuff (actually publish redis commands)
-TODO: Simplify adding fields/forms (or at least make it easier, )
 TODO: Determine EXACTLY which fields need warning signs
 """
 
@@ -119,8 +118,6 @@ def make_select_choices(key):
     return choices
 
 
-# TODO: Add alarms for serial (dis)connections?
-
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
@@ -152,7 +149,7 @@ def index():
             else:
                 app.logger.debug(f"{key} -> {time.time()}")
                 # redis.publish(key, f"{time.time()}", store=False)
-                return jsonify({'legal': [True, '\u2713']})
+                return jsonify({'mag': True, 'key':key, 'value': time.strftime("%H:%M:%S"), 'legal': [True, '\u2713']})
 
     init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
     init_ln2_d, init_ln2_l = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
@@ -167,6 +164,21 @@ def index():
                            init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l,
                            init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, mag=magnetform, cyc=cycleform,
                            init_data=init_dash_data, init_layout=init_dash_layout)
+
+
+@app.route('/validatesked', methods=['POST'])
+def validate_schedulefmt():
+    value = request.form.get('data')
+    return _validate_sked(value)
+
+
+def _validate_sked(value):
+    try:
+        parse_schedule_cooldown(value)
+        return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': value, 'legal': [True, '\u2713']})
+    except Exception as e:
+        return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
+
 
 
 @app.route('/other_plots', methods=['GET'])
@@ -192,7 +204,7 @@ def settings():
         app.logger.info(f"command:{key} -> {value}")
         try:
             s = SimCommand(key, value)
-            # redis.publish(f"command:{SETTING_KEYS[i[0]]}", i[1], store=False)
+            redis.publish(f"command:{key}", value, store=False)
         except ValueError:
             pass
         return _validate_cmd(key, value)
@@ -232,26 +244,13 @@ def validate_cmd_change():
     return _validate_cmd(key, value)
 
 
-@app.route('/validatesked', methods=['POST'])
-def validate_schedulefmt():
-    value = request.form.get('data')
-    return _validate_sked(value)
-
-
-def _validate_sked(value):
-    try:
-        parse_schedule_cooldown(value)
-        return jsonify({'value': value, 'legal': [True, '\u2713']})
-    except Exception as e:
-        return jsonify({'value': value, 'legal': [False, '\u2717']})
-
 def _validate_cmd(k, v):
     try:
         s = SimCommand(k, v)
         is_legal = [True, '\u2713']
     except ValueError:
         is_legal = [False, '\u2717']
-    return jsonify({'key': k, 'value': v, 'legal': is_legal})
+    return jsonify({'mag':False, 'key': k, 'value': v, 'legal': is_legal})
 
 
 def initialize_sensor_plot(key, title):
