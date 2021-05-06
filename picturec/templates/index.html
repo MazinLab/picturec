@@ -54,33 +54,38 @@
                 </div>
                 <div class="row">
                     <div class="column" style="float: left; margin-left: 5%">
-                        <form action="{{ url_for('index') }}" method="post">
-                            {{ cyc.hidden_tag() }}
-                            {{ cyc.startcooldown() }}
+                        <form id="startcooldown_form" action="{{ url_for('index') }}" method="post">
+                            <button type="submit" id="startcooldown">Start Cooldown</button>
                         </form>
                     </div>
                     <div class="column" style="display: inline-block">
-                        <form action="{{ url_for('index') }}" method="post">
-                            {{ cyc.hidden_tag() }}
-                            {{ cyc.cancelcooldown() }}
+                        <form id="cancelcooldown_form" action="{{ url_for('index') }}" method="post">
+                            <button type="submit" id="cancelcooldown"> Cancel Scheduled Cooldown</button>
                         </form>
                     </div>
                     <div class="column" style="display: inline-block">
-                        <form action="{{ url_for('index') }}" method="post">
-                            {{ cyc.hidden_tag() }}
-                            {{ cyc.abortcooldown() }}
+                        <form id="abortcooldown_form" action="{{ url_for('index') }}" method="post">
+                            <button type="submit" id="abortcooldown">Abort Cooldown</button>
                         </form>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="column" style="float: left; margin-left: 5%">
-                        <form action="{{ url_for('index') }}" method="post">
-                            {{ cyc.hidden_tag() }}
-                            {{ cyc.schedulecooldown.label }}
-                            {{ cyc.schedulecooldown(**{"onchange":"this.className=(this.value=='')?'':'visited';"}) }}
-                            {{ cyc.schedulesubmit() }}
-                        </form>
-                    </div>
+                <div class="row" style="padding-top: 2%">
+                    <form id="{{ cyc.schedulecooldown.name }}_form" action="{{ url_for('index') }}" method="post">
+                        <div class="column" style="float: left; margin-left: 5%">
+                            <div class="column" style="float: left; margin-left: 4%; width: 25%">
+                                {{ cyc.hidden_tag() }}
+                                {{ cyc.schedulecooldown.label }}
+                            </div>
+                            <div class="column" style="float: left; margin-left: 2%; width: 35%">
+                                {{ cyc.schedulecooldown() }}
+                                <div id="{{ cyc.schedulecooldown.name }}_success" style="float: right"></div>
+                            </div>
+                            <div id="{{ cyc.schedulecooldown.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
+                            <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
+                                <button type="submit" id="schedulesubmit">Schedule</button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -90,17 +95,18 @@
                     {% if field.id != "update" %}
                         {% if field.id != "csrf_token" %}
                             <div class="row">
-                                <form action="{{ url_for('index') }}" method="post">
+                                <form id="{{ field.name }}_form" action="{{ url_for('index') }}" method="post">
                                     <div class="column" style="float: left; margin-left: 4%; width: 25%">
                                         {{ mag.hidden_tag() }}
                                         {{ field.label }}
                                     </div>
                                     <div class="column" style="float: left; margin-left: 2%; width: 35%">
-                                        {{ field(**{"onchange":"this.className=(this.value=='')?'':'visited';"}) }}
+                                        {{ field() }}
+                                        <div id="{{ field.name }}_success" style="float: right"></div>
                                     </div>
                                     <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
                                     <div class="column" style="text-align: right; float: right; margin-right: 8%; width: 10%">
-                                        {{ mag.update() }}
+                                        <button type="submit">Update</button>
                                     </div>
                                 </form>
                             </div>
@@ -149,19 +155,19 @@
                     document.getElementById("abortcooldown").disabled = true;
                     document.getElementById("startcooldown").disabled = false;
                     document.getElementById("cancelcooldown").disabled = true;
-                    document.getElementById("be-cold-at").disabled = false;
+                    document.getElementById("schedulecooldown").disabled = false;
                     document.getElementById("schedulesubmit").disabled = false;
                 } else if (newdata['status:magnet:state'] == "off" && newdata['device-settings:sim960:cooldown-scheduled'] == 'yes') {
                     document.getElementById("abortcooldown").disabled = true;
                     document.getElementById("startcooldown").disabled = false;
                     document.getElementById("cancelcooldown").disabled = false;
-                    document.getElementById("be-cold-at").disabled = true;
+                    document.getElementById("schedulecooldown").disabled = true;
                     document.getElementById("schedulesubmit").disabled = true;
                 } else if (newdata['status:magnet:state'] == "on") {
                     document.getElementById("abortcooldown").disabled = false;
                     document.getElementById("startcooldown").disabled = true;
                     document.getElementById("cancelcooldown").disabled = true;
-                    document.getElementById("be-cold-at").disabled = true;
+                    document.getElementById("schedulecooldown").disabled = true;
                     document.getElementById("schedulesubmit").disabled = true;
                 }
             }, false);
@@ -173,6 +179,46 @@
             }, false);
         };
         ud_idx()
+
+        function realtime_validate_schedule(id) {
+            $("#"+id).keyup(function () {
+                console.log($(this).val())
+                var text = $(this).val();
+                $.ajax({
+                    type:'POST',
+                    url:'/validatesked',
+                    data:{
+                        id:id,
+                        data:text
+                    },
+                    success:function(d){
+                        $("#"+id+"_success").text(d['legal'][1]);
+                        if (d['legal'][0] == false) {
+                            document.getElementById(id).style.color = 'red'
+                        } else {
+                            document.getElementById(id).style.color = 'blue'
+                        }
+                        console.log(d);
+                    }
+                })
+            })
+        };
+        realtime_validate_schedule("schedulecooldown")
+
+        realtime_validate("soakcurrent")
+        realtime_validate("soaktime")
+        realtime_validate("ramprate")
+        realtime_validate("deramprate")
+
+        subdata("soakcurrent", "/main")
+        subdata("soaktime", "/main")
+        subdata("ramprate", "/main")
+        subdata("deramprate", "/main")
+        subdata("regulationtemperature", "/main")
+        subdata("startcooldown", "/main")
+        subdata("cancelcooldown", "/main")
+        subdata("abortcooldown", "/main")
+        subdata("schedulecooldown", "/main")
     </script>
 
 {% endblock %}

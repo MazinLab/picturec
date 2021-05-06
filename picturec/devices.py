@@ -10,6 +10,8 @@ from serial import SerialException
 
 log = logging.getLogger(__name__)
 
+CALIBRATION_CURVE = 1
+
 COMMANDS921 = {'device-settings:sim921:resistance-range': {'command': 'RANG', 'vals': {'20e-3': '0', '200e-3': '1', '2': '2',
                                                                                        '20': '3', '200': '4', '2e3': '5',
                                                                                        '20e3': '6', '200e3': '7',
@@ -47,10 +49,39 @@ COMMANDS960 = {'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'val
                'device-settings:sim960:pid-offset:enabled': {'command': 'OCTL', 'vals': {'off': '0', 'on': '1'}},
                }
 
+COMMANDSHS = {'device-settings:currentduino:heatswitch': {'command': '', 'vals': {'open': 'open', 'close': 'close'}}}
+
+
+def load_tvals(curve):
+    if curve == 1:
+        import pkg_resources as pkg
+
+        file = pkg.resource_filename('hardware.thermometry.RX-102A', 'RX-102A_Mean_Curve.tbl')
+    else:
+        return 0
+
+    try:
+        curve_data = np.loadtxt(file)
+        temp_data = curve_data[:, 0]
+    except OSError:
+        log.error(f"Could not find curve data file.")
+        raise ValueError(f"{file} couldn't be loaded.")
+    except IndexError:
+        raise ValueError(f"{file} couldn't be loaded.")
+
+    return {str(i): i for i in temp_data}
+
+COMMANDSMAGNET = {'device-settings:sim960:ramp-rate': {'command': '', 'vals': [0, 0.015]},
+                  'device-settings:sim960:deramp-rate': {'command': '', 'vals': [-0.015, 0]},
+                  'device-settings:sim960:soak-time': {'command': '', 'vals': [0, np.inf]},
+                  'device-settings:sim960:soak-current': {'command': '', 'vals': [0, 9.4]},
+                  'device-settings:mkidarray:regulating-temp': {'command': '', 'vals': load_tvals(CALIBRATION_CURVE)}}
+
 COMMAND_DICT={}
 COMMAND_DICT.update(COMMANDS960)
 COMMAND_DICT.update(COMMANDS921)
-
+COMMAND_DICT.update(COMMANDSHS)
+COMMAND_DICT.update(COMMANDSMAGNET)
 
 def escapeString(string):
     """

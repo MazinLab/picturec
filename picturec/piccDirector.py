@@ -8,7 +8,7 @@ import flask
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
 from flask import request, redirect, url_for, render_template, jsonify, Response
-from wtforms import SelectField, SubmitField, StringField, RadioField
+from wtforms import SelectField, SubmitField, StringField
 import numpy as np
 import time, datetime
 import json
@@ -68,23 +68,26 @@ SIM960_SETTING_KEYS = {'voutmin': 'device-settings:sim960:vout-min-limit',
               'pidpenable': 'device-settings:sim960:pid-p:enabled',
               'pidienable': 'device-settings:sim960:pid-i:enabled',
               'piddenable': 'device-settings:sim960:pid-d:enabled',
-              'pidoenable': 'device-settings:sim960:pid-offset:enabled',
-              'hsopen': 'device-settings:currentduino:heatswitch',
-              'hsclose': 'device-settings:currentduino:heatswitch'}
+              'pidoenable': 'device-settings:sim960:pid-offset:enabled'}
+HEATSWITCH_SETTING_KEYS = {'open': 'device-settings:currentduino:heatswitch',
+                           'close': 'device-settings:currentduino:heatswitch'}
 
-SETTING_KEYS = {}
-SETTING_KEYS.update(SIM921_SETTING_KEYS)
-SETTING_KEYS.update(SIM960_SETTING_KEYS)
-
-MAGNET_COMMAND_FORM_KEYS = {'startcooldown': 'command:get-cold',
-                            'abortcooldown': 'command:abort-cooldown',
-                            'cancelcooldown': 'command:cancel-scheduled-cooldown',
-                            'schedulecooldown': 'command:be-cold-at',
-                            'soakcurrent': 'device-settings:sim960:soak-current',
+MAGNET_COMMAND_FORM_KEYS = {'soakcurrent': 'device-settings:sim960:soak-current',
                             'soaktime': 'device-settings:sim960:soak-time',
                             'ramprate': 'device-settings:sim960:ramp-rate',
                             'deramprate': 'device-settings:sim960:deramp-rate',
                             'regulationtemperature': 'device-settings:mkidarray:regulating-temp'}
+
+CYCLE_KEYS = {'startcooldown': 'command:get-cold',
+              'abortcooldown': 'command:abort-cooldown',
+              'cancelcooldown': 'command:cancel-scheduled-cooldown',
+              'schedulecooldown': 'command:be-cold-at'}
+
+SETTING_KEYS = {}
+SETTING_KEYS.update(SIM921_SETTING_KEYS)
+SETTING_KEYS.update(SIM960_SETTING_KEYS)
+SETTING_KEYS.update(HEATSWITCH_SETTING_KEYS)
+SETTING_KEYS.update(MAGNET_COMMAND_FORM_KEYS)
 
 KEYS = SIM921_KEYS + SIM960_KEYS + LAKESHORE240_KEYS + CURRENTDUINO_KEYS + HEMTTEMP_KEYS + list(COMMAND_DICT.keys())
 
@@ -123,21 +126,33 @@ def make_select_choices(key):
 def index():
     form = FlaskForm()
     if request.method == 'POST':
-        for i in request.form.items():
-            if i[1] == "":
-                app.logger.warning(f"Invalid format to change value! Empty strings are not accepted")
+        if request.form.get('id') in SETTING_KEYS.keys():
+            key = SETTING_KEYS[request.form.get('id')]
+            value = request.form.get('data')
+            app.logger.info(f"{key} -> {value}")
+            try:
+                s = SimCommand(key, value)
+                if request.form.get('id') == 'regulationtemperature':
+                    app.logger.debug(f"command:{key} -> {value}")
+                    # redis.publish(f"command:{key}", value, store=False)
+                else:
+                    app.logger.debug(f"{key} -> {value}")
+                    # redis.publish(key, value)
+            except ValueError:
+                pass
+            return _validate_cmd(key, value)
+        else:
+            key = CYCLE_KEYS[request.form.get('id')]
+            value = request.form.get('data')
+            app.logger.info(f"{key} -> {value}")
+            if key == 'command:be-cold-at':
+                app.logger.debug(f"{key} -> {value}")
+                # redis.publish(key, value, store=False)
+                return _validate_sked(value)
             else:
-                if i[0] in MAGNET_COMMAND_FORM_KEYS.keys():
-                    # getLogger(__name__).info(f"command:{FIELD_KEYS[i[0]]} -> {i[1]}")
-                    if i[0] == 'schedulecooldown':
-                        app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}, {parse_schedule_cooldown(i[1])}")
-                        if parse_schedule_cooldown(i[1]):
-                            app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}, {parse_schedule_cooldown(i[1])}")
-                            # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", parse_schedule_cooldown(i[1]))
-                    else:
-                        app.logger.info(f"{i}, {MAGNET_COMMAND_FORM_KEYS[i[0]]}, {i[1]}")
-                        # redis.publish(f"{MAGNET_COMMAND_FORM_KEYS[i[0]]}", i[1])
-        # return redirect(url_for('index'))
+                app.logger.debug(f"{key} -> {time.time()}")
+                # redis.publish(key, f"{time.time()}", store=False)
+                return jsonify({'legal': [True, '\u2713']})
 
     init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
     init_ln2_d, init_ln2_l = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
@@ -172,11 +187,15 @@ def other_plots():
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
-        for i in request.form.items():
-            if i[0] in SETTING_KEYS.keys():
-                getLogger(__name__).info(f"command:{SETTING_KEYS[i[0]]} -> {i[1]}")
-                # redis.publish(f"command:{SETTING_KEYS[i[0]]}", i[1], store=False)
-        return redirect(url_for('settings'))
+        key = SETTING_KEYS[request.form.get('id')]
+        value = request.form.get('data')
+        app.logger.info(f"command:{key} -> {value}")
+        try:
+            s = SimCommand(key, value)
+            # redis.publish(f"command:{SETTING_KEYS[i[0]]}", i[1], store=False)
+        except ValueError:
+            pass
+        return _validate_cmd(key, value)
     sim921form = SIM921SettingForm()
     sim960form = SIM960SettingForm()
     hsbutton = HeatswitchToggle()
@@ -201,30 +220,37 @@ def test_page():
         key = SETTING_KEYS[request.form.get('id')]
         value = request.form.get('data')
         app.logger.info(f"command:{key} -> {value}")
-        try:
-            s = SimCommand(key, value)
-            is_legal = '\u2713'
-        except ValueError:
-            is_legal = '\u2717'
-        # redis.publish(f"command:{FIELD_KEYS[i[0]]}", i[1], store=False)
-        return _validate(key, value)
+        return _validate_cmd(key, value)
     sim921form = SIM921SettingForm()
     return render_template('test_page.html', title='Test Page', form=form, s921=sim921form)
 
 
 @app.route('/validatecmd', methods=['POST'])
-def validatecmd():
+def validate_cmd_change():
     key = SETTING_KEYS[request.form.get('id')]
     value = request.form.get('data')
-    return _validate(key, value)
+    return _validate_cmd(key, value)
 
 
-def _validate(k, v):
+@app.route('/validatesked', methods=['POST'])
+def validate_schedulefmt():
+    value = request.form.get('data')
+    return _validate_sked(value)
+
+
+def _validate_sked(value):
+    try:
+        parse_schedule_cooldown(value)
+        return jsonify({'value': value, 'legal': [True, '\u2713']})
+    except Exception as e:
+        return jsonify({'value': value, 'legal': [False, '\u2717']})
+
+def _validate_cmd(k, v):
     try:
         s = SimCommand(k, v)
-        is_legal = '\u2713'
+        is_legal = [True, '\u2713']
     except ValueError:
-        is_legal = '\u2717'
+        is_legal = [False, '\u2717']
     return jsonify({'key': k, 'value': v, 'legal': is_legal})
 
 
@@ -283,17 +309,15 @@ class CycleControlForm(FlaskForm):
     startcooldown = SubmitField('Start Cooldown')
     abortcooldown = SubmitField('Abort Cooldown')
     cancelcooldown = SubmitField('Cancel Scheduled Cooldown')
-    schedulecooldown = StringField('Schedule Cooldown', id='be-cold-at')
-    schedulesubmit = SubmitField("Schedule")
+    schedulecooldown = StringField('Schedule Cooldown')
 
 
 class MagnetControlForm(FlaskForm):
-    soakcurrent = StringField('Soak Current (A)', id='device-settings:sim960:soak-current')
-    soaktime = StringField("Soak Time (s)", id='device-settings:sim960:soak-time')
-    ramprate = StringField("Ramp Rate (A/s)", id='device-settings:sim960:ramp-rate')
-    deramprate = StringField("Deramp Rate (A/s)", id='device-settings:sim960:deramp-rate')
-    regulationtemperature = StringField("Regulation Temperature (K)", id='device-settings:mkidarray:regulating-temp')
-    update = SubmitField("Update")
+    soakcurrent = StringField('Soak Current (A)')
+    soaktime = StringField("Soak Time (s)")
+    ramprate = StringField("Ramp Rate (A/s)")
+    deramprate = StringField("Deramp Rate (A/s)")
+    regulationtemperature = SelectField("Regulation Temperature (K)", choices=make_select_choices("device-settings:mkidarray:regulating-temp"))
 
 
 class SIM921SettingForm(FlaskForm):
@@ -304,7 +328,6 @@ class SIM921SettingForm(FlaskForm):
     tempslope = StringField("\u26A0 Temperature Slope (V/K)")
     resistanceslope = StringField("\u26A0 Resistance Slope (V/\u03A9)")
     curve = SelectField("\u26A0 Calibration Curve", choices=make_select_choices('device-settings:sim921:curve-number'))
-    update = SubmitField("Update")
 
 
 class SIM960SettingForm(FlaskForm):
@@ -322,7 +345,6 @@ class SIM960SettingForm(FlaskForm):
     pidienable = SelectField("\u26A0 PID: Enable I", choices=make_select_choices('device-settings:sim960:pid-i:enabled'))
     piddenable = SelectField("\u26A0 PID: Enable D", choices=make_select_choices('device-settings:sim960:pid-d:enabled'))
     pidoenable = SelectField("\u26A0 PID: Enable Offset", choices=make_select_choices('device-settings:sim960:pid-offset:enabled'))
-    update = SubmitField("Update")
 
 
 class HeatswitchToggle(FlaskForm):

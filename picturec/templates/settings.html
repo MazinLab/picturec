@@ -9,15 +9,13 @@
             </div>
             <div class="row" style="text-align: center">
                 <div style="display: inline-block">
-                    <form action="{{ url_for('settings') }}" method="post">
-                        {{ hs.hidden_tag() }}
-                        {{ hs.open() }}
+                    <form id="{{ hs.open.name }}_form" action="{{ url_for('settings') }}" method="post">
+                        <button type="submit" id="open" value="open">Open</button>
                     </form>
                 </div>
                 <div style="display: inline-block">
-                    <form action="{{ url_for('settings') }}" method="post">
-                        {{ hs.hidden_tag() }}
-                        {{ hs.close() }}
+                    <form id="{{ hs.close.name }}_form" action="{{ url_for('settings') }}" method="post">
+                        <button type="submit" id="close" value="close">Close</button>
                     </form>
                 </div>
             </div>
@@ -32,17 +30,18 @@
                     {% if field.id != "update" %}
                         {% if field.id != "csrf_token" %}
                             <div class="row">
-                                <form action="{{ url_for('settings') }}" method="post">
+                                <form id="{{ field.name }}_form" action="{{ url_for('settings') }}" method="post">
                                     <div class="column" style="float: left; margin-left: 4%; width: 25%">
                                         {{ s921.hidden_tag() }}
                                         {{ field.label }}
                                     </div>
                                     <div class="column" style="float: left; margin-left: 2%; width: 35%">
                                         {{ field() }}
+                                        <div id="{{ field.name }}_success" style="float: right"></div>
                                     </div>
                                     <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
                                     <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
-                                        {{ s921.update() }}
+                                        <button type="submit">Update</button>
                                     </div>
                                 </form>
                             </div>
@@ -61,17 +60,18 @@
                     {% if field.id != "update" %}
                         {% if field.id != "csrf_token" %}
                             <div class="row">
-                                <form action="{{ url_for('settings') }}" method="post">
+                                <form id="{{ field.name }}_form" action="{{ url_for('settings') }}" method="post">
                                     <div class="column" style="float: left; margin-left: 4%; width: 25%">
                                         {{ s960.hidden_tag() }}
                                         {{ field.label }}
                                     </div>
                                     <div class="column" style="float: left; margin-left: 2%; width: 35%">
                                         {{ field() }}
+                                        <div id="{{ field.name }}_success" style="float: right"></div>
                                     </div>
                                     <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
                                     <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
-                                        {{ s960.update() }}
+                                        <button type="submit">Update</button>
                                     </div>
                                 </form>
                             </div>
@@ -139,6 +139,44 @@
             }, false);
         };
         ud_idx()
+
+        realtime_validate("tempslope")
+        realtime_validate("resistanceslope")
+
+        realtime_validate("voutmin")
+        realtime_validate("voutmax")
+        realtime_validate("vinsetpointvalue")
+        realtime_validate("vinsetpointslewrate")
+        realtime_validate("pidpval")
+        realtime_validate("pidival")
+        realtime_validate("piddval")
+        realtime_validate("pidoval")
+
+        subdata("close", "/settings")
+        subdata("open", "/settings")
+
+        subdata("resistancerange", "/settings")
+        subdata("excitationvalue", "/settings")
+        subdata("excitationmode", "/settings")
+        subdata("timeconstant", "/settings")
+        subdata("tempslope", "/settings")
+        subdata("resistanceslope", "/settings")
+        subdata("curve", "/settings")
+
+        subdata("voutmin", "/settings")
+        subdata("voutmax", "/settings")
+        subdata("vinsetpointmode", "/settings")
+        subdata("vinsetpointvalue", "/settings")
+        subdata("vinsetpointslewenable", "/settings")
+        subdata("vinsetpointslewrate", "/settings")
+        subdata("pidpval", "/settings")
+        subdata("pidival", "/settings")
+        subdata("piddval", "/settings")
+        subdata("pidoval", "/settings")
+        subdata("pidpenable", "/settings")
+        subdata("pidienable", "/settings")
+        subdata("piddenable", "/settings")
+        subdata("pidoenable", "/settings")
     </script>
 
 

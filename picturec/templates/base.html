@@ -148,12 +148,62 @@
         }
     </script>
 
+    <script>
+        function realtime_validate(id) {
+            $("#"+id).keyup(function () {
+                console.log($(this).val())
+                var text = $(this).val();
+                $.ajax({
+                    type:'POST',
+                    url:'/validatecmd',
+                    data:{
+                        id:id,
+                        data:text
+                    },
+                    success:function(d){
+                        $("#"+id+"_success").text(d['legal'][1]);
+                        if (d['legal'][0] == false) {
+                            document.getElementById(id).style.color = 'red'
+                        } else {
+                            document.getElementById(id).style.color = 'blue'
+                        }
+                        console.log(d);
+                    }
+                })
+            })
+        };
+
+        function subdata(id, url) {
+            $(document).on('submit', "#"+id+"_form", function(e){
+               e.preventDefault();
+               $.ajax({
+                   type:'POST',
+                   url:url,
+                   data:{
+                       id:id,
+                       data:$("#"+id).val()
+                   },
+                   success:function(d)
+                   {
+                       $("#"+id+"_success").text(d['legal'][1])
+                       if (d['legal'][0] == false) {
+                            document.getElementById(id).style.color = 'red'
+                        } else {
+                            document.getElementById(id).style.color = 'blue'
+                        }
+                       console.log(d);
+                   }
+               })
+            });
+        };
+    </script>
+
     <style>
-        input:focus {
-            color: darkblue;
-            border-style: solid;
-            outline: 2px aqua;
-        }
+        /*input:focus {*/
+        /*    color: darkblue;*/
+        /*    border-style: solid;*/
+        /*    outline: 2px aqua;*/
+        /*}*/
     </style>
 
 {% endblock%}
