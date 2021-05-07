@@ -54,9 +54,9 @@ COMMANDSHS = {'device-settings:currentduino:heatswitch': {'command': '', 'vals':
 
 def load_tvals(curve):
     if curve == 1:
-        import pkg_resources as pkg
-
-        file = pkg.resource_filename('hardware.thermometry.RX-102A', 'RX-102A_Mean_Curve.tbl')
+        file = '/home/mazinlab/picturec/hardware/thermometry/RX-102A/RX-102A_Mean_Curve.tbl'
+        # import pkg_resources as pkg
+        # file = pkg.resource_filename('hardware.thermometry.RX-102A', 'RX-102A_Mean_Curve.tbl')
     else:
         return 0
 
