@@ -10,60 +10,20 @@
 
     <div class="container" style="float:left; margin-left: 10%; width: 40%; padding: 0px">
         <div class="col-lg" style="border-style: solid; border-width: 1px">
-            <div class="col-lg">
-                <div class="row">
-                    <h2 style="text-align: center">SIM 921 Settings</h2>
-                </div>
-                {% for field in s921 %}
-                    {% if field.id != "update" %}
-                        {% if field.id != "csrf_token" %}
-                            <div class="row">
-                                <form action="{{ url_for('test_page') }}" method="post" id="{{ field.name }}_form">
-                                    <div class="column" style="float: left; margin-left: 4%; width: 25%">
-                                        {{ s921.hidden_tag() }}
-                                        {{ field.label }}
-                                    </div>
-                                    <div class="column" style="float: left; margin-left: 2%; width: 35%">
-                                        {{ field() }}
-                                        <div id="{{ field.name }}_success" style="float: right"></div>
-                                    </div>
-                                    <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
-                                    <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
-                                        <button type="submit">Update</button>
-                                    </div>
-                                </form>
-                            </div>
-                        {% endif %}
-                    {% endif %}
-                {% endfor %}
-            </div>
+            <h1>Log viewing here</h1>
+            <div id="sim921_log" style="margin-left:3%; height:200px;width:90%;border:1px solid #ccc; overflow:auto; overflow-x: scroll"></div>
+            <div id="sim960_log" style="margin-left:3%; height:200px;width:90%;border:1px solid #ccc; overflow:auto; overflow-x: scroll"></div>
         </div>
     </div>
 
     <script>
-        realtime_validate("tempslope")
-        realtime_validate("resistanceslope")
-
-        subdata("resistancerange")
-        subdata("excitationvalue")
-        subdata("excitationmode")
-        subdata("timeconstant")
-        subdata("tempslope")
-        subdata("resistanceslope")
-        subdata("curve")
-
-        function ud_idx() {
-            var source = new EventSource("/listener");
+        function jstream(service) {
+            var source = new EventSource("/journalctl_streamer/"+service);
             source.addEventListener("message", function (e) {
-                var newdata = JSON.parse(e.data);
-                // console.log("Message: ", newdata);
-                update_div("resistancerange_currentval", "device-settings:sim921:resistance-range", newdata);
-                update_div("excitationvalue_currentval", "device-settings:sim921:excitation-value", newdata);
-                update_div("excitationmode_currentval", "device-settings:sim921:excitation-mode", newdata);
-                update_div("timeconstant_currentval", "device-settings:sim921:time-constant", newdata);
-                update_div("tempslope_currentval", "device-settings:sim921:temp-slope", newdata);
-                update_div("resistanceslope_currentval", "device-settings:sim921:resistance-slope", newdata);
-                update_div("curve_currentval", "device-settings:sim921:curve-number", newdata);
+                // console.log("Message: ", e.data);
+                var theDiv = document.getElementById(service+"_log");
+                theDiv.innerHTML += "<div style='width: 250%'>"+e.data+"</div>";
+                theDiv.scrollTop = theDiv.scrollHeight;
             }, false);
             source.addEventListener("open", function (e) {
                 console.log('Connection was opened: ', e);
@@ -72,8 +32,8 @@
                 console.log("Connection errored out: ", e);
             }, false);
         };
-
-        ud_idx()
+        jstream("sim921");
+        jstream("sim960");
     </script>
 
 {% endblock %}
