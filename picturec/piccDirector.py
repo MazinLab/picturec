@@ -1,6 +1,7 @@
 """
 TODO: Make buttons on index page do stuff (actually publish redis commands)
 TODO: Determine EXACTLY which fields need warning signs
+TODO: Fix errors if redis range is empty
 """
 
 import flask
@@ -13,7 +14,9 @@ import time, datetime
 import json
 import plotly
 from logging import getLogger
-from redis import Redis
+import sys
+import subprocess
+import select
 
 
 import picturec.util as util
@@ -33,7 +36,6 @@ app = flask.Flask(__name__)
 app.logger.setLevel('DEBUG')
 bootstrap = Bootstrap(app)
 app.config.from_object(Config)
-red = Redis(host='localhost', port=6379, db=0)
 
 TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', 'status:temps:lhetank',
            'status:temps:ln2tank', 'status:feedline1:hemt:gate-voltage-bias',
@@ -96,28 +98,6 @@ DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 redis.setup_redis(create_ts_keys=TS_KEYS)
 
 
-@app.route('/listener', methods=["GET"])
-def listener():
-    return Response(stream(), mimetype='text/event-stream', content_type='text/event-stream')
-
-
-def stream():
-    while True:
-        time.sleep(.75)
-        x = redis.read(KEYS)
-        x = json.dumps(x)
-        msg = f"retry:5\ndata: {x}\n\n"
-        yield msg
-
-
-def make_select_choices(key):
-    """
-    USE: field = SelectField(label, choices=make_select_choices(key), id=key)
-    """
-    choices = list(COMMAND_DICT[key]['vals'].keys())
-    return choices
-
-
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
@@ -170,23 +150,6 @@ def index():
                            init_data=init_dash_data, init_layout=init_dash_layout, init_dash_config=init_dash_config)
 
 
-@app.route('/validatesked', methods=['POST'])
-def validate_schedulefmt():
-    return _validate_sked(request.form.get('data'))
-
-
-def _validate_sked(value):
-    try:
-        x = parse_schedule_cooldown(value)
-        if x[2] >= (90*60):
-            return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
-        else:
-            return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
-    except Exception as e:
-        return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
-
-
-
 @app.route('/other_plots', methods=['GET'])
 def other_plots():
     form = FlaskForm()
@@ -201,7 +164,6 @@ def other_plots():
                            init_devt_d=init_devt_d, init_devt_l=init_devt_l, init_devt_c=init_devt_c,
                            init_magc_d=init_magc_d, init_magc_l=init_magc_l, init_magc_c=init_magc_c,
                            init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, init_smagc_c=init_smagc_c)
-
 
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -222,6 +184,25 @@ def settings():
     return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton)
 
 
+@app.route('/test_page', methods=['GET', 'POST'])
+def test_page():
+    form = FlaskForm()
+    if request.method == 'POST':
+        app.logger.debug(request.form)
+        key = SETTING_KEYS[request.form.get('id')]
+        value = request.form.get('data')
+        app.logger.info(f"command:{key} -> {value}")
+        return _validate_cmd(key, value)
+    sim921form = SIM921SettingForm()
+    return render_template('test_page.html', title='Test Page', form=form, s921=sim921form)
+
+
+@app.route('/log_viewer', methods=['GET', 'POST'])
+def log_viewer():
+    form = FlaskForm()
+    return render_template('log_viewer.html', title='Log Viewer', form=form)
+
+
 def viewdata():
     frame_to_use = 50
     x = DASHDATA[frame_to_use][100:175, 100:175]
@@ -234,17 +215,54 @@ def viewdata():
     return d, l, c
 
 
-@app.route('/test_page', methods=['GET', 'POST'])
-def test_page():
-    form = FlaskForm()
-    if request.method == 'POST':
-        app.logger.debug(request.form)
-        key = SETTING_KEYS[request.form.get('id')]
-        value = request.form.get('data')
-        app.logger.info(f"command:{key} -> {value}")
-        return _validate_cmd(key, value)
-    sim921form = SIM921SettingForm()
-    return render_template('test_page.html', title='Test Page', form=form, s921=sim921form)
+def make_select_choices(key):
+    """
+    USE: field = SelectField(label, choices=make_select_choices(key))
+    """
+    choices = list(COMMAND_DICT[key]['vals'].keys())
+    return choices
+
+
+@app.route('/listener', methods=["GET"])
+def listener():
+    def stream():
+        while True:
+            time.sleep(.75)
+            x = redis.read(KEYS)
+            x = json.dumps(x)
+            msg = f"retry:5\ndata: {x}\n\n"
+            yield msg
+    return Response(stream(), mimetype='text/event-stream', content_type='text/event-stream')
+
+
+@app.route('/journalctl_streamer/<service>')
+def journalctl_streamer(service):
+    args = ['journalctl', '--lines', '0', '--follow', f'_SYSTEMD_UNIT={service}.service']
+    def st(arg):
+        f = subprocess.Popen(arg, stdout=subprocess.PIPE)
+        p = select.poll()
+        p.register(f.stdout)
+        while True:
+            if p.poll(100):
+                line = f.stdout.readline()
+                yield f"retry:5\ndata: {line.strip().decode('utf-8')}\n\n"
+    return Response(st(args), mimetype='text/event-stream', content_type='text/event-stream')
+
+
+@app.route('/validatesked', methods=['POST'])
+def validate_schedulefmt():
+    return _validate_sked(request.form.get('data'))
+
+
+def _validate_sked(value):
+    try:
+        x = parse_schedule_cooldown(value)
+        if x[2] >= (90*60):
+            return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+        else:
+            return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
+    except Exception as e:
+        return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
 
 
 @app.route('/validatecmd', methods=['POST'])
@@ -280,17 +298,9 @@ def initialize_sensor_plot(key, title):
         times = [datetime.datetime.fromtimestamp(val[0] / 1000).strftime("%H:%M:%S")]
         vals = [val[1]]
 
-    plot_data = [{
-        'x': times,
-        'y': vals,
-        'name': key
-    }]
-    plot_layout = {
-        'title': title
-    }
-    plot_config = {
-        'responsive': True
-    }
+    plot_data = [{'x': times,'y': vals,'name': key}]
+    plot_layout = {'title': title}
+    plot_config = {'responsive': True}
     d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
     c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
@@ -305,17 +315,45 @@ def initialize_hemt_plot(key, title):
     times = [[datetime.datetime.fromtimestamp(t / 1000).strftime("%H:%M:%S") for t in ts[:, 0]] for ts in timestreams]
     vals = [list(ts[:, 1]) for ts in timestreams]
 
-    plot_data = [{'x': j[0],
-                  'y': j[1],
-                  'name': f"Feedline {i+1} {title}",
-                  'mode': 'lines'} for i, j in enumerate(zip(times, vals))]
-    plot_layout = {
-        'title': title
-    }
+    plot_data = [{'x': j[0],'y': j[1],'name': f"Feedline {i+1} {title}",'mode': 'lines'} for i, j in enumerate(zip(times, vals))]
+    plot_layout = {'title': title}
+    plot_config = {'responsive': True}
     d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
-    app.logger.info(d)
-    return d, l
+    c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
+    return d, l, c
+
+
+def parse_schedule_cooldown(schedule_time):
+    """
+    Takes a string and converts it sensibly to a timestamp to be used by the SIM960 schedule cooldown function
+    """
+    t = schedule_time.split(" ")
+    now = datetime.datetime.now()
+    year = now.year
+    month = now.month
+    day = now.day
+    if len(t) == 2:
+        sked_type = 'date'
+    else:
+        sked_type = 'time'
+
+    if sked_type == 'date':
+        d = t[0].split('/')
+        month = int(d[0])
+        day = int(d[1])
+        tval = t[1].split(":")
+        hr = int(tval[0])
+        minute = int(tval[1])
+    else:
+        tval = t[0].split(":")
+        hr = int(tval[0])
+        minute = int(tval[1])
+
+    be_cold_at = datetime.datetime(year, month, day, hr, minute)
+    tdelta = (be_cold_at - datetime.datetime.now()).total_seconds()
+    ts = be_cold_at.timestamp()
+    return ts, be_cold_at, tdelta
 
 
 class CycleControlForm(FlaskForm):
@@ -363,38 +401,6 @@ class SIM960SettingForm(FlaskForm):
 class HeatswitchToggle(FlaskForm):
     open = SubmitField('Open', id='open')
     close = SubmitField('Close', id='close')
-
-
-def parse_schedule_cooldown(schedule_time):
-    """
-    Takes a string and converts it sensibly to a timestamp to be used by the SIM960 schedule cooldown function
-    """
-    t = schedule_time.split(" ")
-    now = datetime.datetime.now()
-    year = now.year
-    month = now.month
-    day = now.day
-    if len(t) == 2:
-        sked_type = 'date'
-    else:
-        sked_type = 'time'
-
-    if sked_type == 'date':
-        d = t[0].split('/')
-        month = int(d[0])
-        day = int(d[1])
-        tval = t[1].split(":")
-        hr = int(tval[0])
-        minute = int(tval[1])
-    else:
-        tval = t[0].split(":")
-        hr = int(tval[0])
-        minute = int(tval[1])
-
-    be_cold_at = datetime.datetime(year, month, day, hr, minute)
-    tdelta = (be_cold_at - datetime.datetime.now()).total_seconds()
-    ts = be_cold_at.timestamp()
-    return ts, be_cold_at, tdelta
 
 
 if __name__ == "__main__":
