@@ -77,7 +77,7 @@ COMMANDSMAGNET = {'device-settings:sim960:ramp-rate': {'command': '', 'vals': [0
                   'device-settings:sim960:soak-current': {'command': '', 'vals': [0, 9.4]},
                   'device-settings:mkidarray:regulating-temp': {'command': '', 'vals': load_tvals(CALIBRATION_CURVE)}}
 
-COMMAND_DICT={}
+COMMAND_DICT = {}
 COMMAND_DICT.update(COMMANDS960)
 COMMAND_DICT.update(COMMANDS921)
 COMMAND_DICT.update(COMMANDSHS)
