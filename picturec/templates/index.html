@@ -140,12 +140,8 @@
             var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
-                // console.log("Message: ", newdata);
-                // update_plot("lhe", "status:temps:lhetank", newdata);
-                // update_plot("ln2", "status:temps:ln2tank", newdata);
                 update_plot("device_temp", "status:temps:mkidarray:temp", newdata);
-                // update_plot("desired_magnet_current", "status:device:sim960:current-setpoint", newdata);
-                // update_plot("magnet_current", "status:highcurrentboard:current", newdata);
+
                 update_div("mag_status", "status:magnet:state", newdata);
 
                 update_div("soakcurrent_currentval", "device-settings:sim960:soak-current", newdata);
