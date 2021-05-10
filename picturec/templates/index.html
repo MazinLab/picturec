@@ -126,9 +126,9 @@
     </div>
 
     <script>
-        var layout = {{ init_layout | safe }}
-        Plotly.newPlot('dash', {{ init_data | safe}}, layout);
-        Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }})
+        var layout = {{ init_layout | safe }};
+        Plotly.newPlot('dash', {{ init_data | safe}}, {{ init_layout | safe }}, {{ init_dash_config | safe}})
+        Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }}, {{ init_devt_c | safe}})
         // Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
         // Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
         // Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
@@ -143,7 +143,7 @@
                 // console.log("Message: ", newdata);
                 // update_plot("lhe", "status:temps:lhetank", newdata);
                 // update_plot("ln2", "status:temps:ln2tank", newdata);
-                // update_plot("device_temp", "status:temps:mkidarray:temp", newdata);
+                update_plot("device_temp", "status:temps:mkidarray:temp", newdata);
                 // update_plot("desired_magnet_current", "status:device:sim960:current-setpoint", newdata);
                 // update_plot("magnet_current", "status:highcurrentboard:current", newdata);
                 update_div("mag_status", "status:magnet:state", newdata);

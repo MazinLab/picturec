@@ -20,11 +20,11 @@
     </div>
 
     <script>
-        Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }})
-        Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
-        Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
-        Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
-        Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
+        Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }}, {{ init_devt_c | safe}})
+        Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }}, {{ init_magc_c | safe}})
+        Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }}, {{ init_lhe_c | safe}})
+        Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }}, {{ init_ln2_c | safe}})
+        Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }}, {{ init_smagc_c | safe}})
     </script>
 
     <script>

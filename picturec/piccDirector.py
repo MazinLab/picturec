@@ -149,33 +149,39 @@ def index():
             else:
                 app.logger.debug(f"{key} -> {time.time()}")
                 # redis.publish(key, f"{time.time()}", store=False)
-                return jsonify({'mag': True, 'key':key, 'value': time.strftime("%H:%M:%S"), 'legal': [True, '\u2713']})
+                return jsonify({'mag': True, 'key':key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
 
-    init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
-    init_ln2_d, init_ln2_l = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
-    init_devt_d, init_devt_l = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
-    init_magc_d, init_magc_l = initialize_sensor_plot('status:highcurrentboard:current', 'Measured Current')
-    init_smagc_d, init_smagc_l = initialize_sensor_plot('status:device:sim960:current-setpoint', 'Current')
-    init_dash_data, init_dash_layout = viewdata()
+    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
+    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
+    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
+    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('status:highcurrentboard:current',
+                                                                   'Measured Current')
+    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('status:device:sim960:current-setpoint',
+                                                                      'Current')
+    init_dash_data, init_dash_layout, init_dash_config = viewdata()
     cycleform = CycleControlForm()
     magnetform = MagnetControlForm()
-    return render_template('index.html', form=form, init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l,
-                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
-                           init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l,
-                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, mag=magnetform, cyc=cycleform,
-                           init_data=init_dash_data, init_layout=init_dash_layout)
+    return render_template('index.html', form=form, mag=magnetform, cyc=cycleform,
+                           init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l, init_lhe_c=init_lhe_c,
+                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_ln2_c=init_ln2_c,
+                           init_devt_d=init_devt_d, init_devt_l=init_devt_l, init_devt_c=init_devt_c,
+                           init_magc_d=init_magc_d, init_magc_l=init_magc_l, init_magc_c=init_magc_c,
+                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, init_smagc_c=init_smagc_c,
+                           init_data=init_dash_data, init_layout=init_dash_layout, init_dash_config=init_dash_config)
 
 
 @app.route('/validatesked', methods=['POST'])
 def validate_schedulefmt():
-    value = request.form.get('data')
-    return _validate_sked(value)
+    return _validate_sked(request.form.get('data'))
 
 
 def _validate_sked(value):
     try:
-        parse_schedule_cooldown(value)
-        return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': value, 'legal': [True, '\u2713']})
+        x = parse_schedule_cooldown(value)
+        if x[2] >= (90*60):
+            return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+        else:
+            return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
     except Exception as e:
         return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
 
@@ -184,15 +190,17 @@ def _validate_sked(value):
 @app.route('/other_plots', methods=['GET'])
 def other_plots():
     form = FlaskForm()
-    init_lhe_d, init_lhe_l = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
-    init_ln2_d, init_ln2_l = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
-    init_devt_d, init_devt_l = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
-    init_magc_d, init_magc_l = initialize_sensor_plot('status:highcurrentboard:current', 'Measured Current')
-    init_smagc_d, init_smagc_l = initialize_sensor_plot('status:device:sim960:current-setpoint', 'Current')
-    return render_template('other_plots.html', title='Other Plots', form=form, init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l,
-                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_devt_d=init_devt_d,
-                           init_devt_l=init_devt_l, init_magc_d=init_magc_d, init_magc_l=init_magc_l,
-                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l)
+    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
+    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
+    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
+    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('status:highcurrentboard:current', 'Measured Current')
+    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('status:device:sim960:current-setpoint', 'Current')
+    return render_template('other_plots.html', title='Other Plots', form=form,
+                           init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l, init_lhe_c=init_lhe_c,
+                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_ln2_c=init_ln2_c,
+                           init_devt_d=init_devt_d, init_devt_l=init_devt_l, init_devt_c=init_devt_c,
+                           init_magc_d=init_magc_d, init_magc_l=init_magc_l, init_magc_c=init_magc_c,
+                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, init_smagc_c=init_smagc_c)
 
 
 
@@ -219,9 +227,11 @@ def viewdata():
     x = DASHDATA[frame_to_use][100:175, 100:175]
     z = [{'z': x.tolist(), 'type': 'heatmap'}]
     plot_layout = {'title': 'Device View'}
+    plot_config = {'responsive': True}
     d = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
-    return d, l
+    c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
+    return d, l, c
 
 
 @app.route('/test_page', methods=['GET', 'POST'])
@@ -278,9 +288,13 @@ def initialize_sensor_plot(key, title):
     plot_layout = {
         'title': title
     }
+    plot_config = {
+        'responsive': True
+    }
     d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
-    return d, l
+    c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
+    return d, l, c
 
 
 def initialize_hemt_plot(key, title):
