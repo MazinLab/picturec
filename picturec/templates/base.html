@@ -200,7 +200,11 @@
                             } else if (d['key'] == 'command:cancel-scheduled-cooldown') {
                                 msg = "Canceled previously scheduled cooldown at: ";
                             } else if (d['key'] == 'command:be-cold-at') {
-                                msg = "Scheduled cooldown for: ";
+                                if (d['legal'][0] == true) {
+                                    msg = "Scheduling cooldown for: ";
+                                } else {
+                                    msg = "ILLEGAL TIME OR FORMAT! Cannot schedule cooldown for: ";
+                                }
                             }
                             $("#ButtonData").text(msg+d['value'])
                         }

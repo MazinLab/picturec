@@ -88,7 +88,6 @@ SETTING_KEYS = {}
 SETTING_KEYS.update(SIM921_SETTING_KEYS)
 SETTING_KEYS.update(SIM960_SETTING_KEYS)
 SETTING_KEYS.update(HEATSWITCH_SETTING_KEYS)
-SETTING_KEYS.update(MAGNET_COMMAND_FORM_KEYS)
 
 KEYS = SIM921_KEYS + SIM960_KEYS + LAKESHORE240_KEYS + CURRENTDUINO_KEYS + HEMTTEMP_KEYS + list(COMMAND_DICT.keys())
 
@@ -103,8 +102,8 @@ redis.setup_redis(create_ts_keys=TS_KEYS)
 def index():
     form = FlaskForm()
     if request.method == 'POST':
-        if request.form.get('id') in SETTING_KEYS.keys():
-            key = SETTING_KEYS[request.form.get('id')]
+        if request.form.get('id') in MAGNET_COMMAND_FORM_KEYS.keys():
+            key = MAGNET_COMMAND_FORM_KEYS[request.form.get('id')]
             value = request.form.get('data')
             app.logger.info(f"{key} -> {value}")
             try:
@@ -123,8 +122,9 @@ def index():
             value = request.form.get('data')
             app.logger.info(f"{key} -> {value}")
             if key == 'command:be-cold-at':
-                app.logger.debug(f"{key} -> {value}")
-                # redis.publish(key, value, store=False)
+                x = parse_schedule_cooldown(value)
+                app.logger.debug(f"{key} -> {value}, {x[0]}")
+                # redis.publish(key, x[0], store=False)
                 return _validate_sked(value)
             else:
                 app.logger.debug(f"{key} -> {time.time()}")
