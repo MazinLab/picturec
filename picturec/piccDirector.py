@@ -96,10 +96,17 @@ DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 
 redis.setup_redis(create_ts_keys=TS_KEYS)
 
-
+# ----------------------------------- Flask Endpoints for Pages Below -----------------------------------
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
+    """
+    Flask endpoint for the main app page.
+    Processes requests from the magnet cycle form (start/abort/cancel/schedule cooldown) and magnet form (ramp rates/
+    soak settings) and publishes them to be interpreted by the necessary agents.
+    Initializes sensor plot data to send for plotting.
+    TODO: Device Viewer - Currently has placeholder buttons/information/'view'
+    """
     form = FlaskForm()
     if request.method == 'POST':
         if request.form.get('id') in MAGNET_COMMAND_FORM_KEYS.keys():
@@ -152,6 +159,10 @@ def index():
 
 @app.route('/other_plots', methods=['GET'])
 def other_plots():
+    """
+    Flask endpoint for 'other plots'. This page has ALL sensor plots in one place for convenience (in contrast to index,
+    which only has one at a time).
+    """
     form = FlaskForm()
     init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
     init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
@@ -168,6 +179,10 @@ def other_plots():
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
+    """
+    Flask endpoint for settings page. Handles setting changes for housekeeping instruments
+    TODO: Readout settings (when we have a readout)
+    """
     if request.method == 'POST':
         key = SETTING_KEYS[request.form.get('id')]
         value = request.form.get('data')
@@ -184,8 +199,20 @@ def settings():
     return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton)
 
 
+@app.route('/log_viewer', methods=['GET', 'POST'])
+def log_viewer():
+    """
+    Flask endpoint for log viewer. This page is solely for observing the journalctl output from each agent.
+    """
+    form = FlaskForm()
+    return render_template('log_viewer.html', title='Log Viewer', form=form)
+
+
 @app.route('/test_page', methods=['GET', 'POST'])
 def test_page():
+    """
+    Test area for trying out things before implementing them on a page
+    """
     form = FlaskForm()
     if request.method == 'POST':
         app.logger.debug(request.form)
@@ -197,13 +224,12 @@ def test_page():
     return render_template('test_page.html', title='Test Page', form=form, s921=sim921form)
 
 
-@app.route('/log_viewer', methods=['GET', 'POST'])
-def log_viewer():
-    form = FlaskForm()
-    return render_template('log_viewer.html', title='Log Viewer', form=form)
-
-
+# ----------------------------------- Helper Functions Below -----------------------------------
 def viewdata():
+    """
+    Placeholding function to grab a frame from a (hard-coded, previously made) temporal drizzle to display as the
+    'device view' on the homepage of the flask application.
+    """
     frame_to_use = 50
     x = DASHDATA[frame_to_use][100:175, 100:175]
     z = [{'z': x.tolist(), 'type': 'heatmap'}]
@@ -217,7 +243,7 @@ def viewdata():
 
 def make_select_choices(key):
     """
-    USE: field = SelectField(label, choices=make_select_choices(key))
+    Creates a list to use in a flask SelectField. Takes the allowable values from the devices.py COMMAND_DICT
     """
     choices = list(COMMAND_DICT[key]['vals'].keys())
     return choices
@@ -225,6 +251,10 @@ def make_select_choices(key):
 
 @app.route('/listener', methods=["GET"])
 def listener():
+    """
+    listener is a function that implements the python (server) side of a server sent event (SSE) communication protocol
+    where data can be streamed directly to the flask app.
+    """
     def stream():
         while True:
             time.sleep(.75)
@@ -237,6 +267,11 @@ def listener():
 
 @app.route('/journalctl_streamer/<service>')
 def journalctl_streamer(service):
+    """
+    journalctl streamer is another SSE server-side function. The name of an agent (or systemd service, they are the
+    same) is passed as an argument and the log messages from that service will then be streamed to wherever this
+    endpoint is called.
+    """
     args = ['journalctl', '--lines', '0', '--follow', f'_SYSTEMD_UNIT={service}.service']
     def st(arg):
         f = subprocess.Popen(arg, stdout=subprocess.PIPE)
@@ -249,12 +284,35 @@ def journalctl_streamer(service):
     return Response(st(args), mimetype='text/event-stream', content_type='text/event-stream')
 
 
-@app.route('/validatesked', methods=['POST'])
-def validate_schedulefmt():
-    return _validate_sked(request.form.get('data'))
+def _validate_cmd(k, v):
+    """
+    Takes a key (k) and value (v) and determines if it is a legal command. Used by /settings and /main to process
+    submitted data as well as validate_cmd_change for 'real time' command processing.
+    """
+    try:
+        s = SimCommand(k, v)
+        is_legal = [True, '\u2713']
+    except ValueError:
+        is_legal = [False, '\u2717']
+    return jsonify({'mag':False, 'key': k, 'value': v, 'legal': is_legal})
+
+
+@app.route('/validatecmd', methods=['POST'])
+def validate_cmd_change():
+    """
+    Flask endpoint which is called from an AJAX request when new data is typed/entered into a submittable field. This
+    will then report back if the value is allowed or not and report that to the user accordingly (with a check or X)
+    """
+    key = SETTING_KEYS[request.form.get('id')]
+    value = request.form.get('data')
+    return _validate_cmd(key, value)
 
 
 def _validate_sked(value):
+    """
+    Function to specifically validate if the 'schedule cooldown' submittable string field is in an allowable format.
+    It looks for both the correct format and if the time is nominally long enough to schedule (~90 minutes in the future)
+    """
     try:
         x = parse_schedule_cooldown(value)
         if x[2] >= (90*60):
@@ -265,20 +323,13 @@ def _validate_sked(value):
         return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
 
 
-@app.route('/validatecmd', methods=['POST'])
-def validate_cmd_change():
-    key = SETTING_KEYS[request.form.get('id')]
-    value = request.form.get('data')
-    return _validate_cmd(key, value)
-
-
-def _validate_cmd(k, v):
-    try:
-        s = SimCommand(k, v)
-        is_legal = [True, '\u2713']
-    except ValueError:
-        is_legal = [False, '\u2717']
-    return jsonify({'mag':False, 'key': k, 'value': v, 'legal': is_legal})
+@app.route('/validatesked', methods=['POST'])
+def validate_schedulefmt():
+    """
+    Flask endpoint which is called from an AJAX request when new data is typed/entered into the schedule cooldown field.
+    This will then report back if the value is allowed or not and report that to the user accordingly (with a check or X)
+    """
+    return _validate_sked(request.form.get('data'))
 
 
 def initialize_sensor_plot(key, title):
@@ -308,6 +359,11 @@ def initialize_sensor_plot(key, title):
 
 
 def initialize_hemt_plot(key, title):
+    """
+    A slightly modified version of initialize_sensor_plot. This function takes in which hemt field is desired
+    ('drain-voltage', 'drain-current', 'gate-voltage') and creates a plot with all of the HEMTs data of that kind.
+    It will result in a plot with 5 lines, all of the same reporting value, for each HEMT (i.e. HEMT 1 Vd,... HEMT 5 Vd)
+    """
     last_tval = time.time()
     first_tval = int((last_tval - 1800) * 1000)
     keys = [f'status:feedline{i}:hemt:{key}' for i in [1, 2, 3, 4, 5]]
@@ -326,7 +382,10 @@ def initialize_hemt_plot(key, title):
 
 def parse_schedule_cooldown(schedule_time):
     """
-    Takes a string and converts it sensibly to a timestamp to be used by the SIM960 schedule cooldown function
+    Takes a string input from the schedule cooldown field and parses it to determine if it is in a proper format to be
+    used as a time for scheduling a cooldown.
+    Returns a timestamp in seconds (to send to the SIM960 agent for scheduling), a datetime object (for reporting to
+    flask page), and time until the desired cold time in seconds (to check for it being allowable)
     """
     t = schedule_time.split(" ")
     now = datetime.datetime.now()
@@ -355,7 +414,7 @@ def parse_schedule_cooldown(schedule_time):
     ts = be_cold_at.timestamp()
     return ts, be_cold_at, tdelta
 
-
+# ----------------------------------- Custom Flask Forms Below -----------------------------------
 class CycleControlForm(FlaskForm):
     startcooldown = SubmitField('Start Cooldown')
     abortcooldown = SubmitField('Abort Cooldown')

@@ -55,6 +55,7 @@ COMMANDS960 = {'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'val
                'device-settings:sim960:pid-offset:enabled': {'command': 'OCTL', 'vals': {'off': '0', 'on': '1'}},
                }
 
+# COMMANDS HS (Heatswitch) are only included so that we can use the SimCommand class to check the legality of a command.
 COMMANDSHS = {'device-settings:currentduino:heatswitch': {'command': '', 'vals': {'open': 'open', 'close': 'close'}}}
 
 
@@ -77,6 +78,7 @@ def load_tvals(curve):
 
     return {str(i): i for i in temp_data}
 
+# COMMANDS MAGNET are only included so that we can use the SimCommand class to check the legality of a magnet command.
 COMMANDSMAGNET = {'device-settings:sim960:ramp-rate': {'command': '', 'vals': [0, 0.015]},
                   'device-settings:sim960:deramp-rate': {'command': '', 'vals': [-0.015, 0]},
                   'device-settings:sim960:soak-time': {'command': '', 'vals': [0, np.inf]},
