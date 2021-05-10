@@ -1,3 +1,9 @@
+"""
+Author: Jeb Bailey & Noah Swimmer
+
+TODO: Add 'off' to devices so they don't just query unnecessarily
+"""
+
 from logging import getLogger
 import numpy as np
 import enum
