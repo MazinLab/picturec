@@ -355,8 +355,6 @@ def parse_schedule_cooldown(schedule_time):
     """
     Takes a string and converts it sensibly to a timestamp to be used by the SIM960 schedule cooldown function
     """
-    if schedule_time == '':
-        return 0
     t = schedule_time.split(" ")
     now = datetime.datetime.now()
     year = now.year
@@ -379,8 +377,10 @@ def parse_schedule_cooldown(schedule_time):
         hr = int(tval[0])
         minute = int(tval[1])
 
-    ts = datetime.datetime(year, month, day, hr, minute).timestamp()
-    return ts
+    be_cold_at = datetime.datetime(year, month, day, hr, minute)
+    tdelta = (be_cold_at - datetime.datetime.now()).total_seconds()
+    ts = be_cold_at.timestamp()
+    return ts, be_cold_at, tdelta
 
 
 if __name__ == "__main__":
