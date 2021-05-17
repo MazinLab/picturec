@@ -7,3 +7,5 @@ SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{seri
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AM00NUCK", SYMLINK+="sim960"
 
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="1fb9", ATTRS{idProduct}=="0205", ATTRS{serial}=="LSA2359", SYMLINK+="lakeshore"
+
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", ATTRS{manufacturer}=="STMicroelectronics", SYMLINK+="dfrobotswitch"
