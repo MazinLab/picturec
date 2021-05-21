@@ -219,26 +219,9 @@ def test_page():
     """
     Test area for trying out things before implementing them on a page
     """
-    if request.method == 'POST':
-        app.logger.debug(request.form)
-        d, l, c = initialize_sensor_plot(request.form.get('data'))
-        return jsonify({'data': d, 'layout': l, 'config': c})
-    class testForm(FlaskForm):
-        sel = SelectField('Sensor', choices=CHART_KEYS.keys())
-
-    form = testForm()
+    form = FlaskForm()
     d,l,c = initialize_sensors_plot(CHART_KEYS.keys())
-    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('LHe T')
-    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('LN2 T')
-    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('Device T')
-    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('Measured I')
-    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('Magnet I')
-    return render_template('test_page.html', title='Test Page', form=form, d=d, l=l, c=c,
-                           init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l, init_lhe_c=init_lhe_c,
-                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_ln2_c=init_ln2_c,
-                           init_devt_d=init_devt_d, init_devt_l=init_devt_l, init_devt_c=init_devt_c,
-                           init_magc_d=init_magc_d, init_magc_l=init_magc_l, init_magc_c=init_magc_c,
-                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, init_smagc_c=init_smagc_c)
+    return render_template('test_page.html', title='Test Page', form=form, d=d, l=l, c=c)
 
 
 # ----------------------------------- Helper Functions Below -----------------------------------
