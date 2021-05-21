@@ -7,23 +7,27 @@
 
 {% block body %}
     {{ super() }}
-
-    <div class="container" style="float:left; margin-left: 10%; width: 40%; padding: 0px">
-        <div class="col-lg" style="border-style: solid; border-width: 1px">
-            <h1>Log viewing here</h1>
-            <div id="sim921_log" style="margin-left:3%; height:200px;width:90%;border:1px solid #ccc; overflow:auto; overflow-x: scroll"></div>
-            <div id="sim960_log" style="margin-left:3%; height:200px;width:90%;border:1px solid #ccc; overflow:auto; overflow-x: scroll"></div>
+    <div class="container" style="float:left; margin-left: 10%; max-width: 78%; padding: 0px">
+        <div class="column" style="float:left; width: 90%">
+            <div class="row" id="test_plot"></div>
         </div>
     </div>
 
     <script>
-        function jstream(service) {
-            var source = new EventSource("/journalctl_streamer/"+service);
+        Plotly.newPlot('test_plot', {{ d | safe }}, {{ l | safe }}, {{ c | safe}})
+    </script>
+
+    <script>
+        function ud_idx() {
+            var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
-                // console.log("Message: ", e.data);
-                var theDiv = document.getElementById(service+"_log");
-                theDiv.innerHTML += "<div style='width: 250%'>"+e.data+"</div>";
-                theDiv.scrollTop = theDiv.scrollHeight;
+                var newdata = JSON.parse(e.data);
+                // console.log("Message: ", newdata);
+                update_plot("test_plot", "status:temps:mkidarray:temp", newdata, 0);
+                update_plot("test_plot", "status:temps:lhetank", newdata, 1);
+                update_plot("test_plot", "status:temps:ln2tank", newdata, 2);
+                update_plot("test_plot", "status:device:sim960:current-setpoint", newdata, 3);
+                update_plot("test_plot", "status:highcurrentboard:current", newdata, 4);
             }, false);
             source.addEventListener("open", function (e) {
                 console.log('Connection was opened: ', e);
@@ -32,8 +36,7 @@
                 console.log("Connection errored out: ", e);
             }, false);
         };
-        jstream("sim921");
-        jstream("sim960");
-    </script>
+        ud_idx()
 
+    </script>
 {% endblock %}

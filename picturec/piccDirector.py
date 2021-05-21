@@ -84,6 +84,12 @@ CYCLE_KEYS = {'startcooldown': 'command:get-cold',
               'cancelcooldown': 'command:cancel-scheduled-cooldown',
               'schedulecooldown': 'command:be-cold-at'}
 
+CHART_KEYS = {'Device T':'status:temps:mkidarray:temp',
+              'LHe T':'status:temps:lhetank',
+              'LN2 T':'status:temps:ln2tank',
+              'Magnet I':'status:device:sim960:current-setpoint',
+              'Measured I':'status:highcurrentboard:current'}
+
 SETTING_KEYS = {}
 SETTING_KEYS.update(SIM921_SETTING_KEYS)
 SETTING_KEYS.update(SIM960_SETTING_KEYS)
@@ -213,15 +219,26 @@ def test_page():
     """
     Test area for trying out things before implementing them on a page
     """
-    form = FlaskForm()
     if request.method == 'POST':
         app.logger.debug(request.form)
-        key = SETTING_KEYS[request.form.get('id')]
-        value = request.form.get('data')
-        app.logger.info(f"command:{key} -> {value}")
-        return _validate_cmd(key, value)
-    sim921form = SIM921SettingForm()
-    return render_template('test_page.html', title='Test Page', form=form, s921=sim921form)
+        d, l, c = initialize_sensor_plot(request.form.get('data'))
+        return jsonify({'data': d, 'layout': l, 'config': c})
+    class testForm(FlaskForm):
+        sel = SelectField('Sensor', choices=CHART_KEYS.keys())
+
+    form = testForm()
+    d,l,c = initialize_sensors_plot(CHART_KEYS.keys())
+    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('LHe T')
+    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('LN2 T')
+    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('Device T')
+    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('Measured I')
+    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('Magnet I')
+    return render_template('test_page.html', title='Test Page', form=form, d=d, l=l, c=c,
+                           init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l, init_lhe_c=init_lhe_c,
+                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_ln2_c=init_ln2_c,
+                           init_devt_d=init_devt_d, init_devt_l=init_devt_l, init_devt_c=init_devt_c,
+                           init_magc_d=init_magc_d, init_magc_l=init_magc_l, init_magc_c=init_magc_c,
+                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, init_smagc_c=init_smagc_c)
 
 
 # ----------------------------------- Helper Functions Below -----------------------------------
@@ -356,6 +373,35 @@ def initialize_sensor_plot(key, title):
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
     c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
     return d, l, c
+
+
+def initialize_sensors_plot(titles):
+    last_tval = time.time()
+    first_tval = int((last_tval - 1800) * 1000)
+    keys = [CHART_KEYS[i] for i in titles]
+    timestreams = [np.array(redis.pcr_range(key, f"{first_tval}", "+")) for key in keys]
+    times = [[datetime.datetime.fromtimestamp(t / 1000).strftime("%H:%M:%S") for t in ts[:, 0]] for ts in timestreams]
+    vals = [list(ts[:, 1]) for ts in timestreams]
+
+    update_menus = []
+    for n, t in enumerate(titles):
+        visible = [False] * len(titles)
+        visible[n] = True
+        t_dict = dict(label=str(t),
+                      method='update',
+                      args=[{'visible': visible}, {'title': t}])
+        update_menus.append(t_dict)
+
+    plot_data = [{'x': i, 'y': j, 'name': t, 'mode': 'lines', 'visible': False} for i, j, t in
+                 zip(times, vals, titles)]
+    plot_data[0]['visible'] = True
+    plot_layout = dict(updatemenus=list([dict(buttons=update_menus)]))
+    plot_config = {'responsive': True}
+    d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
+    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
+    c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
+    return d, l, c
+
 
 
 def initialize_hemt_plot(key, title):
