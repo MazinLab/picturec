@@ -384,29 +384,6 @@ def initialize_sensors_plot(titles):
     return d, l, c
 
 
-
-def initialize_hemt_plot(key, title):
-    """
-    A slightly modified version of initialize_sensor_plot. This function takes in which hemt field is desired
-    ('drain-voltage', 'drain-current', 'gate-voltage') and creates a plot with all of the HEMTs data of that kind.
-    It will result in a plot with 5 lines, all of the same reporting value, for each HEMT (i.e. HEMT 1 Vd,... HEMT 5 Vd)
-    """
-    last_tval = time.time()
-    first_tval = int((last_tval - 1800) * 1000)
-    keys = [f'status:feedline{i}:hemt:{key}' for i in [1, 2, 3, 4, 5]]
-    timestreams = [np.array(redis.pcr_range(key, f"{first_tval}", "+")) for key in keys]
-    times = [[datetime.datetime.fromtimestamp(t / 1000).strftime("%H:%M:%S") for t in ts[:, 0]] for ts in timestreams]
-    vals = [list(ts[:, 1]) for ts in timestreams]
-
-    plot_data = [{'x': j[0],'y': j[1],'name': f"Feedline {i+1} {title}",'mode': 'lines'} for i, j in enumerate(zip(times, vals))]
-    plot_layout = {'title': title}
-    plot_config = {'responsive': True}
-    d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
-    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
-    c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
-    return d, l, c
-
-
 def parse_schedule_cooldown(schedule_time):
     """
     Takes a string input from the schedule cooldown field and parses it to determine if it is in a proper format to be
