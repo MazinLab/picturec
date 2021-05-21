@@ -144,13 +144,11 @@ def index():
                 # redis.publish(key, f"{time.time()}", store=False)
                 return jsonify({'mag': True, 'key':key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
 
-    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
-    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
-    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
-    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('status:highcurrentboard:current',
-                                                                   'Measured Current')
-    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('status:device:sim960:current-setpoint',
-                                                                      'Current')
+    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('LHe T')
+    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('LN2 T')
+    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('Device T')
+    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('Measured I')
+    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('Magnet I')
     init_dash_data, init_dash_layout, init_dash_config = viewdata()
     cycleform = CycleControlForm()
     magnetform = MagnetControlForm()
@@ -170,11 +168,11 @@ def other_plots():
     which only has one at a time).
     """
     form = FlaskForm()
-    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('status:temps:lhetank', 'LHe Temp')
-    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('status:temps:ln2tank', 'LN2 Temp')
-    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('status:temps:mkidarray:temp', 'Device Temp')
-    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('status:highcurrentboard:current', 'Measured Current')
-    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('status:device:sim960:current-setpoint', 'Current')
+    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('LHe T')
+    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('LN2 T')
+    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('Device T')
+    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('Measured I')
+    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('Magnet I')
     return render_template('other_plots.html', title='Other Plots', form=form,
                            init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l, init_lhe_c=init_lhe_c,
                            init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_ln2_c=init_ln2_c,
@@ -332,7 +330,7 @@ def validate_schedulefmt():
     return _validate_sked(request.form.get('data'))
 
 
-def initialize_sensor_plot(key, title):
+def initialize_sensor_plot(title):
     """
     :param key: Redis key plot data is needed for
     :param title: Plot title. If '-', not used
@@ -341,15 +339,15 @@ def initialize_sensor_plot(key, title):
     """
     last_tval = time.time() # In seconds
     first_tval = int((last_tval - 1800) * 1000)  # Allow data from up to 30 minutes beforehand to be plotted (30 m = 1800 s)
-    ts = np.array(redis.pcr_range(key, f"{first_tval}", '+'))
+    ts = np.array(redis.pcr_range(CHART_KEYS[title], f"{first_tval}", '+'))
     times = [datetime.datetime.fromtimestamp(t/1000).strftime("%H:%M:%S") for t in ts[:,0]]
     vals = list(ts[:,1])
     if len(times) == 0:
-        val = redis.read(key)
+        val = redis.read(CHART_KEYS[title])
         times = [datetime.datetime.fromtimestamp(val[0] / 1000).strftime("%H:%M:%S")]
         vals = [val[1]]
 
-    plot_data = [{'x': times,'y': vals,'name': key}]
+    plot_data = [{'x': times,'y': vals,'name': title}]
     plot_layout = {'title': title}
     plot_config = {'responsive': True}
     d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
