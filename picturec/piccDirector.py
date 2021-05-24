@@ -144,21 +144,12 @@ def index():
                 # redis.publish(key, f"{time.time()}", store=False)
                 return jsonify({'mag': True, 'key':key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
 
-    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('LHe T')
-    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('LN2 T')
-    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('Device T')
-    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('Measured I')
-    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('Magnet I')
-    init_dash_data, init_dash_layout, init_dash_config = viewdata()
+    d,l,c = initialize_sensors_plot(CHART_KEYS.keys())
+    dd, dl, dc = viewdata()
     cycleform = CycleControlForm()
     magnetform = MagnetControlForm()
     return render_template('index.html', form=form, mag=magnetform, cyc=cycleform,
-                           init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l, init_lhe_c=init_lhe_c,
-                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_ln2_c=init_ln2_c,
-                           init_devt_d=init_devt_d, init_devt_l=init_devt_l, init_devt_c=init_devt_c,
-                           init_magc_d=init_magc_d, init_magc_l=init_magc_l, init_magc_c=init_magc_c,
-                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, init_smagc_c=init_smagc_c,
-                           init_data=init_dash_data, init_layout=init_dash_layout, init_dash_config=init_dash_config)
+                           d=d, l=l, c=c, dd=dd, dl=dl, dc=dc)
 
 
 @app.route('/other_plots', methods=['GET'])
@@ -168,17 +159,15 @@ def other_plots():
     which only has one at a time).
     """
     form = FlaskForm()
-    init_lhe_d, init_lhe_l, init_lhe_c = initialize_sensor_plot('LHe T')
-    init_ln2_d, init_ln2_l, init_ln2_c = initialize_sensor_plot('LN2 T')
-    init_devt_d, init_devt_l, init_devt_c = initialize_sensor_plot('Device T')
-    init_magc_d, init_magc_l, init_magc_c = initialize_sensor_plot('Measured I')
-    init_smagc_d, init_smagc_l, init_smagc_c = initialize_sensor_plot('Magnet I')
+    lhe_d, lhe_l, lhe_c = initialize_sensor_plot('LHe T')
+    ln2_d, ln2_l, ln2_c = initialize_sensor_plot('LN2 T')
+    devt_d, devt_l, devt_c = initialize_sensor_plot('Device T')
+    magc_d, magc_l, magc_c = initialize_sensor_plot('Measured I')
+    smagc_d, smagc_l, smagc_c = initialize_sensor_plot('Magnet I')
     return render_template('other_plots.html', title='Other Plots', form=form,
-                           init_lhe_d=init_lhe_d, init_lhe_l=init_lhe_l, init_lhe_c=init_lhe_c,
-                           init_ln2_d=init_ln2_d, init_ln2_l=init_ln2_l, init_ln2_c=init_ln2_c,
-                           init_devt_d=init_devt_d, init_devt_l=init_devt_l, init_devt_c=init_devt_c,
-                           init_magc_d=init_magc_d, init_magc_l=init_magc_l, init_magc_c=init_magc_c,
-                           init_smagc_d=init_smagc_d, init_smagc_l=init_smagc_l, init_smagc_c=init_smagc_c)
+                           lhe_d=lhe_d, lhe_l=lhe_l, lhe_c=lhe_c, ln2_d=ln2_d, ln2_l=ln2_l, ln2_c=ln2_c,
+                           devt_d=devt_d, devt_l=devt_l, devt_c=devt_c, magc_d=magc_d, magc_l=magc_l, magc_c=magc_c,
+                           smagc_d=smagc_d, smagc_l=smagc_l, smagc_c=smagc_c)
 
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -370,13 +359,13 @@ def initialize_sensors_plot(titles):
         visible[n] = True
         t_dict = dict(label=str(t),
                       method='update',
-                      args=[{'visible': visible}, {'title': t}])
+                      args=[{'visible': visible}])#, {'title': t}])
         update_menus.append(t_dict)
 
     plot_data = [{'x': i, 'y': j, 'name': t, 'mode': 'lines', 'visible': False} for i, j, t in
                  zip(times, vals, titles)]
     plot_data[0]['visible'] = True
-    plot_layout = dict(updatemenus=list([dict(buttons=update_menus)]))
+    plot_layout = dict(updatemenus=list([dict(buttons=update_menus, x=0.01, xanchor='left', y=1.1, yanchor='top')]))
     plot_config = {'responsive': True}
     d = json.dumps(plot_data, cls=plotly.utils.PlotlyJSONEncoder)
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
