@@ -94,25 +94,23 @@
         <div class="col-lg" style="border-style: solid; border-width: 1px">
             <div class="col-lg">
                 {% for field in mag %}
-                    {% if field.id != "update" %}
-                        {% if field.id != "csrf_token" %}
-                            <div class="row">
-                                <form id="{{ field.name }}_form" action="{{ url_for('index') }}" method="post">
-                                    <div class="column" style="float: left; margin-left: 4%; width: 25%">
-                                        {{ mag.hidden_tag() }}
-                                        {{ field.label }}
-                                    </div>
-                                    <div class="column" style="float: left; margin-left: 2%; width: 35%">
-                                        {{ field() }}
-                                        <div id="{{ field.name }}_success" style="float: right"></div>
-                                    </div>
-                                    <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
-                                    <div class="column" style="text-align: right; float: right; margin-right: 8%; width: 10%">
-                                        <button type="submit">Update</button>
-                                    </div>
-                                </form>
-                            </div>
-                        {% endif %}
+                    {% if field.id != "csrf_token" %}
+                        <div class="row">
+                            <form id="{{ field.name }}_form" action="{{ url_for('index') }}" method="post">
+                                <div class="column" style="float: left; margin-left: 4%; width: 25%">
+                                    {{ mag.hidden_tag() }}
+                                    {{ field.label }}
+                                </div>
+                                <div class="column" style="float: left; margin-left: 2%; width: 35%">
+                                    {{ field() }}
+                                    <div id="{{ field.name }}_success" style="float: right"></div>
+                                </div>
+                                <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
+                                <div class="column" style="text-align: right; float: right; margin-right: 8%; width: 10%">
+                                    <button type="submit">Update</button>
+                                </div>
+                            </form>
+                        </div>
                     {% endif %}
                 {% endfor %}
             </div>
@@ -120,28 +118,19 @@
 
         <div class="col-lg" style="border-style: solid; border-width: 1px">
             <div class="row" style="width: 98%; height:98%; margin-left: 1%; margin-top: 1%">
-                <div id="device_temp"></div>
+                <div id="indexplot"></div>
             </div>
         </div>
     </div>
 
     <script>
-        var layout = {{ init_layout | safe }};
-        Plotly.newPlot('dash', {{ init_data | safe}}, {{ init_layout | safe }}, {{ init_dash_config | safe}})
-        Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }}, {{ init_devt_c | safe}})
-        // Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }})
-        // Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }})
-        // Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }})
-        // Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }})
-    </script>
+        Plotly.newPlot('dash', {{ dd | safe}}, {{ dl | safe }}, {{ dc | safe}})
+        Plotly.newPlot('indexplot', {{ d | safe }}, {{ l | safe }}, {{ c | safe}})
 
-    <script>
         function ud_idx() {
             var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
-                update_plot("device_temp", "status:temps:mkidarray:temp", newdata);
-
                 update_div("mag_status", "status:magnet:state", newdata);
 
                 update_div("soakcurrent_currentval", "device-settings:sim960:soak-current", newdata);
@@ -149,6 +138,13 @@
                 update_div("ramprate_currentval", "device-settings:sim960:ramp-rate", newdata);
                 update_div("deramprate_currentval", "device-settings:sim960:deramp-rate", newdata);
                 update_div("regulationtemperature_currentval", "device-settings:mkidarray:regulating-temp", newdata);
+
+                update_plot("indexplot", "status:temps:mkidarray:temp", newdata, 0);
+                update_plot("indexplot", "status:temps:lhetank", newdata, 1);
+                update_plot("indexplot", "status:temps:ln2tank", newdata, 2);
+                update_plot("indexplot", "status:device:sim960:current-setpoint", newdata, 3);
+                update_plot("indexplot", "status:highcurrentboard:current", newdata, 4);
+
                 if (newdata['status:magnet:state'] == "off" && newdata['device-settings:sim960:cooldown-scheduled'] == 'no') {
                     document.getElementById("abortcooldown").disabled = true;
                     document.getElementById("startcooldown").disabled = false;
@@ -175,7 +171,7 @@
             source.addEventListener("error", function (e) {
                 console.log("Connection errored out: ", e);
             }, false);
-        };
+        }
         ud_idx()
 
         function realtime_validate_schedule(id) {
@@ -200,7 +196,7 @@
                     }
                 })
             })
-        };
+        }
         realtime_validate_schedule("schedulecooldown")
 
         realtime_validate("soakcurrent")
