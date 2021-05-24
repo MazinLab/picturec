@@ -20,15 +20,15 @@
     </div>
 
     <script>
-        Plotly.newPlot('device_temp', {{ init_devt_d | safe }}, {{ init_devt_l | safe }}, {{ init_devt_c | safe}})
-        Plotly.newPlot('magnet_current', {{ init_magc_d | safe }}, {{ init_magc_l | safe }}, {{ init_magc_c | safe}})
-        Plotly.newPlot('lhe', {{ init_lhe_d | safe }}, {{ init_lhe_l | safe }}, {{ init_lhe_c | safe}})
-        Plotly.newPlot('ln2', {{ init_ln2_d | safe }}, {{ init_ln2_l | safe }}, {{ init_ln2_c | safe}})
-        Plotly.newPlot('desired_magnet_current', {{ init_smagc_d | safe }}, {{ init_smagc_l | safe }}, {{ init_smagc_c | safe}})
+        Plotly.newPlot('device_temp', {{ devt_d | safe }}, {{ devt_l | safe }}, {{ devt_c | safe}})
+        Plotly.newPlot('magnet_current', {{ magc_d | safe }}, {{ magc_l | safe }}, {{ magc_c | safe}})
+        Plotly.newPlot('lhe', {{ lhe_d | safe }}, {{ lhe_l | safe }}, {{ lhe_c | safe}})
+        Plotly.newPlot('ln2', {{ ln2_d | safe }}, {{ ln2_l | safe }}, {{ ln2_c | safe}})
+        Plotly.newPlot('desired_magnet_current', {{ smagc_d | safe }}, {{ smagc_l | safe }}, {{ smagc_c | safe}})
     </script>
 
     <script>
-        function ud_idx() {
+        function ud_plots() {
             var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
@@ -45,8 +45,8 @@
             source.addEventListener("error", function (e) {
                 console.log("Connection errored out: ", e);
             }, false);
-        };
-        ud_idx()
+        }
+        ud_plots()
     </script>
 
 {% endblock %}
