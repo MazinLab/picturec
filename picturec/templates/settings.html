@@ -21,45 +21,18 @@
             </div>
         </div>
 
-        <div class="col-lg" style="border-style: solid; border-width: 1px">
-            <div class="col-lg">
-                <div class="row">
-                    <h2 style="text-align: center">SIM 921 Settings</h2>
-                </div>
-                {% for field in s921 %}
-                    {% if field.id != "csrf_token" %}
-                        <div class="row">
-                            <form id="{{ field.name }}_form" action="{{ url_for('settings') }}" method="post">
-                                <div class="column" style="float: left; margin-left: 4%; width: 25%">
-                                    {{ s921.hidden_tag() }}
-                                    {{ field.label }}
-                                </div>
-                                <div class="column" style="float: left; margin-left: 2%; width: 35%">
-                                    {{ field() }}
-                                    <div id="{{ field.name }}_success" style="float: right"></div>
-                                </div>
-                                <div id="{{ field.name }}_currentval" class="column" style="text-align: right; float:left; width: 10%"></div>
-                                <div class="column" style="text-align: right; float: right; margin-right: 5%; width: 10%">
-                                    <button type="submit">Update</button>
-                                </div>
-                            </form>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-            </div>
-        </div>
-
+        {% for sform in forms %}
         <div class="col-lg" style="border-style: solid; border-width: 1px">
             <div class="col-lg">
                 <div class="row">
                     <h2 style="text-align: center">SIM 960 Settings</h2>
                 </div>
-                {% for field in s960 %}
+                {% for field in sform %}
                     {% if field.id != "csrf_token" %}
                         <div class="row">
                             <form id="{{ field.name }}_form" action="{{ url_for('settings') }}" method="post">
                                 <div class="column" style="float: left; margin-left: 4%; width: 25%">
-                                    {{ s960.hidden_tag() }}
+                                    {{ sform.hidden_tag() }}
                                     {{ field.label }}
                                 </div>
                                 <div class="column" style="float: left; margin-left: 2%; width: 35%">
@@ -76,6 +49,7 @@
                 {% endfor %}
             </div>
         </div>
+        {% endfor %}
 
         <div class="col-lg" style="border-style: solid; border-width: 1px">
             <h5>

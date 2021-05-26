@@ -188,8 +188,9 @@ def settings():
         return _validate_cmd(key, value)
     sim921form = SIM921SettingForm()
     sim960form = SIM960SettingForm()
+    forms = [sim921form, sim960form]
     hsbutton = HeatswitchToggle()
-    return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton)
+    return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton, forms=forms)
 
 
 @app.route('/log_viewer', methods=['GET', 'POST'])
