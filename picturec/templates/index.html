@@ -124,7 +124,8 @@
     </div>
 
     <script>
-        Plotly.newPlot('dash', {{ dd | safe}}, {{ dl | safe }}, {{ dc | safe}})
+        console.log({{ dd | safe }})
+        Plotly.react('dash', {{ dd | safe}}, {{ dl | safe }}, {{ dc | safe}})
         Plotly.newPlot('indexplot', {{ d | safe }}, {{ l | safe }}, {{ c | safe}})
 
         function ud_idx() {
@@ -173,6 +174,24 @@
             }, false);
         }
         ud_idx()
+
+        function ud_idx2() {
+            var source = new EventSource("/dashlistener");
+            source.addEventListener("message", function (e) {
+                var newdata = JSON.parse(e.data);
+                // var newdata = e.data;
+                console.log(newdata);
+                Plotly.react('dash', newdata)
+            }, false);
+            source.addEventListener("open", function (e) {
+                console.log('Connection was opened: ', e);
+            }, false);
+            source.addEventListener("error", function (e) {
+                console.log("Connection errored out: ", e);
+            }, false);
+        }
+        ud_idx2()
+
 
         function realtime_validate_schedule(id) {
             $("#"+id).keyup(function () {

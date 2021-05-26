@@ -220,7 +220,7 @@ def viewdata():
     """
     frame_to_use = 50
     x = DASHDATA[frame_to_use][100:175, 100:175]
-    z = [{'z': x.tolist(), 'type': 'heatmap'}]
+    z = [{'z': x.tolist(), 'type': 'heatmap', 'showscale':False}]
     plot_layout = {'title': 'Device View'}
     plot_config = {'responsive': True}
     d = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
@@ -235,6 +235,24 @@ def make_select_choices(key):
     """
     choices = list(COMMAND_DICT[key]['vals'].keys())
     return choices
+
+
+@app.route('/dashlistener', methods=["GET"])
+def dashlistener():
+    """
+    listener is a function that implements the python (server) side of a server sent event (SSE) communication protocol
+    where data can be streamed directly to the flask app.
+    """
+    def stream():
+        while True:
+            time.sleep(1)
+            x = DASHDATA[np.random.randint(0,100)][100:175, 100:175]
+            z = [{'z': x.tolist(), 'type': 'heatmap', 'showscale': False}]
+            x = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
+            msg = f"retry:5\ndata: {x}\n\n"
+            yield msg
+    return Response(stream(), mimetype='text/event-stream', content_type='text/event-stream')
+
 
 
 @app.route('/listener', methods=["GET"])
