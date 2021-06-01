@@ -1,0 +1,22 @@
+Gen3 Mounting Considerations
+
+a) Network Scheme
+- The communcation into/out of the electronics rack is via an ethernet cable. There are 2 bulkhead connectors (we only have 1 in use at the moment)
+-The ethernet bulkhead connector will have a cable running to the managed network switch which will be able to manage the network traffic.
+- The network switch will have a connection to the NUC itself, each of the gen3 boards, and the ethernet-controlled relays. All of these will be ethernet connections (**If the gen3 boards require non-ethernet connections, I will change this**)
+- The gen3 boards (maybe IF card) will each have SMA-to-SMA coax cables that go to the output SMA flanges on the top of the rack. Externally, there will be long SMA-to-SMA cables which travel from the rack SMA ports to the cryostat SMA ports
+- The output SMA ports from the cryostat will have long SMA-to-SMA coaxes that travel to the input of the rack, and internally there will be SMA-to-SMA cables that go from the inner side of the input port to the gen3 boards (this is just the reverse of the 'output' side)
+
+- ** Network note ** - If the NUC has internet you will also be able to ssh into it.
+
+b) Physical mounting
+- As it stands, the only mounting consideration for the Gen3 boards is that there are hole patterns based on the through-hole placement of the boards
+- Option 1: Build and mount a wall that cuts the center of the rack in half. Would require adding new holes in the rack somewhere
+- Option 2: Build a 'cage' over the top of the boards that protects them over the top, could be made of thin aluminum to just provide a barrier. Would require adding new holes to side panel
+- Option 3: Tie down everything really tightly & securely (this is pretty obviously a bad idea but putting it in because it remains AN option)
+- Option 4: Some sort of plastic barrier/insulating layer
+- Option 5: Design and build (enclosed/semi-enclosed) cartridges for the boards to live in that subsequently mount  to the panel that they are intended to live on now
+
+c) Power
+- Option 1: There *should still be* room on the DIN rails for 2 more of the high powered 12V output DC-to-DC converters (power up to 120 W)
+- Option 2: Something else that I don't know about yet. I don't know how these boards need to be powered other than my understanding is they need 12 V and require somewhere between 50-140 W
