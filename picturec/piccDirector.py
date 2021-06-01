@@ -246,7 +246,7 @@ def dashlistener():
     def stream():
         while True:
             time.sleep(1)
-            x = DASHDATA[np.random.randint(0,100)][100:175, 100:175]
+            x = DASHDATA[np.random.randint(0, len(DASHDATA))][100:175, 100:175]
             z = [{'z': x.tolist(), 'type': 'heatmap', 'showscale': False}]
             x = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
             msg = f"retry:5\ndata: {x}\n\n"
