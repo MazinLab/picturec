@@ -309,7 +309,10 @@ def validate_cmd_change():
     Flask endpoint which is called from an AJAX request when new data is typed/entered into a submittable field. This
     will then report back if the value is allowed or not and report that to the user accordingly (with a check or X)
     """
-    key = SETTING_KEYS[request.form.get('id')]
+    try:
+        key = SETTING_KEYS[request.form.get('id')]
+    except:
+        key = MAGNET_COMMAND_FORM_KEYS[request.form.get('id')]
     value = request.form.get('data')
     return _validate_cmd(key, value)
 
