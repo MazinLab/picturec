@@ -192,30 +192,7 @@
         ud_idx2()
 
 
-        function realtime_validate_schedule(id) {
-            $("#"+id).keyup(function () {
-                console.log($(this).val())
-                var text = $(this).val();
-                $.ajax({
-                    type:'POST',
-                    url:'/validatesked',
-                    data:{
-                        id:id,
-                        data:text
-                    },
-                    success:function(d){
-                        $("#"+id+"_success").text(d['legal'][1]);
-                        if (d['legal'][0] == false) {
-                            document.getElementById(id).style.color = 'red'
-                        } else {
-                            document.getElementById(id).style.color = 'blue'
-                        }
-                        console.log(d);
-                    }
-                })
-            })
-        }
-        realtime_validate_schedule("schedulecooldown")
+        realtime_validate("schedulecooldown")
 
         realtime_validate("soakcurrent")
         realtime_validate("soaktime")

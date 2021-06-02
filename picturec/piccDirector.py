@@ -49,40 +49,40 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
            'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current',
            'status:device:sim960:current-setpoint', 'status:device:sim921:sim960-vout', 'status:device:sim960:vin']
 
-SIM921_SETTING_KEYS = {'resistancerange': 'device-settings:sim921:resistance-range',
-              'excitationvalue': 'device-settings:sim921:excitation-value',
-              'excitationmode': 'device-settings:sim921:excitation-mode',
-              'timeconstant': 'device-settings:sim921:time-constant',
-              'tempslope': 'device-settings:sim921:temp-slope',
-              'resistanceslope': 'device-settings:sim921:resistance-slope',
-              'curve': 'device-settings:sim921:curve-number'}
-SIM960_SETTING_KEYS = {'voutmin': 'device-settings:sim960:vout-min-limit',
-              'voutmax': 'device-settings:sim960:vout-max-limit',
-              'vinsetpointmode': 'device-settings:sim960:vin-setpoint-mode',
-              'vinsetpointvalue': 'device-settings:sim960:vin-setpoint',
-              'vinsetpointslewenable': 'device-settings:sim960:vin-setpoint-slew-enable',
-              'vinsetpointslewrate': 'device-settings:sim960:vin-setpoint-slew-rate',
-              'pidpval': 'device-settings:sim960:pid-p:value',
-              'pidival': 'device-settings:sim960:pid-i:value',
-              'piddval': 'device-settings:sim960:pid-d:value',
-              'pidoval': 'device-settings:sim960:pid-offset:value',
-              'pidpenable': 'device-settings:sim960:pid-p:enabled',
-              'pidienable': 'device-settings:sim960:pid-i:enabled',
-              'piddenable': 'device-settings:sim960:pid-d:enabled',
-              'pidoenable': 'device-settings:sim960:pid-offset:enabled'}
-HEATSWITCH_SETTING_KEYS = {'open': 'device-settings:currentduino:heatswitch',
-                           'close': 'device-settings:currentduino:heatswitch'}
+SIM921_SETTING_KEYS = {'resistancerange': {'key':'device-settings:sim921:resistance-range', 'type': 'sim921', 'prefix': True},
+              'excitationvalue': {'key':'device-settings:sim921:excitation-value', 'type': 'sim921', 'prefix': True},
+              'excitationmode': {'key':'device-settings:sim921:excitation-mode', 'type': 'sim921', 'prefix': True},
+              'timeconstant': {'key':'device-settings:sim921:time-constant', 'type': 'sim921', 'prefix': True},
+              'tempslope': {'key':'device-settings:sim921:temp-slope', 'type': 'sim921', 'prefix': True},
+              'resistanceslope': {'key':'device-settings:sim921:resistance-slope', 'type': 'sim921', 'prefix': True},
+              'curve': {'key':'device-settings:sim921:curve-number', 'type': 'sim921', 'prefix': True}}
+SIM960_SETTING_KEYS = {'voutmin': {'key':'device-settings:sim960:vout-min-limit', 'type':'sim960', 'prefix': True},
+              'voutmax': {'key':'device-settings:sim960:vout-max-limit', 'type':'sim960', 'prefix': True},
+              'vinsetpointmode': {'key':'device-settings:sim960:vin-setpoint-mode', 'type':'sim960', 'prefix': True},
+              'vinsetpointvalue': {'key':'device-settings:sim960:vin-setpoint', 'type':'sim960', 'prefix': True},
+              'vinsetpointslewenable': {'key':'device-settings:sim960:vin-setpoint-slew-enable', 'type':'sim960', 'prefix': True},
+              'vinsetpointslewrate': {'key':'device-settings:sim960:vin-setpoint-slew-rate', 'type':'sim960', 'prefix': True},
+              'pidpval': {'key':'device-settings:sim960:pid-p:value', 'type':'sim960', 'prefix': True},
+              'pidival': {'key':'device-settings:sim960:pid-i:value', 'type':'sim960', 'prefix': True},
+              'piddval': {'key':'device-settings:sim960:pid-d:value', 'type':'sim960', 'prefix': True},
+              'pidoval': {'key':'device-settings:sim960:pid-offset:value', 'type':'sim960', 'prefix': True},
+              'pidpenable': {'key':'device-settings:sim960:pid-p:enabled', 'type':'sim960', 'prefix': True},
+              'pidienable': {'key':'device-settings:sim960:pid-i:enabled', 'type':'sim960', 'prefix': True},
+              'piddenable': {'key':'device-settings:sim960:pid-d:enabled', 'type':'sim960', 'prefix': True},
+              'pidoenable': {'key':'device-settings:sim960:pid-offset:enabled', 'type':'sim960', 'prefix': True}}
+HEATSWITCH_SETTING_KEYS = {'open': {'key':'device-settings:currentduino:heatswitch', 'type':'heatswitch', 'prefix': True},
+                           'close': {'key':'device-settings:currentduino:heatswitch', 'type':'heatswitch', 'prefix': True}}
 
-MAGNET_COMMAND_FORM_KEYS = {'soakcurrent': 'device-settings:sim960:soak-current',
-                            'soaktime': 'device-settings:sim960:soak-time',
-                            'ramprate': 'device-settings:sim960:ramp-rate',
-                            'deramprate': 'device-settings:sim960:deramp-rate',
-                            'regulationtemperature': 'device-settings:mkidarray:regulating-temp'}
+MAGNET_COMMAND_FORM_KEYS = {'soakcurrent': {'key':'device-settings:sim960:soak-current', 'type':'magnet', 'prefix': False},
+                            'soaktime': {'key':'device-settings:sim960:soak-time', 'type':'magnet', 'prefix': False},
+                            'ramprate': {'key':'device-settings:sim960:ramp-rate', 'type':'magnet', 'prefix': False},
+                            'deramprate': {'key':'device-settings:sim960:deramp-rate', 'type':'magnet', 'prefix': False},
+                            'regulationtemperature': {'key':'device-settings:mkidarray:regulating-temp', 'type':'magnet', 'prefix': True}}
 
-CYCLE_KEYS = {'startcooldown': 'command:get-cold',
-              'abortcooldown': 'command:abort-cooldown',
-              'cancelcooldown': 'command:cancel-scheduled-cooldown',
-              'schedulecooldown': 'command:be-cold-at'}
+CYCLE_KEYS = {'startcooldown': {'key':'command:get-cold', 'type': 'cycle', 'prefix': False, 'schedule':False},
+              'abortcooldown': {'key':'command:abort-cooldown', 'type': 'cycle', 'prefix': False, 'schedule':False},
+              'cancelcooldown': {'key':'command:cancel-scheduled-cooldown', 'type': 'cycle', 'prefix': False, 'schedule':False},
+              'schedulecooldown': {'key':'command:be-cold-at', 'type': 'cycle', 'prefix': False, 'schedule':True}}
 
 CHART_KEYS = {'Device T':'status:temps:mkidarray:temp',
               'LHe T':'status:temps:lhetank',
@@ -90,10 +90,12 @@ CHART_KEYS = {'Device T':'status:temps:mkidarray:temp',
               'Magnet I':'status:device:sim960:current-setpoint',
               'Measured I':'status:highcurrentboard:current'}
 
-SETTING_KEYS = {}
-SETTING_KEYS.update(SIM921_SETTING_KEYS)
-SETTING_KEYS.update(SIM960_SETTING_KEYS)
-SETTING_KEYS.update(HEATSWITCH_SETTING_KEYS)
+FIELD_KEYS = {}
+FIELD_KEYS.update(SIM921_SETTING_KEYS)
+FIELD_KEYS.update(SIM960_SETTING_KEYS)
+FIELD_KEYS.update(HEATSWITCH_SETTING_KEYS)
+FIELD_KEYS.update(MAGNET_COMMAND_FORM_KEYS)
+FIELD_KEYS.update(CYCLE_KEYS)
 
 KEYS = SIM921_KEYS + SIM960_KEYS + LAKESHORE240_KEYS + CURRENTDUINO_KEYS + HEMTTEMP_KEYS + list(COMMAND_DICT.keys())
 
@@ -115,34 +117,7 @@ def index():
     """
     form = FlaskForm()
     if request.method == 'POST':
-        if request.form.get('id') in MAGNET_COMMAND_FORM_KEYS.keys():
-            key = MAGNET_COMMAND_FORM_KEYS[request.form.get('id')]
-            value = request.form.get('data')
-            app.logger.info(f"{key} -> {value}")
-            try:
-                s = SimCommand(key, value)
-                if request.form.get('id') == 'regulationtemperature':
-                    app.logger.debug(f"command:{key} -> {value}")
-                    # redis.publish(f"command:{key}", value, store=False)
-                else:
-                    app.logger.debug(f"{key} -> {value}")
-                    # redis.publish(key, value)
-            except ValueError:
-                pass
-            return _validate_cmd(key, value)
-        else:
-            key = CYCLE_KEYS[request.form.get('id')]
-            value = request.form.get('data')
-            app.logger.info(f"{key} -> {value}")
-            if key == 'command:be-cold-at':
-                x = parse_schedule_cooldown(value)
-                app.logger.debug(f"{key} -> {value}, {x[0]}")
-                # redis.publish(key, x[0], store=False)
-                return _validate_sked(value)
-            else:
-                app.logger.debug(f"{key} -> {time.time()}")
-                # redis.publish(key, f"{time.time()}", store=False)
-                return jsonify({'mag': True, 'key':key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+        return handle_post(request)
 
     d,l,c = initialize_sensors_plot(CHART_KEYS.keys())
     dd, dl, dc = viewdata()
@@ -177,20 +152,13 @@ def settings():
     TODO: Readout settings (when we have a readout)
     """
     if request.method == 'POST':
-        key = SETTING_KEYS[request.form.get('id')]
-        value = request.form.get('data')
-        app.logger.info(f"command:{key} -> {value}")
-        try:
-            s = SimCommand(key, value)
-            redis.publish(f"command:{key}", value, store=False)
-        except ValueError:
-            pass
-        return _validate_cmd(key, value)
+        return handle_post(request)
+
     sim921form = SIM921SettingForm()
     sim960form = SIM960SettingForm()
     forms = [sim921form, sim960form]
     hsbutton = HeatswitchToggle()
-    return render_template('settings.html', title='Settings', s921=sim921form, s960=sim960form, hs=hsbutton, forms=forms)
+    return render_template('settings.html', title='Settings', hs=hsbutton, forms=forms)
 
 
 @app.route('/log_viewer', methods=['GET', 'POST'])
@@ -244,7 +212,7 @@ def dashlistener():
     """
     def stream():
         while True:
-            time.sleep(1)
+            time.sleep(.5)
             x = DASHDATA[np.random.randint(0, len(DASHDATA))][100:175, 100:175]
             z = [{'z': x.tolist(), 'type': 'heatmap', 'showscale': False}]
             x = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
@@ -289,17 +257,67 @@ def journalctl_streamer(service):
     return Response(st(args), mimetype='text/event-stream', content_type='text/event-stream')
 
 
-def _validate_cmd(k, v):
+def handle_post(req):
+    id = req.form.get('id')
+    value = req.form.get('data')
+    field_info = FIELD_KEYS[id]
+    key = field_info['key']
+    field_type = field_info['type']
+    prefix_cmd = field_info['prefix']
+
+    app.logger.info(f"For field {id} (key: {key}), changing value to {value} with {field_type} methods.")
+    if field_type in ('sim921', 'sim960', 'heatswitch', 'magnet'):
+        try:
+            s = SimCommand(key, value)
+            if prefix_cmd:
+                app.logger.debug(f"Sending command:{key} -> {value}")
+                # redis.publish(f"command:{key}", value, store=False)
+            else:
+                app.logger.debug(f"Sending {key} -> {value}")
+                # redis.publish(key, value)
+        except ValueError:
+            pass
+        return _validate_cmd(key, value)
+    elif field_type == 'cycle':
+        if field_info['schedule']:
+            x = parse_schedule_cooldown(value)
+            app.logger.debug(f"{key} -> {value}, {x[0]}")
+            # redis.publish(key, x[0], store=False)
+            return _validate_cmd(key, value, schedule=True)
+        else:
+            app.logger.debug(f"{key} at {time.time()}")
+            # redis.publish(key, f"{time.time()}", store=False)
+            return jsonify({'mag': True, 'key': key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+    else:
+        app.logger.critical(f"Field type '{field_type}' not implemented!")
+
+
+
+def _validate_cmd(k, v, schedule=False):
     """
     Takes a key (k) and value (v) and determines if it is a legal command. Used by /settings and /main to process
     submitted data as well as validate_cmd_change for 'real time' command processing.
+
+    If schedule==True -> validate if the 'schedule cooldown' submittable string field is in an allowable format.
+    It looks for both the correct format and if the time is nominally long enough to schedule (~90 minutes in the future)
     """
-    try:
-        s = SimCommand(k, v)
-        is_legal = [True, '\u2713']
-    except ValueError:
-        is_legal = [False, '\u2717']
-    return jsonify({'mag':False, 'key': k, 'value': v, 'legal': is_legal})
+    if not schedule:
+        try:
+            s = SimCommand(k, v)
+            is_legal = [True, '\u2713']
+        except ValueError:
+            is_legal = [False, '\u2717']
+        print(k, v, is_legal)
+        return jsonify({'mag':False, 'key': k, 'value': v, 'legal': is_legal})
+    else:
+        try:
+            x = parse_schedule_cooldown(v)
+            if x[2] >= (90 * 60):
+                return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+            else:
+                return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
+        except Exception as e:
+            return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': v, 'legal': [False, '\u2717']})
 
 
 @app.route('/validatecmd', methods=['POST'])
@@ -308,36 +326,13 @@ def validate_cmd_change():
     Flask endpoint which is called from an AJAX request when new data is typed/entered into a submittable field. This
     will then report back if the value is allowed or not and report that to the user accordingly (with a check or X)
     """
-    try:
-        key = SETTING_KEYS[request.form.get('id')]
-    except:
-        key = MAGNET_COMMAND_FORM_KEYS[request.form.get('id')]
+    field_info = FIELD_KEYS[request.form.get('id')]
+    key = field_info['key']
     value = request.form.get('data')
-    return _validate_cmd(key, value)
-
-
-def _validate_sked(value):
-    """
-    Function to specifically validate if the 'schedule cooldown' submittable string field is in an allowable format.
-    It looks for both the correct format and if the time is nominally long enough to schedule (~90 minutes in the future)
-    """
-    try:
-        x = parse_schedule_cooldown(value)
-        if x[2] >= (90*60):
-            return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
-        else:
-            return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
-    except Exception as e:
-        return jsonify({'mag':True, 'key':'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
-
-
-@app.route('/validatesked', methods=['POST'])
-def validate_schedulefmt():
-    """
-    Flask endpoint which is called from an AJAX request when new data is typed/entered into the schedule cooldown field.
-    This will then report back if the value is allowed or not and report that to the user accordingly (with a check or X)
-    """
-    return _validate_sked(request.form.get('data'))
+    if 'schedule' in field_info.keys() and field_info['schedule']:
+        return _validate_cmd(key, value, schedule=True)
+    else:
+        return _validate_cmd(key, value)
 
 
 def initialize_sensor_plot(title):
@@ -415,9 +410,14 @@ def parse_schedule_cooldown(schedule_time):
         d = t[0].split('/')
         month = int(d[0])
         day = int(d[1])
+        if (len(d[2]) == 2) and (d[2][0:2] != 20):
+            year = int('20'+d[2])
+        else:
+            year = int(d[2])
         tval = t[1].split(":")
         hr = int(tval[0])
         minute = int(tval[1])
+        print(year, month, day)
     else:
         tval = t[0].split(":")
         hr = int(tval[0])
