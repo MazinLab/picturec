@@ -446,6 +446,7 @@ class MagnetControlForm(FlaskForm):
 
 
 class SIM921SettingForm(FlaskForm):
+    title = "SIM 921"
     resistancerange = SelectField("\u26A0 Resistance Range (\u03A9)", choices=make_select_choices('device-settings:sim921:resistance-range'))
     excitationvalue = SelectField("\u26A0 Excitation Value (V)", choices=make_select_choices('device-settings:sim921:excitation-value'))
     excitationmode = SelectField("\u26A0 Excitation Mode", choices=make_select_choices('device-settings:sim921:excitation-mode'))
@@ -456,6 +457,7 @@ class SIM921SettingForm(FlaskForm):
 
 
 class SIM960SettingForm(FlaskForm):
+    title = "SIM 960"
     voutmin = StringField("\u26A0 Minimum Output (V)")
     voutmax = StringField("\u26A0 Maximum Output (V)")
     vinsetpointmode = SelectField("\u26A0 Input Voltage Mode", choices=make_select_choices('device-settings:sim960:vin-setpoint-mode'))
