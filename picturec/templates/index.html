@@ -180,7 +180,6 @@
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
                 // var newdata = e.data;
-                console.log(newdata);
                 Plotly.react('dash', newdata)
             }, false);
             source.addEventListener("open", function (e) {
