@@ -8,35 +8,8 @@
 {% block body %}
     {{ super() }}
     <div class="container" style="float:left; margin-left: 10%; max-width: 78%; padding: 0px">
-        <div class="column" style="float:left; width: 90%">
-            <div class="row" id="test_plot"></div>
-        </div>
+
     </div>
 
-    <script>
-        Plotly.newPlot('test_plot', {{ d | safe }}, {{ l | safe }}, {{ c | safe}})
-    </script>
 
-    <script>
-        function ud_idx() {
-            var source = new EventSource("/listener");
-            source.addEventListener("message", function (e) {
-                var newdata = JSON.parse(e.data);
-                // console.log("Message: ", newdata);
-                update_plot("test_plot", "status:temps:mkidarray:temp", newdata, 0);
-                update_plot("test_plot", "status:temps:lhetank", newdata, 1);
-                update_plot("test_plot", "status:temps:ln2tank", newdata, 2);
-                update_plot("test_plot", "status:device:sim960:current-setpoint", newdata, 3);
-                update_plot("test_plot", "status:highcurrentboard:current", newdata, 4);
-            }, false);
-            source.addEventListener("open", function (e) {
-                console.log('Connection was opened: ', e);
-            }, false);
-            source.addEventListener("error", function (e) {
-                console.log("Connection errored out: ", e);
-            }, false);
-        };
-        ud_idx()
-
-    </script>
 {% endblock %}

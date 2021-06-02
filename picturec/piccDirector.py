@@ -207,9 +207,8 @@ def test_page():
     """
     Test area for trying out things before implementing them on a page
     """
-    form = FlaskForm()
-    d,l,c = initialize_sensors_plot(CHART_KEYS.keys())
-    return render_template('test_page.html', title='Test Page', form=form, d=d, l=l, c=c)
+    tform = TestForm()
+    return render_template('test_page.html', title='Test Page', form=tform)
 
 
 # ----------------------------------- Helper Functions Below -----------------------------------
@@ -430,6 +429,9 @@ def parse_schedule_cooldown(schedule_time):
     return ts, be_cold_at, tdelta
 
 # ----------------------------------- Custom Flask Forms Below -----------------------------------
+class TestForm(FlaskForm):
+    pass
+
 class CycleControlForm(FlaskForm):
     startcooldown = SubmitField('Start Cooldown')
     abortcooldown = SubmitField('Abort Cooldown')
