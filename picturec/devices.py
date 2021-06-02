@@ -55,9 +55,6 @@ COMMANDS960 = {'device-settings:sim960:vout-min-limit': {'command': 'LLIM', 'val
                'device-settings:sim960:pid-offset:enabled': {'command': 'OCTL', 'vals': {'off': '0', 'on': '1'}},
                }
 
-# COMMANDS HS (Heatswitch) are only included so that we can use the SimCommand class to check the legality of a command.
-COMMANDSHS = {'device-settings:currentduino:heatswitch': {'command': '', 'vals': {'open': 'open', 'close': 'close'}}}
-
 
 def load_tvals(curve):
     if curve == 1:
@@ -78,6 +75,11 @@ def load_tvals(curve):
 
     return {str(i): i for i in temp_data}
 
+
+# COMMANDS HS (Heatswitch) are only included so that we can use the SimCommand class to check the legality of a command.
+COMMANDSHS = {'device-settings:currentduino:heatswitch': {'command': '', 'vals': {'open': 'open', 'close': 'close'}}}
+
+
 # COMMANDS MAGNET are only included so that we can use the SimCommand class to check the legality of a magnet command.
 COMMANDSMAGNET = {'device-settings:sim960:ramp-rate': {'command': '', 'vals': [0, 0.015]},
                   'device-settings:sim960:deramp-rate': {'command': '', 'vals': [-0.015, 0]},
@@ -91,11 +93,13 @@ COMMAND_DICT.update(COMMANDS921)
 COMMAND_DICT.update(COMMANDSHS)
 COMMAND_DICT.update(COMMANDSMAGNET)
 
+
 def escapeString(string):
     """
     Takes a string and escapes newline characters so they can be logged and display the newline characters in that string
     """
     return string.replace('\n', '\\n').replace('\r', '\\r')
+
 
 responses960 = {b'*IDN?\n': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17\r\n",
                 b'LLIM?\n': b"-0.10\r\n",
@@ -116,6 +120,7 @@ responses960 = {b'*IDN?\n': b"Stanford_Research_Systems,SIM960,s/n021840,ver2.17
                 b'OMON?\n': b"+00.000000\r\n",  # needs a function to generate plausible vals
                 b'MOUT?\n': b"+00.000000\r\n"}  # needs a function to generate plausible vals
 SERIAL_SIM_CONFIG = {'open': True, 'write_error': False, 'read_error': False, 'responses': responses960}
+
 
 class SimulatedSerial:
     def __init__(self, *args, **kwargs):
