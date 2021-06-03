@@ -8,7 +8,6 @@ import flask
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
 from flask import request, redirect, url_for, render_template, jsonify, Response
-from wtforms import SelectField, SubmitField, StringField
 import numpy as np
 import time, datetime
 import json
@@ -30,6 +29,7 @@ from picturec.sim921Agent import SIM921_KEYS
 from picturec.lakeshore240Agent import LAKESHORE240_KEYS
 from picturec.hemttempAgent import HEMTTEMP_KEYS
 from picturec.currentduinoAgent import CURRENTDUINO_KEYS
+from picturec.frontend.customForms import CycleControlForm, MagnetControlForm, SIM921SettingForm, SIM960SettingForm, HeatswitchToggle, TestForm, FIELD_KEYS
 # util.setup_logging('piccDirector')
 
 app = flask.Flask(__name__)
@@ -49,62 +49,22 @@ TS_KEYS = ['status:temps:mkidarray:temp', 'status:temps:mkidarray:resistance', '
            'status:device:sim960:hcfet-control-voltage', 'status:highcurrentboard:current',
            'status:device:sim960:current-setpoint', 'status:device:sim921:sim960-vout', 'status:device:sim960:vin']
 
-SIM921_SETTING_KEYS = {'resistancerange': {'key':'device-settings:sim921:resistance-range', 'type': 'sim921', 'prefix': True},
-              'excitationvalue': {'key':'device-settings:sim921:excitation-value', 'type': 'sim921', 'prefix': True},
-              'excitationmode': {'key':'device-settings:sim921:excitation-mode', 'type': 'sim921', 'prefix': True},
-              'timeconstant': {'key':'device-settings:sim921:time-constant', 'type': 'sim921', 'prefix': True},
-              'tempslope': {'key':'device-settings:sim921:temp-slope', 'type': 'sim921', 'prefix': True},
-              'resistanceslope': {'key':'device-settings:sim921:resistance-slope', 'type': 'sim921', 'prefix': True},
-              'curve': {'key':'device-settings:sim921:curve-number', 'type': 'sim921', 'prefix': True}}
-SIM960_SETTING_KEYS = {'voutmin': {'key':'device-settings:sim960:vout-min-limit', 'type':'sim960', 'prefix': True},
-              'voutmax': {'key':'device-settings:sim960:vout-max-limit', 'type':'sim960', 'prefix': True},
-              'vinsetpointmode': {'key':'device-settings:sim960:vin-setpoint-mode', 'type':'sim960', 'prefix': True},
-              'vinsetpointvalue': {'key':'device-settings:sim960:vin-setpoint', 'type':'sim960', 'prefix': True},
-              'vinsetpointslewenable': {'key':'device-settings:sim960:vin-setpoint-slew-enable', 'type':'sim960', 'prefix': True},
-              'vinsetpointslewrate': {'key':'device-settings:sim960:vin-setpoint-slew-rate', 'type':'sim960', 'prefix': True},
-              'pidpval': {'key':'device-settings:sim960:pid-p:value', 'type':'sim960', 'prefix': True},
-              'pidival': {'key':'device-settings:sim960:pid-i:value', 'type':'sim960', 'prefix': True},
-              'piddval': {'key':'device-settings:sim960:pid-d:value', 'type':'sim960', 'prefix': True},
-              'pidoval': {'key':'device-settings:sim960:pid-offset:value', 'type':'sim960', 'prefix': True},
-              'pidpenable': {'key':'device-settings:sim960:pid-p:enabled', 'type':'sim960', 'prefix': True},
-              'pidienable': {'key':'device-settings:sim960:pid-i:enabled', 'type':'sim960', 'prefix': True},
-              'piddenable': {'key':'device-settings:sim960:pid-d:enabled', 'type':'sim960', 'prefix': True},
-              'pidoenable': {'key':'device-settings:sim960:pid-offset:enabled', 'type':'sim960', 'prefix': True}}
-HEATSWITCH_SETTING_KEYS = {'open': {'key':'device-settings:currentduino:heatswitch', 'type':'heatswitch', 'prefix': True},
-                           'close': {'key':'device-settings:currentduino:heatswitch', 'type':'heatswitch', 'prefix': True}}
-
-MAGNET_COMMAND_FORM_KEYS = {'soakcurrent': {'key':'device-settings:sim960:soak-current', 'type':'magnet', 'prefix': False},
-                            'soaktime': {'key':'device-settings:sim960:soak-time', 'type':'magnet', 'prefix': False},
-                            'ramprate': {'key':'device-settings:sim960:ramp-rate', 'type':'magnet', 'prefix': False},
-                            'deramprate': {'key':'device-settings:sim960:deramp-rate', 'type':'magnet', 'prefix': False},
-                            'regulationtemperature': {'key':'device-settings:mkidarray:regulating-temp', 'type':'magnet', 'prefix': True}}
-
-CYCLE_KEYS = {'startcooldown': {'key':'command:get-cold', 'type': 'cycle', 'prefix': False, 'schedule':False},
-              'abortcooldown': {'key':'command:abort-cooldown', 'type': 'cycle', 'prefix': False, 'schedule':False},
-              'cancelcooldown': {'key':'command:cancel-scheduled-cooldown', 'type': 'cycle', 'prefix': False, 'schedule':False},
-              'schedulecooldown': {'key':'command:be-cold-at', 'type': 'cycle', 'prefix': False, 'schedule':True}}
-
 CHART_KEYS = {'Device T':'status:temps:mkidarray:temp',
               'LHe T':'status:temps:lhetank',
               'LN2 T':'status:temps:ln2tank',
               'Magnet I':'status:device:sim960:current-setpoint',
               'Measured I':'status:highcurrentboard:current'}
 
-FIELD_KEYS = {}
-FIELD_KEYS.update(SIM921_SETTING_KEYS)
-FIELD_KEYS.update(SIM960_SETTING_KEYS)
-FIELD_KEYS.update(HEATSWITCH_SETTING_KEYS)
-FIELD_KEYS.update(MAGNET_COMMAND_FORM_KEYS)
-FIELD_KEYS.update(CYCLE_KEYS)
 
 KEYS = SIM921_KEYS + SIM960_KEYS + LAKESHORE240_KEYS + CURRENTDUINO_KEYS + HEMTTEMP_KEYS + list(COMMAND_DICT.keys())
+
 
 DASHDATA = np.load('/picturec/picturec/frontend/dashboard_placeholder.npy')
 
 
 redis.setup_redis(create_ts_keys=TS_KEYS)
 
-# ----------------------------------- Flask Endpoints for Pages Below -----------------------------------
+
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/main', methods=['GET', 'POST'])
 def index():
@@ -194,14 +154,6 @@ def viewdata():
     l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
     c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
     return d, l, c
-
-
-def make_select_choices(key):
-    """
-    Creates a list to use in a flask SelectField. Takes the allowable values from the devices.py COMMAND_DICT
-    """
-    choices = list(COMMAND_DICT[key]['vals'].keys())
-    return choices
 
 
 @app.route('/dashlistener', methods=["GET"])
@@ -426,58 +378,6 @@ def parse_schedule_cooldown(schedule_time):
     tdelta = (be_cold_at - datetime.datetime.now()).total_seconds()
     ts = be_cold_at.timestamp()
     return ts, be_cold_at, tdelta
-
-# ----------------------------------- Custom Flask Forms Below -----------------------------------
-class TestForm(FlaskForm):
-    pass
-
-class CycleControlForm(FlaskForm):
-    startcooldown = SubmitField('Start Cooldown')
-    abortcooldown = SubmitField('Abort Cooldown')
-    cancelcooldown = SubmitField('Cancel Scheduled Cooldown')
-    schedulecooldown = StringField('Schedule Cooldown')
-
-
-class MagnetControlForm(FlaskForm):
-    soakcurrent = StringField('Soak Current (A)')
-    soaktime = StringField("Soak Time (s)")
-    ramprate = StringField("Ramp Rate (A/s)")
-    deramprate = StringField("Deramp Rate (A/s)")
-    regulationtemperature = SelectField("Regulation Temperature (K)", choices=make_select_choices("device-settings:mkidarray:regulating-temp"))
-
-
-class SIM921SettingForm(FlaskForm):
-    title = "SIM 921"
-    resistancerange = SelectField("\u26A0 Resistance Range (\u03A9)", choices=make_select_choices('device-settings:sim921:resistance-range'))
-    excitationvalue = SelectField("\u26A0 Excitation Value (V)", choices=make_select_choices('device-settings:sim921:excitation-value'))
-    excitationmode = SelectField("\u26A0 Excitation Mode", choices=make_select_choices('device-settings:sim921:excitation-mode'))
-    timeconstant = SelectField("\u26A0 Time Constant (s)", choices=make_select_choices('device-settings:sim921:time-constant'))
-    tempslope = StringField("\u26A0 Temperature Slope (V/K)")
-    resistanceslope = StringField("\u26A0 Resistance Slope (V/\u03A9)")
-    curve = SelectField("\u26A0 Calibration Curve", choices=make_select_choices('device-settings:sim921:curve-number'))
-
-
-class SIM960SettingForm(FlaskForm):
-    title = "SIM 960"
-    voutmin = StringField("\u26A0 Minimum Output (V)")
-    voutmax = StringField("\u26A0 Maximum Output (V)")
-    vinsetpointmode = SelectField("\u26A0 Input Voltage Mode", choices=make_select_choices('device-settings:sim960:vin-setpoint-mode'))
-    vinsetpointvalue = StringField("\u26A0 Input Voltage Desired Value(V)")
-    vinsetpointslewenable = SelectField("\u26A0 Enable Internal Setpoint Slew", choices=make_select_choices('device-settings:sim960:vin-setpoint-slew-enable'))
-    vinsetpointslewrate = StringField("\u26A0 Internal Setpoint Slew Rate")
-    pidpval = StringField("\u26A0 PID: P Value")
-    pidival = StringField("\u26A0 PID: I Value")
-    piddval = StringField("\u26A0 PID: D Value")
-    pidoval = StringField("\u26A0 PID: Offset Value")
-    pidpenable = SelectField("\u26A0 PID: Enable P", choices=make_select_choices('device-settings:sim960:pid-p:enabled'))
-    pidienable = SelectField("\u26A0 PID: Enable I", choices=make_select_choices('device-settings:sim960:pid-i:enabled'))
-    piddenable = SelectField("\u26A0 PID: Enable D", choices=make_select_choices('device-settings:sim960:pid-d:enabled'))
-    pidoenable = SelectField("\u26A0 PID: Enable Offset", choices=make_select_choices('device-settings:sim960:pid-offset:enabled'))
-
-
-class HeatswitchToggle(FlaskForm):
-    open = SubmitField('Open', id='open')
-    close = SubmitField('Close', id='close')
 
 
 if __name__ == "__main__":
