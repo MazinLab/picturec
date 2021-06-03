@@ -128,7 +128,7 @@
         Plotly.react('dash', {{ dd | safe}}, {{ dl | safe }}, {{ dc | safe}})
         Plotly.newPlot('indexplot', {{ d | safe }}, {{ l | safe }}, {{ c | safe}})
 
-        function ud_idx() {
+        function update_index_page() {
             var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
@@ -173,9 +173,9 @@
                 console.log("Connection errored out: ", e);
             }, false);
         }
-        ud_idx()
+        update_index_page()
 
-        function ud_idx2() {
+        function update_array_viewer() {
             var source = new EventSource("/dashlistener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
@@ -189,11 +189,10 @@
                 console.log("Connection errored out: ", e);
             }, false);
         }
-        ud_idx2()
+        update_array_viewer()
 
 
         realtime_validate("schedulecooldown")
-
         realtime_validate("soakcurrent")
         realtime_validate("soaktime")
         realtime_validate("ramprate")

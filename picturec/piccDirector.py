@@ -307,7 +307,6 @@ def _validate_cmd(k, v, schedule=False):
             is_legal = [True, '\u2713']
         except ValueError:
             is_legal = [False, '\u2717']
-        print(k, v, is_legal)
         return jsonify({'mag':False, 'key': k, 'value': v, 'legal': is_legal})
     else:
         try:

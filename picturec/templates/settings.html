@@ -65,7 +65,7 @@
     </div>
 
     <script>
-        function ud_idx() {
+        function update_settings_page() {
             var source = new EventSource("/listener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
@@ -108,7 +108,7 @@
                 console.log("Connection errored out: ", e);
             }, false);
         };
-        ud_idx()
+        update_settings_page()
 
         realtime_validate("tempslope")
         realtime_validate("resistanceslope")
