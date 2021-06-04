@@ -124,7 +124,6 @@
     </div>
 
     <script>
-        console.log({{ dd | safe }})
         Plotly.react('dash', {{ dd | safe}}, {{ dl | safe }}, {{ dc | safe}})
         Plotly.newPlot('indexplot', {{ d | safe }}, {{ l | safe }}, {{ c | safe}})
 
@@ -191,22 +190,8 @@
         }
         update_array_viewer()
 
-
-        realtime_validate("schedulecooldown")
-        realtime_validate("soakcurrent")
-        realtime_validate("soaktime")
-        realtime_validate("ramprate")
-        realtime_validate("deramprate")
-
-        subdata("soakcurrent", "/main")
-        subdata("soaktime", "/main")
-        subdata("ramprate", "/main")
-        subdata("deramprate", "/main")
-        subdata("regulationtemperature", "/main")
-        subdata("startcooldown", "/main")
-        subdata("cancelcooldown", "/main")
-        subdata("abortcooldown", "/main")
-        subdata("schedulecooldown", "/main")
+        register_realtime_validation({{ rtvkeys | safe }})
+        register_submitters({{ subkeys | safe }})
     </script>
 
 {% endblock %}

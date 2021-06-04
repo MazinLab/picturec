@@ -29,7 +29,8 @@ from picturec.sim921Agent import SIM921_KEYS
 from picturec.lakeshore240Agent import LAKESHORE240_KEYS
 from picturec.hemttempAgent import HEMTTEMP_KEYS
 from picturec.currentduinoAgent import CURRENTDUINO_KEYS
-from picturec.frontend.customForms import CycleControlForm, MagnetControlForm, SIM921SettingForm, SIM960SettingForm, HeatswitchToggle, TestForm, FIELD_KEYS
+from picturec.frontend.customForms import CycleControlForm, MagnetControlForm, SIM921SettingForm, SIM960SettingForm, HeatswitchToggle, TestForm, \
+    SIM921_SETTING_KEYS, SIM960_SETTING_KEYS, HEATSWITCH_SETTING_KEYS, MAGNET_COMMAND_FORM_KEYS, CYCLE_KEYS, FIELD_KEYS
 # util.setup_logging('piccDirector')
 
 app = flask.Flask(__name__)
@@ -83,8 +84,11 @@ def index():
     dd, dl, dc = viewdata()
     cycleform = CycleControlForm()
     magnetform = MagnetControlForm()
+
+    subkeys = [key for key in FIELD_KEYS.keys() if FIELD_KEYS[key]['type'] in ('magnet', 'cycle')]
+    rtvkeys = [key for key in subkeys if FIELD_KEYS[key]['field_type'] in ('string')]
     return render_template('index.html', form=form, mag=magnetform, cyc=cycleform,
-                           d=d, l=l, c=c, dd=dd, dl=dl, dc=dc)
+                           d=d, l=l, c=c, dd=dd, dl=dl, dc=dc, subkeys=subkeys, rtvkeys=rtvkeys)
 
 
 @app.route('/other_plots', methods=['GET'])
@@ -118,7 +122,11 @@ def settings():
     sim960form = SIM960SettingForm()
     forms = [sim921form, sim960form]
     hsbutton = HeatswitchToggle()
-    return render_template('settings.html', title='Settings', hs=hsbutton, forms=forms)
+
+    subkeys = [key for key in FIELD_KEYS.keys() if FIELD_KEYS[key]['type'] in ('sim921', 'sim960', 'heatswitch')]
+    rtvkeys = [key for key in subkeys if FIELD_KEYS[key]['field_type'] in ('string')]
+    return render_template('settings.html', title='Settings', hs=hsbutton, forms=forms,
+                           subkeys=subkeys, rtvkeys=rtvkeys)
 
 
 @app.route('/log_viewer', methods=['GET', 'POST'])
@@ -145,8 +153,8 @@ def viewdata():
     Placeholding function to grab a frame from a (hard-coded, previously made) temporal drizzle to display as the
     'device view' on the homepage of the flask application.
     """
-    frame_to_use = 50
-    x = DASHDATA[frame_to_use][100:175, 100:175]
+    frame_to_use = 100
+    x = DASHDATA[frame_to_use][110:175, 100:165]
     z = [{'z': x.tolist(), 'type': 'heatmap', 'showscale':False}]
     plot_layout = {'title': 'Device View'}
     plot_config = {'responsive': True}
@@ -165,8 +173,10 @@ def dashlistener():
     def stream():
         while True:
             time.sleep(.5)
-            x = DASHDATA[np.random.randint(0, len(DASHDATA))][100:175, 100:175]
-            z = [{'z': x.tolist(), 'type': 'heatmap', 'showscale': False}]
+            x = DASHDATA[100][110:175, 100:165]
+            noise = 25*np.random.randn(65,65)
+            y = x + noise
+            z = [{'z': y.tolist(), 'type': 'heatmap', 'showscale': False}]
             x = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
             msg = f"retry:5\ndata: {x}\n\n"
             yield msg
@@ -243,6 +253,40 @@ def handle_post(req):
     else:
         app.logger.critical(f"Field type '{field_type}' not implemented!")
 
+
+def handle_validation(req, submission=True):
+    id = req.form.get('id')
+    value = req.form.get('data')
+    field_info = FIELD_KEYS[id]
+    key = field_info['key']
+    field_type = field_info['type']
+    prefix_cmd = field_info['prefix']
+
+    app.logger.info(f"For field {id} (key: {key}), changing value to {value} with {field_type} methods.")
+    if field_type in ('sim921', 'sim960', 'heatswitch', 'magnet'):
+        try:
+            s = SimCommand(key, value)
+            if prefix_cmd:
+                app.logger.debug(f"Sending command:{key} -> {value}")
+                # redis.publish(f"command:{key}", value, store=False)
+            else:
+                app.logger.debug(f"Sending {key} -> {value}")
+                # redis.publish(key, value)
+        except ValueError:
+            pass
+        return _validate_cmd(key, value)
+    elif field_type == 'cycle':
+        if field_info['schedule']:
+            x = parse_schedule_cooldown(value)
+            app.logger.debug(f"{key} -> {value}, {x[0]}")
+            # redis.publish(key, x[0], store=False)
+            return _validate_cmd(key, value, schedule=True)
+        else:
+            app.logger.debug(f"{key} at {time.time()}")
+            # redis.publish(key, f"{time.time()}", store=False)
+            return jsonify({'mag': True, 'key': key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+    else:
+        app.logger.critical(f"Field type '{field_type}' not implemented!")
 
 
 def _validate_cmd(k, v, schedule=False):
