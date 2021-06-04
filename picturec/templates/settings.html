@@ -70,28 +70,8 @@
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
                 // console.log("Message: ", newdata);
-                update_div("resistancerange_currentval", "device-settings:sim921:resistance-range", newdata);
-                update_div("excitationvalue_currentval", "device-settings:sim921:excitation-value", newdata);
-                update_div("excitationmode_currentval", "device-settings:sim921:excitation-mode", newdata);
-                update_div("timeconstant_currentval", "device-settings:sim921:time-constant", newdata);
-                update_div("tempslope_currentval", "device-settings:sim921:temp-slope", newdata);
-                update_div("resistanceslope_currentval", "device-settings:sim921:resistance-slope", newdata);
-                update_div("curve_currentval", "device-settings:sim921:curve-number", newdata);
 
-                update_div("voutmin_currentval", "device-settings:sim960:vout-min-limit", newdata);
-                update_div("voutmax_currentval", "device-settings:sim960:vout-max-limit", newdata);
-                update_div("vinsetpointmode_currentval", "device-settings:sim960:vin-setpoint-mode", newdata);
-                update_div("vinsetpointvalue_currentval", "device-settings:sim960:vin-setpoint", newdata);
-                update_div("vinsetpointslewenable_currentval", "device-settings:sim960:vin-setpoint-slew-enable", newdata);
-                update_div("vinsetpointslewrate_currentval", "device-settings:sim960:vin-setpoint-slew-rate", newdata);
-                update_div("pidpval_currentval", "device-settings:sim960:pid-p:value", newdata);
-                update_div("pidival_currentval", "device-settings:sim960:pid-i:value", newdata);
-                update_div("piddval_currentval", "device-settings:sim960:pid-d:value", newdata);
-                update_div("pidoval_currentval", "device-settings:sim960:pid-offset:value", newdata);
-                update_div("pidpenable_currentval", "device-settings:sim960:pid-p:enabled", newdata);
-                update_div("pidienable_currentval", "device-settings:sim960:pid-i:enabled", newdata);
-                update_div("piddenable_currentval", "device-settings:sim960:pid-d:enabled", newdata);
-                update_div("pidoenable_currentval", "device-settings:sim960:pid-offset:enabled", newdata);
+                update_multiple_divs({{ updatingkeys | safe}}, newdata)
 
                 if (newdata['device-settings:currentduino:heatswitch'] == "open") {
                     document.getElementById("open").disabled = true;

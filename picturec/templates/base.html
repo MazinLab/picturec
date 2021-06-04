@@ -221,5 +221,14 @@
                 subdata(k[i], url)
             }
         }
+
+        function update_multiple_divs(id_and_redis_names, data) {
+            var i;
+            var keys = id_and_redis_names;
+            for (i=0; i < keys.length; i++) {
+                console.log(keys[i][0]+"_currentval", keys[i][1])
+                update_div(keys[i][0]+"_currentval", keys[i][1], data);
+            }
+        }
     </script>
 {% endblock%}

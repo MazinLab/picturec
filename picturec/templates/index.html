@@ -133,11 +133,7 @@
                 var newdata = JSON.parse(e.data);
                 update_div("mag_status", "status:magnet:state", newdata);
 
-                update_div("soakcurrent_currentval", "device-settings:sim960:soak-current", newdata);
-                update_div("soaktime_currentval", "device-settings:sim960:soak-time", newdata);
-                update_div("ramprate_currentval", "device-settings:sim960:ramp-rate", newdata);
-                update_div("deramprate_currentval", "device-settings:sim960:deramp-rate", newdata);
-                update_div("regulationtemperature_currentval", "device-settings:mkidarray:regulating-temp", newdata);
+                update_multiple_divs({{ updatingkeys | safe}}, newdata)
 
                 update_plot("indexplot", "status:temps:mkidarray:temp", newdata, 0);
                 update_plot("indexplot", "status:temps:lhetank", newdata, 1);

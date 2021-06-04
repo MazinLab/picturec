@@ -2,6 +2,12 @@
 TODO: Make buttons on index page do stuff (actually publish redis commands)
 TODO: Determine EXACTLY which fields need warning signs
 TODO: Fix errors if redis range is empty
+
+# TODO: Clean up plotting/streaming
+# TODO: Condense/make more sensible validation handling
+# TODO: Try to remove hardcoding as best as possible
+
+# TODO: Lightcurve from pixel!
 """
 
 import flask
@@ -87,8 +93,10 @@ def index():
 
     subkeys = [key for key in FIELD_KEYS.keys() if FIELD_KEYS[key]['type'] in ('magnet', 'cycle')]
     rtvkeys = [key for key in subkeys if FIELD_KEYS[key]['field_type'] in ('string')]
+    updatingkeys = [[key, FIELD_KEYS[key]['key']] for key in FIELD_KEYS.keys() if FIELD_KEYS[key]['type'] in ('magnet')]
     return render_template('index.html', form=form, mag=magnetform, cyc=cycleform,
-                           d=d, l=l, c=c, dd=dd, dl=dl, dc=dc, subkeys=subkeys, rtvkeys=rtvkeys)
+                           d=d, l=l, c=c, dd=dd, dl=dl, dc=dc, subkeys=subkeys, rtvkeys=rtvkeys,
+                           updatingkeys=updatingkeys)
 
 
 @app.route('/other_plots', methods=['GET'])
@@ -125,8 +133,9 @@ def settings():
 
     subkeys = [key for key in FIELD_KEYS.keys() if FIELD_KEYS[key]['type'] in ('sim921', 'sim960', 'heatswitch')]
     rtvkeys = [key for key in subkeys if FIELD_KEYS[key]['field_type'] in ('string')]
+    updatingkeys = [[key, FIELD_KEYS[key]['key']] for key in FIELD_KEYS.keys() if FIELD_KEYS[key]['type'] in ('sim921', 'sim960')]
     return render_template('settings.html', title='Settings', hs=hsbutton, forms=forms,
-                           subkeys=subkeys, rtvkeys=rtvkeys)
+                           subkeys=subkeys, rtvkeys=rtvkeys, updatingkeys=updatingkeys)
 
 
 @app.route('/log_viewer', methods=['GET', 'POST'])
