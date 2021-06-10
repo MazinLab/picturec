@@ -62,6 +62,10 @@ CHART_KEYS = {'Device T':'status:temps:mkidarray:temp',
               'Magnet I':'status:device:sim960:current-setpoint',
               'Measured I':'status:highcurrentboard:current'}
 
+RAMP_SLOPE_KEY = 'device-settings:sim960:ramp-rate'
+DERAMP_SLOPE_KEY = 'device-settings:sim960:deramp-rate'
+SOAK_TIME_KEY = 'device-settings:sim960:soak-time'
+SOAK_CURRENT_KEY = 'device-settings:sim960:soak-current'
 
 KEYS = SIM921_KEYS + SIM960_KEYS + LAKESHORE240_KEYS + CURRENTDUINO_KEYS + HEMTTEMP_KEYS + list(COMMAND_DICT.keys())
 
@@ -84,7 +88,7 @@ def index():
     """
     form = FlaskForm()
     if request.method == 'POST':
-        return handle_post(request)
+        return handle_validation(request, submission=True)
 
     d,l,c = initialize_sensors_plot(CHART_KEYS.keys())
     dd, dl, dc = viewdata()
@@ -124,7 +128,7 @@ def settings():
     TODO: Readout settings (when we have a readout)
     """
     if request.method == 'POST':
-        return handle_post(request)
+        return handle_validation(request, submission=True)
 
     sim921form = SIM921SettingForm()
     sim960form = SIM960SettingForm()
@@ -192,7 +196,6 @@ def dashlistener():
     return Response(stream(), mimetype='text/event-stream', content_type='text/event-stream')
 
 
-
 @app.route('/listener', methods=["GET"])
 def listener():
     """
@@ -228,11 +231,13 @@ def journalctl_streamer(service):
     return Response(st(args), mimetype='text/event-stream', content_type='text/event-stream')
 
 
-def handle_post(req):
+def handle_validation(req, submission=False):
     id = req.form.get('id')
-    value = req.form.get('data')
     field_info = FIELD_KEYS[id]
+
     key = field_info['key']
+    value = req.form.get('data')
+
     field_type = field_info['type']
     prefix_cmd = field_info['prefix']
 
@@ -240,88 +245,42 @@ def handle_post(req):
     if field_type in ('sim921', 'sim960', 'heatswitch', 'magnet'):
         try:
             s = SimCommand(key, value)
-            if prefix_cmd:
-                app.logger.debug(f"Sending command:{key} -> {value}")
-                # redis.publish(f"command:{key}", value, store=False)
-            else:
-                app.logger.debug(f"Sending {key} -> {value}")
-                # redis.publish(key, value)
-        except ValueError:
-            pass
-        return _validate_cmd(key, value)
-    elif field_type == 'cycle':
-        if field_info['schedule']:
-            x = parse_schedule_cooldown(value)
-            app.logger.debug(f"{key} -> {value}, {x[0]}")
-            # redis.publish(key, x[0], store=False)
-            return _validate_cmd(key, value, schedule=True)
-        else:
-            app.logger.debug(f"{key} at {time.time()}")
-            # redis.publish(key, f"{time.time()}", store=False)
-            return jsonify({'mag': True, 'key': key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
-    else:
-        app.logger.critical(f"Field type '{field_type}' not implemented!")
-
-
-def handle_validation(req, submission=True):
-    id = req.form.get('id')
-    value = req.form.get('data')
-    field_info = FIELD_KEYS[id]
-    key = field_info['key']
-    field_type = field_info['type']
-    prefix_cmd = field_info['prefix']
-
-    app.logger.info(f"For field {id} (key: {key}), changing value to {value} with {field_type} methods.")
-    if field_type in ('sim921', 'sim960', 'heatswitch', 'magnet'):
-        try:
-            s = SimCommand(key, value)
-            if prefix_cmd:
-                app.logger.debug(f"Sending command:{key} -> {value}")
-                # redis.publish(f"command:{key}", value, store=False)
-            else:
-                app.logger.debug(f"Sending {key} -> {value}")
-                # redis.publish(key, value)
-        except ValueError:
-            pass
-        return _validate_cmd(key, value)
-    elif field_type == 'cycle':
-        if field_info['schedule']:
-            x = parse_schedule_cooldown(value)
-            app.logger.debug(f"{key} -> {value}, {x[0]}")
-            # redis.publish(key, x[0], store=False)
-            return _validate_cmd(key, value, schedule=True)
-        else:
-            app.logger.debug(f"{key} at {time.time()}")
-            # redis.publish(key, f"{time.time()}", store=False)
-            return jsonify({'mag': True, 'key': key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
-    else:
-        app.logger.critical(f"Field type '{field_type}' not implemented!")
-
-
-def _validate_cmd(k, v, schedule=False):
-    """
-    Takes a key (k) and value (v) and determines if it is a legal command. Used by /settings and /main to process
-    submitted data as well as validate_cmd_change for 'real time' command processing.
-
-    If schedule==True -> validate if the 'schedule cooldown' submittable string field is in an allowable format.
-    It looks for both the correct format and if the time is nominally long enough to schedule (~90 minutes in the future)
-    """
-    if not schedule:
-        try:
-            s = SimCommand(k, v)
             is_legal = [True, '\u2713']
+            if submission:
+                if prefix_cmd:
+                    app.logger.debug(f"Sending command:{key} -> {value}")
+                    # redis.publish(f"command:{key}", value, store=False)
+                else:
+                    app.logger.debug(f"Sending {key} -> {value}")
+                    # redis.publish(key, value)
         except ValueError:
             is_legal = [False, '\u2717']
-        return jsonify({'mag':False, 'key': k, 'value': v, 'legal': is_legal})
+        return jsonify({'cycle': False, 'key': key, 'value': value, 'legal': is_legal})
+    elif field_type == 'cycle':
+        if field_info['schedule']:
+            try:
+                x = parse_schedule_cooldown(value)
+                soak_current = float(redis.read(SOAK_CURRENT_KEY))
+                soak_time = float(redis.read(SOAK_TIME_KEY))
+                ramp_rate = float(redis.read(RAMP_SLOPE_KEY))
+                deramp_rate = float(redis.read(DERAMP_SLOPE_KEY))
+                time_to_cool = ((soak_current - 0) / ramp_rate) + soak_time + ((0 - soak_current) / deramp_rate)
+                if submission:
+                    app.logger.debug(f"{key} -> {value}, {x[0]}")
+                    # redis.publish(key, x[0], store=False)
+                if x[2] >= time_to_cool:
+                    return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+                else:
+                    return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
+            except Exception as e:
+                return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
+        else:
+            if submission:
+                app.logger.debug(f"{key} at {time.time()}")
+                # redis.publish(key, f"{time.time()}", store=False)
+            return jsonify({'mag': True, 'key': key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
     else:
-        try:
-            x = parse_schedule_cooldown(v)
-            if x[2] >= (90 * 60):
-                return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
-            else:
-                return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
-        except Exception as e:
-            return jsonify({'mag': True, 'key': 'command:be-cold-at', 'value': v, 'legal': [False, '\u2717']})
+        app.logger.critical(f"Field type '{field_type}' not implemented!")
 
 
 @app.route('/validatecmd', methods=['POST'])
@@ -330,13 +289,7 @@ def validate_cmd_change():
     Flask endpoint which is called from an AJAX request when new data is typed/entered into a submittable field. This
     will then report back if the value is allowed or not and report that to the user accordingly (with a check or X)
     """
-    field_info = FIELD_KEYS[request.form.get('id')]
-    key = field_info['key']
-    value = request.form.get('data')
-    if 'schedule' in field_info.keys() and field_info['schedule']:
-        return _validate_cmd(key, value, schedule=True)
-    else:
-        return _validate_cmd(key, value)
+    return handle_validation(request)
 
 
 def initialize_sensor_plot(title):
@@ -409,19 +362,22 @@ def parse_schedule_cooldown(schedule_time):
         sked_type = 'date'
     else:
         sked_type = 'time'
-
     if sked_type == 'date':
         d = t[0].split('/')
+        print(d, len(d))
         month = int(d[0])
         day = int(d[1])
-        if (len(d[2]) == 2) and (d[2][0:2] != 20):
+        print(month, day)
+        if len(d) == 2:
+            year = now.year
+        elif (len(d[2]) == 2) and (d[2][0:2] != 20):
             year = int('20'+d[2])
         else:
             year = int(d[2])
         tval = t[1].split(":")
         hr = int(tval[0])
         minute = int(tval[1])
-        print(year, month, day)
+        print(f"year: {year}, month: {month}, day: {day}")
     else:
         tval = t[0].split(":")
         hr = int(tval[0])
