@@ -25,6 +25,7 @@
         <div class="col-lg" style="border-style: solid; border-width: 1px">
             <div id="dash" style="margin-left: 2%; margin-top: 2%; margin-right: 2%; margin-bottom: 2%"></div>
         </div>
+
         <div class="col-lg" style="border-style: solid; border-width: 1px">
             <div class="row">
                 <h2 style="text-align: center">Observation Controls</h2>
@@ -41,6 +42,15 @@
                 </div>
                 <div class="column" style="float: left; margin-left: 2%; width: 20%">
                     <button>Take Dark</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg" style="border-style: solid; border-width: 1px">
+            <div id="pixel_lightcurve" style="margin-left: 2%; margin-top: 2%; margin-right: 2%; margin-bottom: 2%"></div>
+            <div class="row">
+                <div id="stopper" class="column" style="float: left; margin-left: 50%; width: 20%">
+                    <button onclick="delete_pixel_lightcurve_trace()">Stop</button>
                 </div>
             </div>
         </div>
@@ -126,6 +136,7 @@
     <script>
         Plotly.react('dash', {{ dd | safe}}, {{ dl | safe }}, {{ dc | safe}})
         Plotly.newPlot('indexplot', {{ d | safe }}, {{ l | safe }}, {{ c | safe}})
+        initialize_lightcurve()
 
         function update_index_page() {
             var source = new EventSource("/listener");
@@ -135,11 +146,11 @@
 
                 update_multiple_divs({{ updatingkeys | safe}}, newdata)
 
-                update_plot("indexplot", "status:temps:mkidarray:temp", newdata, 0);
-                update_plot("indexplot", "status:temps:lhetank", newdata, 1);
-                update_plot("indexplot", "status:temps:ln2tank", newdata, 2);
-                update_plot("indexplot", "status:device:sim960:current-setpoint", newdata, 3);
-                update_plot("indexplot", "status:highcurrentboard:current", newdata, 4);
+                var j;
+                var k = {{ sensorkeys | safe }};
+                for (j=0; j<k.length; j++) {
+                    update_plot("indexplot", k[j], newdata, j);
+                }
 
                 if (newdata['status:magnet:state'] == "off" && newdata['device-settings:sim960:cooldown-scheduled'] == 'no') {
                     document.getElementById("abortcooldown").disabled = true;
@@ -170,12 +181,21 @@
         }
         update_index_page()
 
+        var pixel;
+        var array_update_time;
         function update_array_viewer() {
+            pixel = [-1, -1];
             var source = new EventSource("/dashlistener");
             source.addEventListener("message", function (e) {
                 var newdata = JSON.parse(e.data);
-                // var newdata = e.data;
-                Plotly.react('dash', newdata)
+                var array_data = JSON.parse(newdata['data'])
+                Plotly.react('dash', array_data, {{ dl | safe }})
+                console.log(pixel)
+
+                array_update_time = newdata['time'];
+                if (pixel[0] != -1 && pixel[1] != -1) {
+                    Plotly.extendTraces('pixel_lightcurve', {x:[[array_update_time]], y:[[array_data[0].z[pixel[1]][pixel[0]]]]}, [0])
+                }
             }, false);
             source.addEventListener("open", function (e) {
                 console.log('Connection was opened: ', e);
@@ -188,6 +208,32 @@
 
         register_realtime_validation({{ rtvkeys | safe }})
         register_submitters({{ subkeys | safe }})
+
+        var myPlot = document.getElementById('dash');
+
+        function delete_pixel_lightcurve_trace(){
+            pixel = [-1, -1]
+            Plotly.deleteTraces('pixel_lightcurve', 0);
+            initialize_lightcurve()
+        };
+
+        function initialize_lightcurve(time=0, cts=0, p=[-1,-1]){
+            if (p[0] != -1) {
+                Plotly.newPlot('pixel_lightcurve', [{x:[time], y:[cts], type:'scatter'}], {title:"Pixel ("+p[0]+", "+p[1]+") Light Curve"}, {'responsive': true})
+            }
+            else {
+                Plotly.newPlot('pixel_lightcurve', [{x:[time], y:[cts], type:'scatter'}], {title:"Pixel Light Curve"}, {'responsive': true})
+            }
+
+        };
+
+        myPlot.on('plotly_click', function(data){
+            delete_pixel_lightcurve_trace()
+            console.log("value at ("+data.points[0].x+", "+data.points[0].y+") is "+Number(data.points[0].z).toFixed(2)+" cts/s")
+            pixel = [data.points[0].x, data.points[0].y]
+            initialize_lightcurve(array_update_time, Number(data.points[0].z).toFixed(2), pixel);
+        })
+
     </script>
 
 {% endblock %}

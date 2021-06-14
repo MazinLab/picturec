@@ -91,16 +91,17 @@ def index():
         return handle_validation(request, submission=True)
 
     d,l,c = initialize_sensors_plot(CHART_KEYS.keys())
-    dd, dl, dc = viewdata()
+    dd, dl, dc = view_array_data()
     cycleform = CycleControlForm()
     magnetform = MagnetControlForm()
 
     subkeys = [key for key in FIELD_KEYS.keys() if FIELD_KEYS[key]['type'] in ('magnet', 'cycle')]
     rtvkeys = [key for key in subkeys if FIELD_KEYS[key]['field_type'] in ('string')]
     updatingkeys = [[key, FIELD_KEYS[key]['key']] for key in FIELD_KEYS.keys() if FIELD_KEYS[key]['type'] in ('magnet')]
+
     return render_template('index.html', form=form, mag=magnetform, cyc=cycleform,
                            d=d, l=l, c=c, dd=dd, dl=dl, dc=dc, subkeys=subkeys, rtvkeys=rtvkeys,
-                           updatingkeys=updatingkeys)
+                           updatingkeys=updatingkeys, sensorkeys=list(CHART_KEYS.values()))
 
 
 @app.route('/other_plots', methods=['GET'])
@@ -157,26 +158,12 @@ def test_page():
     Test area for trying out things before implementing them on a page
     """
     tform = TestForm()
+    if request.method == 'POST':
+        print(request.form.get('x'), request.form.get('y'))
     return render_template('test_page.html', title='Test Page', form=tform)
 
 
 # ----------------------------------- Helper Functions Below -----------------------------------
-def viewdata():
-    """
-    Placeholding function to grab a frame from a (hard-coded, previously made) temporal drizzle to display as the
-    'device view' on the homepage of the flask application.
-    """
-    frame_to_use = 100
-    x = DASHDATA[frame_to_use][110:175, 100:165]
-    z = [{'z': x.tolist(), 'type': 'heatmap', 'showscale':False}]
-    plot_layout = {'title': 'Device View'}
-    plot_config = {'responsive': True}
-    d = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
-    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
-    c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
-    return d, l, c
-
-
 @app.route('/dashlistener', methods=["GET"])
 def dashlistener():
     """
@@ -186,12 +173,10 @@ def dashlistener():
     def stream():
         while True:
             time.sleep(.5)
-            x = DASHDATA[100][110:175, 100:165]
-            noise = 25*np.random.randn(65,65)
-            y = x + noise
-            z = [{'z': y.tolist(), 'type': 'heatmap', 'showscale': False}]
-            x = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
-            msg = f"retry:5\ndata: {x}\n\n"
+            d, _, _ = view_array_data()
+            t = time.time()
+            mes = json.dumps({'data':d, 'time':datetime.datetime.fromtimestamp(t).strftime("%H:%M:%S.%f")[:-4]})
+            msg = f"retry:5\ndata: {mes}\n\n"
             yield msg
     return Response(stream(), mimetype='text/event-stream', content_type='text/event-stream')
 
@@ -229,58 +214,6 @@ def journalctl_streamer(service):
                 line = f.stdout.readline()
                 yield f"retry:5\ndata: {line.strip().decode('utf-8')}\n\n"
     return Response(st(args), mimetype='text/event-stream', content_type='text/event-stream')
-
-
-def handle_validation(req, submission=False):
-    id = req.form.get('id')
-    field_info = FIELD_KEYS[id]
-
-    key = field_info['key']
-    value = req.form.get('data')
-
-    field_type = field_info['type']
-    prefix_cmd = field_info['prefix']
-
-    app.logger.info(f"For field {id} (key: {key}), changing value to {value} with {field_type} methods.")
-    if field_type in ('sim921', 'sim960', 'heatswitch', 'magnet'):
-        try:
-            s = SimCommand(key, value)
-            is_legal = [True, '\u2713']
-            if submission:
-                if prefix_cmd:
-                    app.logger.debug(f"Sending command:{key} -> {value}")
-                    # redis.publish(f"command:{key}", value, store=False)
-                else:
-                    app.logger.debug(f"Sending {key} -> {value}")
-                    # redis.publish(key, value)
-        except ValueError:
-            is_legal = [False, '\u2717']
-        return jsonify({'cycle': False, 'key': key, 'value': value, 'legal': is_legal})
-    elif field_type == 'cycle':
-        if field_info['schedule']:
-            try:
-                x = parse_schedule_cooldown(value)
-                soak_current = float(redis.read(SOAK_CURRENT_KEY))
-                soak_time = float(redis.read(SOAK_TIME_KEY))
-                ramp_rate = float(redis.read(RAMP_SLOPE_KEY))
-                deramp_rate = float(redis.read(DERAMP_SLOPE_KEY))
-                time_to_cool = ((soak_current - 0) / ramp_rate) + soak_time + ((0 - soak_current) / deramp_rate)
-                if submission:
-                    app.logger.debug(f"{key} -> {value}, {x[0]}")
-                    # redis.publish(key, x[0], store=False)
-                if x[2] >= time_to_cool:
-                    return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
-                else:
-                    return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
-            except Exception as e:
-                return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
-        else:
-            if submission:
-                app.logger.debug(f"{key} at {time.time()}")
-                # redis.publish(key, f"{time.time()}", store=False)
-            return jsonify({'mag': True, 'key': key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
-    else:
-        app.logger.critical(f"Field type '{field_type}' not implemented!")
 
 
 @app.route('/validatecmd', methods=['POST'])
@@ -346,6 +279,24 @@ def initialize_sensors_plot(titles):
     return d, l, c
 
 
+def view_array_data():
+    """
+    Placeholding function to grab a frame from a (hard-coded, previously made) temporal drizzle to display as the
+    'device view' on the homepage of the flask application.
+    """
+    frame_to_use = 100
+    x = DASHDATA[frame_to_use][110:175, 100:165]
+    noise = 25 * np.random.randn(65, 65)
+    y = x + noise
+    z = [{'z': y.tolist(), 'type': 'heatmap', 'showscale':False}]
+    plot_layout = {'title': 'Array'}
+    plot_config = {'responsive': True}
+    d = json.dumps(z, cls=plotly.utils.PlotlyJSONEncoder)
+    l = json.dumps(plot_layout, cls=plotly.utils.PlotlyJSONEncoder)
+    c = json.dumps(plot_config, cls=plotly.utils.PlotlyJSONEncoder)
+    return d, l, c
+
+
 def parse_schedule_cooldown(schedule_time):
     """
     Takes a string input from the schedule cooldown field and parses it to determine if it is in a proper format to be
@@ -387,6 +338,58 @@ def parse_schedule_cooldown(schedule_time):
     tdelta = (be_cold_at - datetime.datetime.now()).total_seconds()
     ts = be_cold_at.timestamp()
     return ts, be_cold_at, tdelta
+
+
+def handle_validation(req, submission=False):
+    id = req.form.get('id')
+    field_info = FIELD_KEYS[id]
+
+    key = field_info['key']
+    value = req.form.get('data')
+
+    field_type = field_info['type']
+    prefix_cmd = field_info['prefix']
+
+    app.logger.info(f"For field {id} (key: {key}), changing value to {value} with {field_type} methods.")
+    if field_type in ('sim921', 'sim960', 'heatswitch', 'magnet'):
+        try:
+            s = SimCommand(key, value)
+            is_legal = [True, '\u2713']
+            if submission:
+                if prefix_cmd:
+                    app.logger.debug(f"Sending command:{key} -> {value}")
+                    # redis.publish(f"command:{key}", value, store=False)
+                else:
+                    app.logger.debug(f"Sending {key} -> {value}")
+                    # redis.publish(key, value)
+        except ValueError:
+            is_legal = [False, '\u2717']
+        return jsonify({'cycle': False, 'key': key, 'value': value, 'legal': is_legal})
+    elif field_type == 'cycle':
+        if field_info['schedule']:
+            try:
+                x = parse_schedule_cooldown(value)
+                soak_current = float(redis.read(SOAK_CURRENT_KEY))
+                soak_time = float(redis.read(SOAK_TIME_KEY))
+                ramp_rate = float(redis.read(RAMP_SLOPE_KEY))
+                deramp_rate = float(redis.read(DERAMP_SLOPE_KEY))
+                time_to_cool = ((soak_current - 0) / ramp_rate) + soak_time + ((0 - soak_current) / deramp_rate)
+                if submission:
+                    app.logger.debug(f"{key} -> {value}, {x[0]}")
+                    # redis.publish(key, x[0], store=False)
+                if x[2] >= time_to_cool:
+                    return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+                else:
+                    return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': datetime.datetime.strftime(x[1], "%m/%d/%y %H:%M:%S"), 'legal': [False, '\u2717']})
+            except Exception as e:
+                return jsonify({'cycle': True, 'key': 'command:be-cold-at', 'value': value, 'legal': [False, '\u2717']})
+        else:
+            if submission:
+                app.logger.debug(f"{key} at {time.time()}")
+                # redis.publish(key, f"{time.time()}", store=False)
+            return jsonify({'mag': True, 'key': key, 'value': time.strftime("%m/%d/%y %H:%M:%S"), 'legal': [True, '\u2713']})
+    else:
+        app.logger.critical(f"Field type '{field_type}' not implemented!")
 
 
 if __name__ == "__main__":
